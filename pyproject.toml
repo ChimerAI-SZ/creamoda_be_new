@@ -6,21 +6,34 @@ authors = [
     { name = "Mark Sun", email = "sunyunfei201@gmail.com" },
 ]
 dependencies = [
+    "greenlet==3.1.1",
+    "inflect==7.5.0",
+    "more-itertools==10.6.0",
+    "typeguard==4.4.2",
+    "typing_extensions==4.12.2",
     "fastapi==0.110.0",
     "uvicorn==0.27.1",
-    "python-dotenv==1.0.1",
     "httpx==0.27.0",
     "python-jose[cryptography]==3.3.0",
     "pydantic[email]==2.6.1",
     "pydantic-settings==2.1.0",
     "idna==3.6",
     "certifi==2024.2.2",
+    "sqlalchemy==2.0.27",
+    "pymysql==1.1.0",
+    "PyYAML==6.0.1",
+    "python-dotenv==1.0.1",
+    "cryptography==42.0.5",
+    "bcrypt==4.1.2",
+    "passlib==1.7.4",
+    "python-multipart==0.0.9",
     "requests>=2.32.3",
+    "loguru>=0.7.3",
+    "gunicorn>=23.0.0",
 ]
 requires-python = "==3.11.*"
 readme = "README.md"
 license = { text = "MIT" }
-
 
 [tool.pdm]
 distribution = false
