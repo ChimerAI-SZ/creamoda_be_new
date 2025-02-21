@@ -1,7 +1,8 @@
-import yaml
 from functools import lru_cache
-from typing import Optional
+
+import yaml
 from pydantic import BaseModel
+
 
 class DatabaseSettings(BaseModel):
     host: str
@@ -15,20 +16,29 @@ class GoogleOAuth2Settings(BaseModel):
     client_secret: str
     redirect_uri: str
 
+
 class SecuritySettings(BaseModel):
     jwt_secret_key: str
     jwt_algorithm: str
     access_token_expire_minutes: int
 
+
 class APISettings(BaseModel):
     v1_str: str
     project_name: str
+
+
+class AlgorithmSettings(BaseModel):
+    thenewblack_email: str
+    thenewblack_password: str
+
 
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
     security: SecuritySettings
     database: DatabaseSettings
+    algorithm: AlgorithmSettings
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

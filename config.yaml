@@ -17,4 +17,8 @@ database:
   port: 3306
   user: "new_creamoda"
   password: "new_creamoda_test2024"
-  name: "new_creamoda_test" 
+  name: "new_creamoda_test"
+
+algorithm:
+  thenewblack_email: "no-reply@chimerai.tech"
+  thenewblack_password: "!W5gwscU6duZ3DE"

@@ -1,7 +1,8 @@
-import os
 from enum import Enum
 
 import requests
+
+from src.config.config import settings
 
 
 class Gender(Enum):
@@ -24,12 +25,11 @@ class TheNewBlackAPI:
         :param email: User's email address
         :param password: User's password
         """
-        self.email = email
-        self.password = password
+        self.email = email or settings.algorithm.thenewblack_email
+        self.password = password or settings.algorithm.thenewblack_password
         self.base_url = "https://thenewblack.ai/api/1.1/wf"
         self.session = requests.Session()
-        self.session.auth = (
-            self.email or os.environ["THENEWBLACK_EMAIL"], self.password or os.environ["THENEWBLACK_EMAIL"])
+        self.session.auth = (self.email, self.password)
 
     def create_clothing(self, outfit: str, gender: Gender, country: str, age: int, width: int, height: int,
                         body_type: BodyType = BodyType.MID_SIZE, background: str = None, negative: str = None) -> str:
