@@ -1,0 +1,20 @@
+api:
+  v1_str: "/api/v1"
+  project_name: "Creamoda BE"
+
+google_oauth2:
+  client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
+  client_secret: "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"
+  redirect_uri: "https://google.creamoda.ai/api/v1/auth/callback"
+
+security:
+  jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
+  jwt_algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+database:
+  host: "rm-2ev1h3g9294sr1vjopo.mysql.rds.aliyuncs.com"
+  port: 3306
+  user: "new_creamoda"
+  password: "new_creamoda_test2024"
+  name: "new_creamoda_test" 
