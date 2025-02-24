@@ -1,7 +1,7 @@
-from sqlalchemy import BigInteger, Column, Index, Integer, String, TIMESTAMP, Text, text
+from sqlalchemy import (TIMESTAMP, BigInteger, Index, Integer, String, Text,
+                        text)
 from sqlalchemy.dialects.mysql import TINYINT
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column
-from sqlalchemy.orm.base import Mapped
+from sqlalchemy.orm import declarative_base, mapped_column
 
 Base = declarative_base()
 
@@ -103,6 +103,7 @@ class UserInfo(Base):
     uid = mapped_column(BigInteger, comment='用户id')
     username = mapped_column(String(100))
     pwd = mapped_column(String(200))
+    salt = mapped_column(String(100))
     head_pic = mapped_column(String(200))
     google_sub_id = mapped_column(String(200), comment='google 用户唯一标识')
     google_access_token = mapped_column(String(500), comment='google access token')

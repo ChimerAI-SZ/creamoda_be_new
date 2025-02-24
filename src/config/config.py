@@ -1,7 +1,8 @@
-import yaml
 from functools import lru_cache
-from typing import Optional
+
+import yaml
 from pydantic import BaseModel
+
 
 class DatabaseSettings(BaseModel):
     host: str
@@ -24,11 +25,27 @@ class APISettings(BaseModel):
     v1_str: str
     project_name: str
 
+class RedisSettings(BaseModel):
+    host: str
+    port: int
+    password: str = ""
+    db: int = 0
+
+class SMTPSettings(BaseModel):
+    host: str
+    port: int
+    username: str
+    password: str
+    from_name: str
+    use_tls: bool = True
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
     security: SecuritySettings
     database: DatabaseSettings
+    redis: RedisSettings
+    smtp: SMTPSettings
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

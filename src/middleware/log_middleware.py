@@ -1,6 +1,8 @@
+import time
+
 from fastapi import Request
 from src.config.log_config import logger
-import time
+
 
 async def log_middleware(request: Request, call_next):
     """记录每个 HTTP 请求的日志"""

@@ -10,11 +10,33 @@ google_oauth2:
 security:
   jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
   jwt_algorithm: "HS256"
-  access_token_expire_minutes: 30
+  access_token_expire_minutes: 10080
 
 database:
-  host: "rm-2ev1h3g9294sr1vjopo.mysql.rds.aliyuncs.com"
+  host: "10.26.6.189"
   port: 3306
-  user: "new_creamoda"
-  password: "new_creamoda_test2024"
-  name: "new_creamoda_test" 
+  user: "sribd"
+  password: "sribd2023#"
+  name: "chimer"
+  # host: "rm-2ev1h3g9294sr1vjopo.mysql.rds.aliyuncs.com"
+  # port: 3306
+  # user: "new_creamoda"
+  # password: "new_creamoda_test2024"
+  # name: "new_creamoda_test"
+
+redis:
+  host: "10.26.6.189"
+  port: 6379
+  password: "cspg2022"
+  db: 1
+  # host: "r-2evuw58o1ka6g8k5bppd.redis.rds.aliyuncs.com"
+  # port: 6379
+  # password: "Creamoda@2024"
+  # db: 1
+
+smtp:
+  host: "smtp.feishu.cn"
+  port: 465
+  username: "no-reply@creamoda.ai"
+  password: "WaEFPjn8uNOSiz7f"
+  from_name: "creamoda" 

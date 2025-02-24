@@ -1,0 +1,12 @@
+from typing import Any, Dict, Optional
+
+from .base import CustomException
+
+
+class ValidationError(CustomException):
+    def __init__(self, message: str = "Validation error", data: Optional[Dict[str, Any]] = None):
+        super().__init__(code=400, message=message, data=data)
+
+class AuthenticationError(CustomException):
+    def __init__(self, message: str = "Authentication failed", data: Optional[Dict[str, Any]] = None):
+        super().__init__(code=401, message=message, data=data) 

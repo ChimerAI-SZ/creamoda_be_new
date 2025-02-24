@@ -1,0 +1,1923 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "creamoda",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/host/api/v1/auth/google": {
+      "get": {
+        "summary": "获取跳转链接",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "auth_url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "auth_url"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/auth/callback": {
+      "get": {
+        "summary": "登陆回调接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "google code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/user/login": {
+      "post": {
+        "summary": "用户登陆接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "pwd": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "pwd"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "authorization": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "authorization"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "1": {
+                    "summary": "成功示例",
+                    "value": {
+                      "code": 0,
+                      "msg": "string",
+                      "data": {
+                        "authorization": "Bear......"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/user/register": {
+      "post": {
+        "summary": "注册接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "pwd": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "pwd"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "01JMDXPX95RTRSYGQP304JN3TX"
+                  ]
+                },
+                "examples": {
+                  "1": {
+                    "summary": "成功示例",
+                    "value": {
+                      "code": 0,
+                      "msg": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/user/info": {
+      "get": {
+        "summary": "查询用户信息接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "名称"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "username": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "headPic": {
+                          "type": "string"
+                        },
+                        "emailVerified": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "username",
+                        "email",
+                        "status",
+                        "headPic",
+                        "emailVerified"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "name",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/user/email/verify": {
+      "post": {
+        "summary": "验证用户邮箱接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "verifyCode": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "verifyCode"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "01JMDYCP2PT9PDXQP93WF7PVA7"
+                  ]
+                },
+                "examples": {
+                  "1": {
+                    "summary": "成功示例",
+                    "value": {
+                      "code": 0,
+                      "msg": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/user/logout": {
+      "post": {
+        "summary": "登出接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/txt_generate": {
+      "post": {
+        "summary": "文生图接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "title": "提示词"
+                  },
+                  "withHumanModel": {
+                    "type": "integer",
+                    "title": "使用人类模特",
+                    "description": "1-使用 0-不使用"
+                  },
+                  "gender": {
+                    "type": "integer",
+                    "description": " 1-男 2-女",
+                    "title": "模特性别"
+                  },
+                  "age": {
+                    "type": "integer",
+                    "title": "年龄"
+                  },
+                  "country": {
+                    "type": "string",
+                    "title": "国家code"
+                  },
+                  "modelSize": {
+                    "type": "integer",
+                    "title": "模特身材code"
+                  }
+                },
+                "required": [
+                  "prompt",
+                  "withHumanModel",
+                  "gender",
+                  "age",
+                  "country",
+                  "modelSize"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/copy_style_generate": {
+      "post": {
+        "summary": "洗图接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "originalPicUrl": {
+                    "type": "string",
+                    "title": "原始图片链接",
+                    "description": "图转图 或细节修改传递"
+                  },
+                  "fidelity": {
+                    "type": "number",
+                    "description": "仅洗图填写",
+                    "title": "保真度"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "title": "提示词"
+                  }
+                },
+                "required": [
+                  "originalPicUrl",
+                  "fidelity",
+                  "prompt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/change_clothes_generate": {
+      "post": {
+        "summary": "品类转换生图接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "originalPicUrl": {
+                    "type": "string",
+                    "title": "原始图片链接",
+                    "description": "图转图 或细节修改传递"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "title": "提示词"
+                  }
+                },
+                "required": [
+                  "originalPicUrl",
+                  "prompt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/generate": {
+      "post": {
+        "summary": "生图接口 (废弃)",
+        "deprecated": true,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "integer",
+                    "title": "生图类型",
+                    "description": "1-文生图 2-图转图 3-细节微调"
+                  },
+                  "originalPicUrl": {
+                    "type": "string",
+                    "title": "原始图片链接",
+                    "description": "图转图 或细节修改传递"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "title": "提示词"
+                  },
+                  "variationType": {
+                    "type": "integer",
+                    "title": "变化类型",
+                    "description": "1-change elements 2-copy styles 3-mix images 4-change clothes"
+                  },
+                  "palettes": {
+                    "type": "string",
+                    "title": "颜色"
+                  },
+                  "pattern": {
+                    "type": "string",
+                    "title": "装饰图案"
+                  },
+                  "prints": {
+                    "type": "string",
+                    "title": "花纹"
+                  },
+                  "sewingTechniques": {
+                    "type": "string",
+                    "title": "缝纫技术"
+                  },
+                  "fabric": {
+                    "type": "string",
+                    "title": "织物"
+                  },
+                  "withHumanModel": {
+                    "type": "integer",
+                    "title": "使用人类模特",
+                    "description": "1-使用 0-不使用"
+                  },
+                  "gender": {
+                    "type": "integer",
+                    "description": " 1-男 2-女",
+                    "title": "模特性别"
+                  },
+                  "age": {
+                    "type": "integer",
+                    "title": "年龄"
+                  },
+                  "country": {
+                    "type": "integer",
+                    "title": "国家code"
+                  },
+                  "modelSize": {
+                    "type": "integer",
+                    "title": "模特身材code"
+                  },
+                  "fidelity": {
+                    "type": "number",
+                    "description": "仅洗图填写",
+                    "title": "保真度"
+                  },
+                  "mixPic": {
+                    "type": "string",
+                    "title": "混合图片链接",
+                    "description": "仅mix images填写"
+                  },
+                  "fusion": {
+                    "type": "number",
+                    "description": "仅风格融合填写",
+                    "title": "融合比例"
+                  },
+                  "changeClothesCatPic": {
+                    "type": "string",
+                    "title": "品类转换图片链接",
+                    "description": "仅品类转换填写"
+                  },
+                  "fineTuningMaskPic": {
+                    "type": "string",
+                    "title": "细节微调mask图链接",
+                    "description": "仅细节微调填写"
+                  },
+                  "tuningPromptReplace": {
+                    "type": "string",
+                    "title": "细节微调replace",
+                    "description": "仅细节微调填写"
+                  },
+                  "tuningPromptRemove": {
+                    "type": "string",
+                    "title": "细节微调remove",
+                    "description": "仅细节微调填写"
+                  },
+                  "logoPic": {
+                    "type": "string",
+                    "title": "logo图片链接",
+                    "description": "仅细节微调填写"
+                  },
+                  "tuningFrom": {
+                    "type": "integer",
+                    "title": "微调原始图片id",
+                    "description": "仅细节微调填写"
+                  }
+                },
+                "required": [
+                  "type",
+                  "originalPicUrl",
+                  "prompt",
+                  "variationType",
+                  "palettes",
+                  "pattern",
+                  "prints",
+                  "sewingTechniques",
+                  "fabric",
+                  "withHumanModel",
+                  "gender",
+                  "age",
+                  "country",
+                  "modelSize",
+                  "fidelity",
+                  "mixPic",
+                  "fusion",
+                  "changeClothesCatPic",
+                  "fineTuningMaskPic",
+                  "tuningPromptReplace",
+                  "tuningPromptRemove",
+                  "logoPic",
+                  "tuningFrom"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/generate/list": {
+      "get": {
+        "summary": "查询图片生成记录列表接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码，从1开始",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "页大小",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "genImgId": {
+                                "type": "integer",
+                                "title": "生成图片id"
+                              },
+                              "genId": {
+                                "type": "integer",
+                                "title": "生成记录id"
+                              },
+                              "type": {
+                                "type": "integer",
+                                "description": "1-文生图 2-图转图 3-细节微调",
+                                "title": "生图类型"
+                              },
+                              "status": {
+                                "type": "integer",
+                                "title": "生成图片状态",
+                                "description": "1-待生成 2-生成中 3-已生成"
+                              },
+                              "style": {
+                                "type": "string",
+                                "title": "风格"
+                              },
+                              "resultPic": {
+                                "type": "string",
+                                "title": "生成图片链接"
+                              },
+                              "createTime": {
+                                "type": "string",
+                                "title": "生成创建时间"
+                              },
+                              "palettes": {
+                                "type": "string"
+                              },
+                              "pattern": {
+                                "type": "string"
+                              },
+                              "prints": {
+                                "type": "string"
+                              },
+                              "sewingTechniques": {
+                                "type": "string"
+                              },
+                              "fabric": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "genImgId",
+                              "status",
+                              "style",
+                              "genId",
+                              "resultPic",
+                              "createTime",
+                              "palettes",
+                              "pattern",
+                              "prints",
+                              "sewingTechniques",
+                              "fabric",
+                              "type"
+                            ]
+                          },
+                          "title": "记录列表"
+                        },
+                        "total": {
+                          "type": "string",
+                          "title": "记录总数"
+                        }
+                      },
+                      "required": [
+                        "list",
+                        "total"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/generate/refresh_status": {
+      "get": {
+        "summary": "刷新图片生成状态接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "genImgIdList",
+            "in": "query",
+            "description": "生成图片id列表",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "genImgId": {
+                                "type": "integer",
+                                "title": "生成图片id"
+                              },
+                              "genId": {
+                                "type": "integer",
+                                "title": "生成记录id"
+                              },
+                              "type": {
+                                "type": "integer",
+                                "description": "1-文生图 2-图转图 3-细节微调",
+                                "title": "生图类型"
+                              },
+                              "status": {
+                                "type": "integer",
+                                "title": "生成图片状态",
+                                "description": "1-待生成 2-生成中 3-已生成"
+                              },
+                              "remainingGenerationTime": {
+                                "type": "integer",
+                                "title": "剩余生成时间（秒）"
+                              },
+                              "style": {
+                                "type": "string",
+                                "title": "风格"
+                              },
+                              "resultPic": {
+                                "type": "string",
+                                "title": "生成图片链接"
+                              },
+                              "createTime": {
+                                "type": "string",
+                                "title": "生成创建时间"
+                              },
+                              "palettes": {
+                                "type": "string"
+                              },
+                              "pattern": {
+                                "type": "string"
+                              },
+                              "prints": {
+                                "type": "string"
+                              },
+                              "sewingTechniques": {
+                                "type": "string"
+                              },
+                              "fabric": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "genImgId",
+                              "status",
+                              "style",
+                              "genId",
+                              "resultPic",
+                              "createTime",
+                              "palettes",
+                              "pattern",
+                              "prints",
+                              "sewingTechniques",
+                              "fabric",
+                              "type",
+                              "remainingGenerationTime"
+                            ]
+                          },
+                          "title": "记录列表"
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/generate/info": {
+      "get": {
+        "summary": "查询图片生成信息接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "genImgId",
+            "in": "query",
+            "description": "生成图片id",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "integer",
+                          "title": "生图类型",
+                          "description": "1-文生图 2-图转图 3-细节微调"
+                        },
+                        "status": {
+                          "type": "integer",
+                          "title": "生成图片状态",
+                          "description": "1-待生成 2-生成中 3-已生成"
+                        },
+                        "remainingGenerationTime": {
+                          "type": "integer",
+                          "title": "剩余生成时间（秒）"
+                        },
+                        "style": {
+                          "type": "string",
+                          "title": "风格"
+                        },
+                        "resultPic": {
+                          "type": "string",
+                          "title": "生成图片链接"
+                        },
+                        "createTime": {
+                          "type": "string",
+                          "title": "生成创建时间"
+                        },
+                        "prompt": {
+                          "type": "string",
+                          "title": "提示词"
+                        },
+                        "variationType": {
+                          "type": "integer",
+                          "description": "1-change elements 2-copy styles 3-mix images 4-change clothes",
+                          "title": "变化类型"
+                        },
+                        "palettes": {
+                          "type": "string",
+                          "title": "颜色"
+                        },
+                        "pattern": {
+                          "type": "string",
+                          "title": "装饰图案"
+                        },
+                        "prints": {
+                          "type": "string",
+                          "title": "花纹"
+                        },
+                        "sewingTechniques": {
+                          "type": "string",
+                          "title": "缝纫技术"
+                        },
+                        "fabric": {
+                          "type": "string",
+                          "title": "织物"
+                        },
+                        "withHumanModel": {
+                          "type": "integer",
+                          "title": "使用人类模特",
+                          "description": "1-使用 0-不使用"
+                        },
+                        "gender": {
+                          "type": "integer"
+                        },
+                        "age": {
+                          "type": "integer"
+                        },
+                        "country": {
+                          "type": "integer"
+                        },
+                        "modelSize": {
+                          "type": "integer"
+                        },
+                        "fidelity": {
+                          "type": "number"
+                        },
+                        "mixPic": {
+                          "type": "string"
+                        },
+                        "fusion": {
+                          "type": "number"
+                        },
+                        "changeClothesCatPic": {
+                          "type": "string"
+                        },
+                        "fineTuningMaskPic": {
+                          "type": "string"
+                        },
+                        "tuningPromptReplace": {
+                          "type": "string"
+                        },
+                        "tuningPromptRemove": {
+                          "type": "string"
+                        },
+                        "logoPic": {
+                          "type": "string"
+                        },
+                        "tuningFrom": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "status",
+                        "remainingGenerationTime",
+                        "style",
+                        "resultPic",
+                        "createTime",
+                        "prompt",
+                        "variationType",
+                        "palettes",
+                        "pattern",
+                        "prints",
+                        "sewingTechniques",
+                        "fabric",
+                        "withHumanModel",
+                        "changeClothesCatPic",
+                        "gender",
+                        "fusion",
+                        "mixPic",
+                        "fidelity",
+                        "modelSize",
+                        "age",
+                        "country",
+                        "tuningFrom",
+                        "logoPic",
+                        "tuningPromptRemove",
+                        "tuningPromptReplace",
+                        "fineTuningMaskPic"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/img/pick": {
+      "get": {
+        "summary": "获取图片颜色信息接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "picUrl",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "colors": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "colors"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/contact": {
+      "post": {
+        "summary": "联系我们接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contactEmail": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "integer",
+                    "title": "来源场景"
+                  },
+                  "genImgId": {
+                    "type": "integer",
+                    "title": "生成图片id"
+                  }
+                },
+                "required": [
+                  "contactEmail",
+                  "source",
+                  "genImgId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/prints/list": {
+      "get": {
+        "summary": "获取prints枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name",
+                              "url"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/color/list": {
+      "get": {
+        "summary": "获取color枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/pattern/list": {
+      "get": {
+        "summary": "获取pattern枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/sewingTechniques/list": {
+      "get": {
+        "summary": "获取sewingTechniques枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/fabric/list": {
+      "get": {
+        "summary": "获取fabric枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/model_size/list": {
+      "get": {
+        "summary": "获取modelSize枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/variation_type/list": {
+      "get": {
+        "summary": "获取variationType枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/img/upload": {
+      "post": {
+        "summary": "图片上传接口",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string",
+                    "example": ""
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/host/api/v1/common/country/list": {
+      "get": {
+        "summary": "获取国家枚举列表",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "list"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}

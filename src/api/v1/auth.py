@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status
 import httpx
+from fastapi import APIRouter, HTTPException, status
 from src.config.config import settings
-from ...core.security import create_access_token
+
 from ...dto.token import Token
-from ...dto.user_info import  UserInfo
+from ...dto.user_info import UserInfo
+from ...utils.security import create_access_token
 
 router = APIRouter()
 
