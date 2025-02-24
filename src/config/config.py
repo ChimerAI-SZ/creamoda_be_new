@@ -16,10 +16,12 @@ class GoogleOAuth2Settings(BaseModel):
     client_secret: str
     redirect_uri: str
 
+
 class SecuritySettings(BaseModel):
     jwt_secret_key: str
     jwt_algorithm: str
     access_token_expire_minutes: int
+
 
 class APISettings(BaseModel):
     v1_str: str
@@ -39,6 +41,10 @@ class SMTPSettings(BaseModel):
     from_name: str
     use_tls: bool = True
 
+class AlgorithmSettings(BaseModel):
+    thenewblack_email: str
+    thenewblack_password: str
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
@@ -46,6 +52,7 @@ class Settings(BaseModel):
     database: DatabaseSettings
     redis: RedisSettings
     smtp: SMTPSettings
+    algorithm: AlgorithmSettings
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
