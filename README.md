@@ -1,28 +1,32 @@
-myapp/
-├── app/
-│   ├── __init__.py
-│   ├── api/                    # API路由模块
-│   │   ├── __init__.py
-│   │   ├── v1/                # API版本1
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py        # 认证相关路由
-│   │   │   └── items.py       # 商品相关路由
-│   │   └── deps.py            # 依赖注入
-│   ├── core/                   # 核心配置
-│   │   ├── __init__.py
-│   │   ├── config.py          # 配置类
-│   │   └── security.py        # 安全相关
-│   ├── db/                     # 数据库
-│   │   ├── __init__.py
-│   │   └── session.py         # 数据库会话
-│   ├── models/                 # 数据库模型
-│   │   ├── __init__.py
-│   │   └── item.py            # 商品模型
-│   └── schemas/               # Pydantic模型
-│       ├── __init__.py
-│       └── user.py            # 用户schema
-├── tests/                     # 测试文件
-├── .env                       # 环境变量
-├── .gitignore
-├── requirements.txt           # 项目依赖
-└── main.py                    # 应用入口 
+# Creamoda Backend
+
+基于 FastAPI 的 Creamoda 后端服务。
+
+## 开发指南
+
+1. 数据库模型生成
+2. 运行测试
+
+## 环境要求
+
+- Python 3.8+
+- MySQL 5.7+
+- Redis 6.0+
+
+## 配置说明
+
+主要配置项（config.yaml）：
+- API 配置
+- 数据库配置
+- Redis 配置
+- SMTP 配置
+- JWT 配置
+- Google OAuth2 配置
+
+## 部署
+
+1. 生产环境配置
+- 修改 config.yaml 中的生产环境配置
+- 确保所有敏感信息使用环境变量或安全存储
+
+2. 使用 uvicorn 运行
