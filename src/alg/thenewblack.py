@@ -89,9 +89,9 @@ class TheNewBlackAPI:
         except requests.exceptions.RequestException as e:
             logger.error(f"Error calling TheNewBlack API: {str(e)}")
             raise
-        # finally:
-        #     elapsed_time = time.time() - start_time  # 计算请求用时
-        #     logger.info(f"TheNewBlack create_clothing API request took {elapsed_time:.2f} seconds")
+        finally:
+            elapsed_time = time.time() - start_time  # 计算请求用时
+            logger.info(f"TheNewBlack create_clothing API request took {elapsed_time:.2f} seconds")
 
     def get_credit_balance(self) -> int:
         """
