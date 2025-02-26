@@ -45,6 +45,15 @@ class AlgorithmSettings(BaseModel):
     thenewblack_email: str
     thenewblack_password: str
 
+class JobDefaults(BaseModel):
+    coalesce: bool = True
+    max_instances: int = 1
+    misfire_grace_time: int = 60
+
+class SchedulerSettings(BaseModel):
+    jobstores: dict = {"default": "redis"}
+    job_defaults: JobDefaults
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
@@ -53,6 +62,7 @@ class Settings(BaseModel):
     redis: RedisSettings
     smtp: SMTPSettings
     algorithm: AlgorithmSettings
+    scheduler: SchedulerSettings
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

@@ -1,9 +1,10 @@
 [project]
 name = "creamoda_be"
 version = "0.1.0"
-description = "🧑‍💻 Python FastAPI backend for CERAMODA 👗"
+description = "Default template for PDM package"
 authors = [
     { name = "Mark Sun", email = "sunyunfei201@gmail.com" },
+    {name = "ruidi.liu", email = "liuruidi@sribd.com"},
 ]
 dependencies = [
     "greenlet==3.1.1",
@@ -20,7 +21,7 @@ dependencies = [
     "idna==3.6",
     "certifi==2024.2.2",
     "sqlalchemy==2.0.27",
-    "pymysql==1.1.0",
+    "pymysql>=1.1.1",
     "PyYAML==6.0.1",
     "python-dotenv==1.0.1",
     "cryptography==42.0.5",
@@ -30,6 +31,10 @@ dependencies = [
     "requests>=2.32.3",
     "loguru>=0.7.3",
     "gunicorn>=23.0.0",
+    "PyJWT>=2.10.1",
+    "redis>=5.2.1",
+    "APScheduler>=3.11.0",
+    "sqlacodegen-v2>=0.1.4",
 ]
 requires-python = "==3.11.*"
 readme = "README.md"

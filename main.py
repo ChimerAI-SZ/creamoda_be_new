@@ -1,10 +1,13 @@
 from fastapi import FastAPI
-from src.api.v1 import auth, user
+from src.api.v1 import auth, user, img
 from src.config.config import settings
 from src.config.log_config import logger
 from src.middleware.exception_handler import exception_handler
 from src.middleware.log_middleware import log_middleware
 from src.middleware.auth_middleware import AuthMiddleware
+from src.middleware.api_exception_middleware import api_exception_middleware
+from src.core.scheduler import scheduler
+from src.tasks.img_generation_task import img_generation_compensate_task
 
 app = FastAPI(
     title=settings.api.project_name,
@@ -13,6 +16,7 @@ app = FastAPI(
 logger.info("FastAPI 应用已启动")
 
 # 添加中间件
+app.middleware("http")(api_exception_middleware)
 app.middleware("http")(log_middleware)
 
 # 添加异常处理器
@@ -39,6 +43,36 @@ app.include_router(
     prefix=f"{settings.api.v1_str}/user",
     tags=["user"]
 )
+
+# 添加图像路由
+app.include_router(
+    img.router,
+    prefix=f"{settings.api.v1_str}/img",
+    tags=["image"]
+)
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时的初始化操作"""
+    
+    # 添加图像生成补偿定时任务
+    scheduler.add_job(
+        img_generation_compensate_task,
+        'interval',
+        seconds=30,  # 每30秒执行一次
+        id='img_generation_compensate_task',  # 任务唯一标识
+        replace_existing=True  # 如果任务已存在则替换
+    )
+    
+    # 启动调度器
+    scheduler.start()
+    logger.info("APScheduler started")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时的清理操作"""
+    scheduler.shutdown()
+    logger.info("APScheduler shutdown")
 
 if __name__ == "__main__":
     import uvicorn

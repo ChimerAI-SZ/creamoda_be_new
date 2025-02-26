@@ -40,3 +40,15 @@ smtp:
   username: "no-reply@creamoda.ai"
   password: "WaEFPjn8uNOSiz7f"
   from_name: "creamoda" 
+
+algorithm:
+  thenewblack_email: "no-reply@chimerai.tech"
+  thenewblack_password: "!W5gwscU6duZ3DE"
+
+scheduler:
+  jobstores:
+    default: redis
+  job_defaults:
+    coalesce: true      # 堆积的任务只跑一次
+    max_instances: 1    # 同一个任务同时只能有一个实例
+    misfire_grace_time: 60  # 任务错过执行时间的容错范围(秒)

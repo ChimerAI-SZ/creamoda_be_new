@@ -23,6 +23,7 @@ from src.utils.verification import generate_verification_code
 from src.validators.user import UserValidator
 from src.core.context import get_current_user_context
 from src.dto.common import CommonResponse
+import asyncio
 
 router = APIRouter()
 
@@ -79,10 +80,10 @@ async def register(
                 str(new_user.id)
             )
             
-            # 发送验证邮件
-            if not email_sender.send_verification_email(request.email, verification_code, new_user.id):
-                logger.error(f"Failed to send verification email to {request.email}")
-                # 这里选择继续执行，不回滚注册
+            # 异步发送验证邮件
+            asyncio.create_task(
+                email_sender.send_verification_email_async(request.email, verification_code, new_user.id)
+            )
             
         except Exception as e:
             db.rollback()

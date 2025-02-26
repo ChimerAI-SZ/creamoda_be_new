@@ -1,5 +1,6 @@
 import smtplib
 import ssl
+import asyncio
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -71,8 +72,16 @@ class EmailSender:
                     msg.as_string()
                 )
                 
-            logger.info(f"Email sent successfully to {to_addresses}")
-            return True
+                # 增加详细日志
+                logger.info(
+                    "Email sent successfully. Details: \n"
+                    f"To: {to_addresses}\n"
+                    f"Subject: {subject}\n"
+                    f"CC: {cc_addresses or 'None'}\n"
+                    f"BCC: {bcc_addresses or 'None'}\n"
+                    f"Content: {body[:500]}{'...' if len(body) > 500 else ''}"  # 记录前500个字符
+                )
+                return True
 
         except smtplib.SMTPConnectError as e:
             logger.error(f"Failed to connect to SMTP server: {str(e)}")
@@ -84,7 +93,12 @@ class EmailSender:
             logger.error(f"SMTP error occurred: {str(e)}")
             return False
         except Exception as e:
-            logger.error(f"Failed to send email: {str(e)}")
+            # 记录失败详情
+            logger.error(
+                f"Failed to send email. Error: {str(e)}\n"
+                f"To: {to_addresses}\n"
+                f"Subject: {subject}"
+            )
             return False
 
     def send_verification_email(self, to_address: str, verification_code: str, user_id: int) -> bool:
@@ -109,6 +123,38 @@ class EmailSender:
         </html>
         """
         return self.send_email([to_address], subject, body)
+
+    async def send_email_async(
+        self,
+        to_addresses: List[str],
+        subject: str,
+        body: str,
+        html: bool = True,
+        cc_addresses: Optional[List[str]] = None,
+        bcc_addresses: Optional[List[str]] = None
+    ) -> bool:
+        """异步发送邮件"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, 
+            lambda: self.send_email(to_addresses, subject, body, html, cc_addresses, bcc_addresses)
+        )
+
+    async def send_verification_email_async(self, to_address: str, verification_code: str, user_id: int) -> bool:
+        """异步发送验证码邮件"""
+        verification_url = f"https://www.creamoda.ai/verify-email?code={verification_code}"
+        subject = "Verify Your Email Address"
+        body = f"""
+        <html>
+            <body>
+                <h2>Welcome to Creamoda!</h2>
+                <p>Please click the link below to verify your email address:</p>
+                <p><a href="{verification_url}">{verification_url}</a></p>
+                <p>This link will expire in 24 hours.</p>
+                <p>If you didn't create an account with us, please ignore this email.</p>
+            </body>
+        </html>
+        """
+        return await self.send_email_async([to_address], subject, body)
 
 
 # 创建全局邮件发送器实例
