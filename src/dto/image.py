@@ -31,4 +31,66 @@ class ChangeClothesRequest(BaseModel):
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
     
 class ChangeClothesResponse(CommonResponse[ImageGenerationData]):
+    pass
+
+class GetImageHistoryRequest(BaseModel):
+    pageNum: int = Field(1, description="页码，从1开始")
+    pageSize: int = Field(10, description="每页数量")
+    type: Optional[int] = Field(None, description="生成类型：1-文生图 2-图生图")
+
+class ImageHistoryItem(BaseModel):
+    genImgId: int = Field(..., description="图片ID")
+    genId: int = Field(..., description="记录ID")
+    type: int = Field(..., description="生成类型：1-文生图 2-图生图")
+    variationType: Optional[int] = Field(None, description="变化类型：1-洗图 2-更换服装")
+    status: int = Field(..., description="状态：1-待生成 2-生成中 3-已生成 4-生成失败")
+    resultPic: str = Field(..., description="生成结果图片")
+    createTime: str = Field(..., description="创建时间")
+
+class ImageHistoryData(BaseModel):
+    total: int = Field(..., description="总记录数")
+    list: List[ImageHistoryItem] = Field(..., description="记录列表")
+
+class GetImageHistoryResponse(CommonResponse[ImageHistoryData]):
+    pass
+
+class GetImageDetailRequest(BaseModel):
+    genImgId: int = Field(..., description="图片ID")
+
+class ImageDetailData(BaseModel):
+    genImgId: int = Field(..., description="图片ID")
+    genId: int = Field(..., description="记录ID")
+    type: int = Field(..., description="生成类型：1-文生图 2-图生图")
+    variationType: Optional[int] = Field(None, description="变化类型：1-洗图 2-更换服装")
+    prompt: Optional[str] = Field(None, description="原始提示词")
+    originalPicUrl: Optional[str] = Field(None, description="原始图片URL")
+    resultPic: str = Field(..., description="生成结果图片")
+    status: int = Field(..., description="状态：1-待生成 2-生成中 3-已生成 4-生成失败")
+    createTime: str = Field(..., description="创建时间")
+    withHumanModel: Optional[int] = Field(None, description="是否使用人物模特")
+    gender: Optional[int] = Field(None, description="性别")
+    age: Optional[int] = Field(None, description="年龄")
+    country: Optional[str] = Field(None, description="国家")
+    modelSize: Optional[int] = Field(None, description="模特身材")
+    fidelity: Optional[float] = Field(None, description="保真度，洗图时使用")
+
+class GetImageDetailResponse(CommonResponse[ImageDetailData]):
+    pass
+
+class RefreshImageStatusRequest(BaseModel):
+    genImgIdListId: List[int] = Field(default=[], description="图片ID列表")
+
+class RefreshImageStatusDataItem(BaseModel):
+    genImgId: int = Field(..., description="图片ID")
+    genId: int = Field(..., description="记录ID")
+    type: int = Field(..., description="生成类型：1-文生图 2-图生图")
+    variationType: Optional[int] = Field(None, description="变化类型：1-洗图 2-更换服装")
+    resultPic: str = Field(..., description="生成结果图片")
+    status: int = Field(..., description="状态：1-待生成 2-生成中 3-已生成 4-生成失败")
+    createTime: str = Field(..., description="创建时间")
+
+class RefreshImageStatusData(BaseModel):
+    list: List[RefreshImageStatusDataItem] = Field(..., description="记录列表")
+
+class RefreshImageStatusResponse(CommonResponse[RefreshImageStatusData]):
     pass 

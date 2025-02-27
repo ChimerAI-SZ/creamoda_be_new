@@ -2,7 +2,7 @@ import uuid
 import json
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
 from ..models.models import GenImgRecord, GenImgResult  # 导入两个模型
@@ -509,3 +509,190 @@ class ImageService:
             db.rollback()
         finally:
             db.close() 
+
+    @staticmethod
+    def get_image_history(
+        db: Session,
+        uid: int,
+        page_num: int = 1,
+        page_size: int = 10,
+        record_type: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """获取用户图片生成历史记录
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            page_num: 页码，从1开始
+            page_size: 每页记录数
+            record_type: 记录类型筛选，可选 1-文生图 2-图生图
+            
+        Returns:
+            包含分页数据的字典
+        """
+        # 构建JOIN查询，把GenImgResult和GenImgRecord关联起来
+        query = db.query(
+            GenImgResult,
+            GenImgRecord
+        ).join(
+            GenImgRecord,
+            GenImgResult.gen_id == GenImgRecord.id
+        ).filter(
+            GenImgResult.uid == uid
+        )
+        
+        # 如果指定了type，则添加type筛选条件
+        if record_type is not None and record_type != 0:
+            query = query.filter(GenImgRecord.type == record_type)
+        
+        # 计算总记录数
+        total_count = query.count()
+        
+        # 分页并按创建时间倒序排序
+        paginated_results = query.order_by(GenImgResult.id.desc())\
+            .offset((page_num - 1) * page_size)\
+            .limit(page_size)\
+            .all()
+        
+        # 构建结果列表
+        result_list = []
+        for result, record in paginated_results:
+            # 格式化时间为字符串
+            create_time = result.create_time.strftime("%Y-%m-%d %H:%M:%S") if result.create_time else ""
+            
+            # 构建单条记录
+            history_item = {
+                "genImgId": result.id,  # GenImgResult的ID
+                "genId": result.gen_id,  # 对应的GenImgRecord的ID
+                "type": record.type,     # 生成类型
+                "variationType": record.variation_type,  # 变化类型
+                "status": result.status,  # 状态
+                "resultPic": result.result_pic,  # 生成结果图片URL
+                "createTime": create_time  # 创建时间
+            }
+            
+            result_list.append(history_item)
+        
+        # 返回分页结果
+        return {
+            "total": total_count,
+            "list": result_list
+        } 
+
+    @staticmethod
+    def get_image_detail(
+        db: Session,
+        uid: int,
+        gen_img_id: int
+    ) -> Dict[str, Any]:
+        """获取图片生成详情
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            gen_img_id: 图片ID(GenImgResult表的ID)
+            
+        Returns:
+            包含图片详情的字典
+        """
+        # 查询结果记录
+        result = db.query(GenImgResult).filter(
+            GenImgResult.id == gen_img_id,
+            GenImgResult.uid == uid
+        ).first()
+        
+        if not result:
+            raise ValueError(f"Image with ID {gen_img_id} not found or not owned by user")
+        
+        # 查询关联的任务记录
+        record = db.query(GenImgRecord).filter(
+            GenImgRecord.id == result.gen_id
+        ).first()
+        
+        if not record:
+            raise ValueError(f"Task record with ID {result.gen_id} not found")
+        
+        # 格式化时间为字符串
+        create_time = result.create_time.strftime("%Y-%m-%d %H:%M:%S") if result.create_time else ""
+        
+        # 如果是洗图类型，将保真度从整数(0-100)转回浮点数(0-1)
+        fidelity = None
+        if record.type == 2 and record.variation_type == 1 and record.fidelity is not None:
+            fidelity = record.fidelity / 100.0
+        
+        # 构建详情信息
+        detail = {
+            "genImgId": result.id,
+            "genId": result.gen_id,
+            "type": record.type,
+            "variationType": record.variation_type,
+            "originalPrompt": record.original_prompt,
+            "originalPicUrl": record.original_pic_url,
+            "resultPic": result.result_pic,
+            "status": result.status,
+            "createTime": create_time,
+            "withHumanModel": record.with_human_model,
+            "gender": record.gender,
+            "age": record.age,
+            "country": record.country,
+            "modelSize": record.model_size,
+            "fidelity": fidelity
+        }
+        
+        return detail 
+
+    @staticmethod
+    def refresh_image_status(
+        db: Session,
+        uid: int,
+        gen_img_id_list: List[int]
+    ) -> List[Dict[str, Any]]:
+        """批量获取图片状态信息
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            gen_img_id_list: 图片ID列表(GenImgResult表的ID列表)
+            
+        Returns:
+            包含图片状态信息的列表
+        """
+        # 如果列表为空，直接返回空列表
+        if not gen_img_id_list:
+            return []
+        
+        # 构建JOIN查询，把GenImgResult和GenImgRecord关联起来
+        query = db.query(
+            GenImgResult,
+            GenImgRecord
+        ).join(
+            GenImgRecord,
+            GenImgResult.gen_id == GenImgRecord.id
+        ).filter(
+            GenImgResult.uid == uid,
+            GenImgResult.id.in_(gen_img_id_list)  # 使用IN查询指定的图片ID列表
+        )
+        
+        # 执行查询
+        results = query.all()
+        
+        # 构建结果列表
+        result_list = []
+        for result, record in results:
+            # 格式化时间为字符串
+            create_time = result.create_time.strftime("%Y-%m-%d %H:%M:%S") if result.create_time else ""
+            
+            # 构建单条记录
+            status_item = {
+                "genImgId": result.id,           # GenImgResult的ID
+                "genId": result.gen_id,          # 对应的GenImgRecord的ID
+                "type": record.type,             # 生成类型
+                "variationType": record.variation_type,  # 变化类型
+                "resultPic": result.result_pic,  # 生成结果图片URL
+                "status": result.status,         # 状态
+                "createTime": create_time        # 创建时间
+            }
+            
+            result_list.append(status_item)
+        
+        return result_list 
