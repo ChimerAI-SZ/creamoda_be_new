@@ -45,6 +45,6 @@ async def api_exception_middleware(request: Request, call_next: Callable) -> Any
             status_code=500,
             content=CommonResponse(
                 code=500,
-                msg=f"服务器内部错误: {error_message}" if logger.level <= 20 else "服务器内部错误"
+                msg=f"服务器内部错误: {error_message}" if error_message else "服务器内部错误"
             ).model_dump()
         ) 

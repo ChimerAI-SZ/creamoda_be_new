@@ -52,3 +52,11 @@ scheduler:
     coalesce: true      # 堆积的任务只跑一次
     max_instances: 1    # 同一个任务同时只能有一个实例
     misfire_grace_time: 60  # 任务错过执行时间的容错范围(秒)
+
+oss:
+  access_key_id: "LTAI5tS9WAmWwjbVsuKv6YBf"
+  access_key_secret: "Ur2lyCA3tXHsklbI6SwVhoReAgfmYj"
+  endpoint: "https://oss-cn-beijing.aliyuncs.com"
+  bucket_name: "creamoda-test"
+  url_prefix: "https://creamoda-test.oss-cn-beijing.aliyuncs.com"
+  upload_dir: "uploads/"

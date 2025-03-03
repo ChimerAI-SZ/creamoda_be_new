@@ -54,6 +54,14 @@ class SchedulerSettings(BaseModel):
     jobstores: dict = {"default": "redis"}
     job_defaults: JobDefaults
 
+class OSSSettings(BaseModel):
+    access_key_id: str = ""
+    access_key_secret: str = ""
+    endpoint: str = ""
+    bucket_name: str = ""
+    url_prefix: str = ""  # OSS对象URL前缀
+    upload_dir: str = "uploads/"  # 上传目录
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
@@ -63,6 +71,7 @@ class Settings(BaseModel):
     smtp: SMTPSettings
     algorithm: AlgorithmSettings
     scheduler: SchedulerSettings
+    oss: OSSSettings = OSSSettings()
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

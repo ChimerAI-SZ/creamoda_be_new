@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from src.api.v1 import auth, user, img
+from src.api.v1 import auth, user, img, common
 from src.config.config import settings
 from src.config.log_config import logger
 from src.middleware.exception_handler import exception_handler
@@ -27,6 +27,9 @@ app.middleware("http")(AuthMiddleware([
     "/api/v1/user/info",
     "/api/v1/user/logout",
     "/api/v1/img/*",  # 所有图片相关接口
+    "/api/v1/common/contact",
+    "/api/v1/common/upload/image",
+    "/api/v1/common/enum/*"  # 枚举接口公开访问
 ]).
 __call__)
 
@@ -49,6 +52,13 @@ app.include_router(
     img.router,
     prefix=f"{settings.api.v1_str}/img",
     tags=["image"]
+)
+
+# 添加通用路由
+app.include_router(
+    common.router,
+    prefix=f"{settings.api.v1_str}/common",
+    tags=["common"]
 )
 
 @app.on_event("startup")
