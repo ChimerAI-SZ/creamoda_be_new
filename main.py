@@ -8,6 +8,7 @@ from src.middleware.auth_middleware import AuthMiddleware
 from src.middleware.api_exception_middleware import api_exception_middleware
 from src.core.scheduler import scheduler
 from src.tasks.img_generation_task import img_generation_compensate_task
+from src.middleware.rate_limit_middleware import RateLimitMiddleware
 
 app = FastAPI(
     title=settings.api.project_name,
@@ -19,9 +20,6 @@ logger.info("FastAPI 应用已启动")
 app.middleware("http")(api_exception_middleware)
 app.middleware("http")(log_middleware)
 
-# 添加异常处理器
-app.add_exception_handler(Exception, exception_handler)
-
 # 添加认证中间件
 app.middleware("http")(AuthMiddleware([
     "/api/v1/user/info",
@@ -30,8 +28,13 @@ app.middleware("http")(AuthMiddleware([
     "/api/v1/common/contact",
     "/api/v1/common/upload/image",
     "/api/v1/common/enum/*"  # 枚举接口公开访问
-]).
-__call__)
+]).__call__)
+
+# 限流中间件放在认证中间件之后注册，确保先认证再限流
+app.middleware("http")(RateLimitMiddleware())  # 添加限流中间件
+
+# 添加异常处理器
+app.add_exception_handler(Exception, exception_handler)
 
 # 注册路由
 app.include_router(
