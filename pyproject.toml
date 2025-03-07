@@ -36,6 +36,7 @@ dependencies = [
     "APScheduler>=3.11.0",
     "sqlacodegen-v2>=0.1.4",
     "oss2>=2.19.1",
+    "load-dotenv>=0.1.0",
 ]
 requires-python = "==3.11.*"
 readme = "README.md"

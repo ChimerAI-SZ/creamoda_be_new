@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:d2c0c15bc8e183d3614a7ae18190d3bd2335f3cd4a1c74f890a8c82a13da72e4"
+content_hash = "sha256:184744a3882a468fda546b537b2b0ac2c3c41122d8edc54e480d5029df08649e"
 
 [[metadata.targets]]
 requires_python = "==3.11.*"
@@ -433,6 +433,19 @@ groups = ["default"]
 files = [
     {file = "jmespath-0.10.0-py2.py3-none-any.whl", hash = "sha256:cdf6525904cc597730141d61b36f2e4b8ecc257c420fa2f4549bac2c2d0cb72f"},
     {file = "jmespath-0.10.0.tar.gz", hash = "sha256:b85d0567b8666149a93172712e68920734333c0ce7e89b78b3e987f71e5ed4f9"},
+]
+
+[[package]]
+name = "load-dotenv"
+version = "0.1.0"
+summary = "Automatically and implicitly load environment variables from .env file"
+groups = ["default"]
+dependencies = [
+    "python-dotenv",
+]
+files = [
+    {file = "load-dotenv-0.1.0.tar.gz", hash = "sha256:bbe5f40072d4a61eadca66de6c222df5a2d935d6d41b703be1ff75396f635145"},
+    {file = "load_dotenv-0.1.0-py3-none-any.whl", hash = "sha256:614803f720153fb8a5f97124a72aaa3930a67aa5547cbe8603d01ea7f9ac1adf"},
 ]
 
 [[package]]

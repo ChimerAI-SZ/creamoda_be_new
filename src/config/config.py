@@ -1,4 +1,6 @@
+import os
 from functools import lru_cache
+from dotenv import load_dotenv
 
 import yaml
 from pydantic import BaseModel
@@ -79,8 +81,37 @@ class Settings(BaseModel):
 
 @lru_cache()
 def get_settings() -> Settings:
-    with open("config.yaml", 'r') as f:
-        config_dict = yaml.safe_load(f)
-    return Settings(**config_dict)
+    """
+    根据环境变量加载配置文件
+    
+    环境变量 APP_ENV 可以设置为:
+    - prod: 加载生产环境配置 (config.prod.yaml)
+    - 默认或其他值: 加载测试环境配置 (config.test.yaml)
+    """
+    # 加载 .env 文件中的变量
+    load_dotenv()
+    # 获取环境变量，默认为test环境
+    env = os.getenv("APP_ENV", "test").lower()
+    
+    # 根据环境变量选择配置文件
+    if env == "prod":
+        config_file = "config.prod.yaml"
+        print(f"Loading production configuration from {config_file}")
+    else:
+        config_file = "config.test.yaml"
+        print(f"Loading test configuration from {config_file}")
+    
+    # 检查配置文件是否存在
+    if not os.path.exists(config_file):
+        raise FileNotFoundError("No configuration file found")
+    
+    # 加载配置文件
+    try:
+        with open(config_file, 'r') as f:
+            config_dict = yaml.safe_load(f)
+        return Settings(**config_dict)
+    except Exception as e:
+        print(f"Error loading configuration from {config_file}: {str(e)}")
+        raise
 
 settings = get_settings() 

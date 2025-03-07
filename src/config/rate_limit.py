@@ -37,7 +37,7 @@ class RateLimitConfig(BaseModel):
             max_requests=20,
             apply_to_anonymous=True
         ),
-        # 上传接口限流
+        # 登陆接口限流
         "/api/v1/user/login": RateLimitRule(
             window_seconds=300,
             max_requests=10,
