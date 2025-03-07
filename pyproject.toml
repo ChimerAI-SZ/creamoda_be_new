@@ -1,7 +1,7 @@
 [project]
 name = "creamoda_be"
 version = "0.1.0"
-description = "Default template for PDM package"
+description = "🧑‍💻 Python FastAPI backend for CERAMODA 👗"
 authors = [
     { name = "Mark Sun", email = "sunyunfei201@gmail.com" },
     {name = "ruidi.liu", email = "liuruidi@sribd.com"},

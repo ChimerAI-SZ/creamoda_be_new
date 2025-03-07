@@ -38,7 +38,7 @@ class TheNewBlackAPI:
         self.session.auth = (self.email, self.password)
 
     def create_clothing(self, outfit: str, gender: Gender, country: str, age: int, width: int, height: int,
-                        body_type: BodyType = BodyType.MID_SIZE, background: str = 'NYC street', negative: str = None) -> str:
+                        body_type: BodyType = BodyType.MID_SIZE, background: str = 'no background', negative: str = None) -> str:
         """
         Creates a fashion outfit design given a prompt.
 
