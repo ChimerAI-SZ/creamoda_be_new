@@ -65,7 +65,7 @@ fi
 
 echo "Starting FastAPI application in $ENV environment..."
 echo "APP_ENV=$ENV"
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT main:app --daemon --name $APP_NAME
+pdm run gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT main:app --daemon --name $APP_NAME
 
 # 验证应用是否成功启动
 sleep 3
