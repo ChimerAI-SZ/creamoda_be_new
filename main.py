@@ -38,7 +38,7 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有HTTP头
     expose_headers=["*"],  # 暴露所有响应头
-    max_age=86400,  # 预检请求结果缓存时间（秒）
+    max_age=10,  # 预检请求结果缓存时间（秒）
 )
 
 logger.info("FastAPI 应用已启动")
