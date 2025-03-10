@@ -5,6 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from typing import List, Optional
+import traceback
 
 from ..config.config import settings
 from ..config.log_config import logger
@@ -94,10 +95,12 @@ class EmailSender:
             return False
         except Exception as e:
             # 记录失败详情
+            stack_trace = traceback.format_exc()
             logger.error(
                 f"Failed to send email. Error: {str(e)}\n"
                 f"To: {to_addresses}\n"
-                f"Subject: {subject}"
+                f"Subject: {subject}\n"
+                f"Stack Trace: {stack_trace}"
             )
             return False
 
