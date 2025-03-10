@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1 import auth, user, img, common
 from src.config.config import settings
 from src.config.log_config import logger
@@ -14,31 +13,6 @@ from src.middleware.rate_limit_middleware import RateLimitMiddleware
 app = FastAPI(
     title=settings.api.project_name,
     openapi_url=None
-)
-
-# 配置CORS中间件 - 确保这是第一个添加的中间件
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000/",  # 明确添加前端开发服务器
-        "http://localhost:8080/",
-        "http://127.0.0.1:3000/",
-        "http://127.0.0.1:8080/",
-        "https://creamoda.ai/",
-        "https://www.creamoda.ai/",
-        "http://localhost:3000",  # 明确添加前端开发服务器
-        "http://localhost:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
-        "https://creamoda.ai",
-        "https://www.creamoda.ai",
-        "*"  # 允许所有源，如果需要更严格的控制，可以移除这一行
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],  # 允许所有HTTP方法
-    allow_headers=["*"],  # 允许所有HTTP头
-    expose_headers=["*"],  # 暴露所有响应头
-    max_age=10,  # 预检请求结果缓存时间（秒）
 )
 
 logger.info("FastAPI 应用已启动")
