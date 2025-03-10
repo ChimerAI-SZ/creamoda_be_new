@@ -51,7 +51,7 @@ async def contact_business(
         logger.error(f"Failed to process contact business request: {str(e)}")
         raise e
 
-@router.post("/upload/image", response_model=UploadImageResponse)
+@router.post("/img/upload", response_model=UploadImageResponse)
 async def upload_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
