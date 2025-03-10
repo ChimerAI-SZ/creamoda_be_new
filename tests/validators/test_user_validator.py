@@ -36,5 +36,5 @@ def test_validate_username_invalid_chars():
     ]
     
     for username in invalid_usernames:
-        with pytest.raises(ValidationError, match="can only contain"):
+        with pytest.raises(ValidationError, match="contains invalid characters"):
             UserValidator.validate_username(username) 

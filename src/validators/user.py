@@ -31,13 +31,16 @@ class UserValidator:
             raise ValidationError("Username cannot exceed 20 characters")
             
         # 检查字符
-        # 正则表达式解释:
-        # ^[...]*$ - 匹配整个字符串
-        # \w - 匹配字母、数字、下划线
-        # \-\. - 匹配连字符和点
-        # \p{L} - 匹配任何Unicode字母字符
-        if not re.match(r'^[\w\-\.\p{L}]*$', username, re.UNICODE):
-            raise ValidationError("Username can only contain letters, numbers, underscores, hyphens, dots, and Unicode characters")
+        # 使用更简单的方法检查无效字符
+        invalid_chars = set()
+        for char in username:
+            # 允许字母、数字、下划线、连字符、点
+            if not (char.isalnum() or char == '_' or char == '-' or char == '.'):
+                invalid_chars.add(char)
+        
+        if invalid_chars:
+            chars_str = ', '.join([f"'{c}'" for c in invalid_chars])
+            raise ValidationError(f"Username contains invalid characters: {chars_str}. Only letters, numbers, underscores, hyphens, and dots are allowed.")
 
     @staticmethod
     def validate_password(password: str) -> None:
