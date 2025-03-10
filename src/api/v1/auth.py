@@ -1,10 +1,12 @@
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from src.config.config import settings
+from sqlalchemy.orm import Session
 
 from ...dto.token import Token
 from ...dto.user_info import UserInfo
 from ...utils.security import create_access_token
+from src.db.session import get_db
 
 router = APIRouter()
 
@@ -21,7 +23,7 @@ async def google_auth():
     return {"auth_url": auth_url}
 
 @router.get("/callback")
-async def auth_callback(code: str):
+async def auth_callback(code: str, db: Session = Depends(get_db)):
     """处理Google回调"""
     token_url = "https://oauth2.googleapis.com/token"
     token_data = {
@@ -60,6 +62,14 @@ async def auth_callback(code: str):
             picture=user_data.get("picture")
         )
         # users_db[user_info.email] = user_info
+
+        # 检查用户是否存在，如果存在则更新用户信息，否则创建新用户
+        user = db.query(UserInfo).filter(UserInfo.email == user_info.email).first()
+        if user:
+            user.name = user_info.name
+            user.picture = user_info.picture
+        else:
+            db.add(user_info)
         
         access_token = create_access_token({"sub": user_info.email})
         return Token(access_token=access_token, token_type="bearer") 

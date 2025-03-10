@@ -27,7 +27,7 @@ app.middleware("http")(AuthMiddleware([
     "/api/v1/user/logout",
     "/api/v1/img/*",  # 所有图片相关接口
     "/api/v1/common/contact",
-    "/api/v1/common/upload/image",
+    "/api/v1/common/img/upload",
     "/api/v1/common/enum/*"  # 枚举接口公开访问
 ]).__call__)
 
