@@ -16,6 +16,30 @@ class UserValidator:
             raise ValidationError("Invalid email format")
 
     @staticmethod
+    def validate_username(username: str) -> None:
+        """验证用户名格式
+        
+        规则:
+        - 长度: 3-20个字符
+        - 允许: 字母(A-Z, a-z)、数字(0-9)、特殊字符(_, -, .)和Unicode字符(如中文、日文)
+        - 不允许: 其他特殊字符和空格
+        """
+        # 检查长度
+        if len(username) < 3:
+            raise ValidationError("Username must be at least 3 characters")
+        if len(username) > 20:
+            raise ValidationError("Username cannot exceed 20 characters")
+            
+        # 检查字符
+        # 正则表达式解释:
+        # ^[...]*$ - 匹配整个字符串
+        # \w - 匹配字母、数字、下划线
+        # \-\. - 匹配连字符和点
+        # \p{L} - 匹配任何Unicode字母字符
+        if not re.match(r'^[\w\-\.\p{L}]*$', username, re.UNICODE):
+            raise ValidationError("Username can only contain letters, numbers, underscores, hyphens, dots, and Unicode characters")
+
+    @staticmethod
     def validate_password(password: str) -> None:
         """验证密码强度"""
         if len(password) < 6:

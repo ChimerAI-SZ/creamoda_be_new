@@ -32,75 +32,72 @@ async def register(
     request: UserRegisterRequest,
     db: Session = Depends(get_db)
 ):
-    """用户注册接口"""
+    """用户注册"""
     try:
         # 验证邮箱格式
         UserValidator.validate_email(request.email)
         
-        # 验证密码格式
+        # 验证用户名格式
+        UserValidator.validate_username(request.username)
+        
+        # 验证密码强度
         UserValidator.validate_password(request.pwd)
         
-        # 检查邮箱是否已注册
-        if db.query(UserInfo).filter(UserInfo.email == request.email).first():
+        # 检查邮箱是否已存在
+        existing_user = db.query(UserInfo).filter(UserInfo.email == request.email).first()
+        if existing_user:
             raise ValidationError("Email already registered")
         
         # 生成盐值和密码哈希
         salt = generate_salt()
         hashed_password = hash_password(request.pwd, salt)
         
-        # 生成用户ID和用户名
+        # 生成用户ID
         uid = generate_uid()
-        username = generate_username()
         
-        # 创建新用户
-        now = datetime.utcnow()
+        # 创建用户
         new_user = UserInfo(
-            uid=uid,
-            username=username,
             email=request.email,
             pwd=hashed_password,
             salt=salt,
-            create_time=now,
-            update_time=now,
-            email_verified=2,  # 初始状态为未验证
-            status=1  # 初始状态为正常
+            uid=uid,
+            username=request.username,  # 使用请求中的用户名
+            status=1,  # 正常状态
+            email_verified=2,  # 邮箱未验证
+            create_time=datetime.utcnow(),
+            update_time=datetime.utcnow()
         )
         
-        # 保存到数据库
-        try:
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            
-            # 生成验证码并存储到Redis
-            verification_code = generate_verification_code()
-            redis_client.setex(
-                f"email_verification:{verification_code}",
-                24 * 60 * 60,  # 24小时过期
-                str(new_user.id)
+        db.add(new_user)
+        db.commit()
+        
+        # 生成验证码并发送验证邮件
+        verification_code = generate_verification_code()
+        
+        # 存储验证码到Redis，24小时有效
+        redis_client.setex(f"email_verify:{new_user.id}", 86400, verification_code)
+        
+        # 异步发送验证邮件
+        asyncio.create_task(
+            email_sender.send_verification_email_async(
+                request.email,
+                verification_code,
+                new_user.id
             )
-            
-            # 异步发送验证邮件
-            asyncio.create_task(
-                email_sender.send_verification_email_async(request.email, verification_code, new_user.id)
-            )
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Database error during registration: {str(e)}")
-            raise AuthenticationError("Registration failed")
+        )
         
         return UserRegisterResponse(
             code=0,
-            msg="Registration successful, please check your email to verify your account"
+            msg="Registration successful. Please check your email to verify your account."
         )
         
     except ValidationError as e:
-        logger.error(f"Registration validation failed: {str(e)}")
+        # 验证错误
         raise e
     except Exception as e:
-        logger.error(f"Registration failed: {str(e)}")
-        raise AuthenticationError("Registration failed")
+        # 其他错误
+        logger.error(f"Registration error: {str(e)}")
+        raise ValidationError(f"Registration failed: {str(e)}")
 
 @router.post("/login", response_model=UserLoginResponse)
 async def login(

@@ -16,6 +16,7 @@ class UserLoginResponse(CommonResponse[UserLoginData]):
 class UserRegisterRequest(BaseModel):
     email: EmailStr
     pwd: str
+    username: str
 
 class UserRegisterResponse(CommonResponse):
     pass
