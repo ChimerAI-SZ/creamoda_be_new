@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:220cde481a03337d197e18bdcbdb2f75d163cab93066d1449e3bc65654b6ab57"
+content_hash = "sha256:6810c49ff6d61a6f4e796ee20ff009b39add20917369e2d0ce45bf009419e6d4"
 
 [[metadata.targets]]
 requires_python = "==3.11.*"
@@ -433,6 +433,19 @@ groups = ["default"]
 files = [
     {file = "jmespath-0.10.0-py2.py3-none-any.whl", hash = "sha256:cdf6525904cc597730141d61b36f2e4b8ecc257c420fa2f4549bac2c2d0cb72f"},
     {file = "jmespath-0.10.0.tar.gz", hash = "sha256:b85d0567b8666149a93172712e68920734333c0ce7e89b78b3e987f71e5ed4f9"},
+]
+
+[[package]]
+name = "jwt"
+version = "1.3.1"
+requires_python = ">= 3.6"
+summary = "JSON Web Token library for Python 3."
+groups = ["default"]
+dependencies = [
+    "cryptography!=3.4.0,>=3.1",
+]
+files = [
+    {file = "jwt-1.3.1-py3-none-any.whl", hash = "sha256:61c9170f92e736b530655e75374681d4fcca9cfa8763ab42be57353b2b203494"},
 ]
 
 [[package]]

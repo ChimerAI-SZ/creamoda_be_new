@@ -15,6 +15,10 @@ from ...services.constant_service import ConstantService
 
 router = APIRouter()
 
+@router.options("/{full_path:path}")
+async def preflight(full_path: str):
+    return {"message": "Preflight OK"}
+
 @router.post("/contact", response_model=ContactBusinessResponse)
 async def contact_business(
     request: ContactBusinessRequest,
