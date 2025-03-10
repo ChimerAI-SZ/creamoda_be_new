@@ -15,10 +15,6 @@ from ...services.constant_service import ConstantService
 
 router = APIRouter()
 
-@router.options("/{full_path:path}")
-async def preflight(full_path: str):
-    return {"message": "Preflight OK"}
-
 @router.post("/contact", response_model=ContactBusinessResponse)
 async def contact_business(
     request: ContactBusinessRequest,
@@ -128,7 +124,7 @@ async def get_model_size_list(
         logger.error(f"Failed to get model size list: {str(e)}")
         raise e 
     
-@router.get("/variation/list", response_model=GetEnumResponse)
+@router.get("/variationType/list", response_model=GetEnumResponse)
 async def get_variation_list(
     db: Session = Depends(get_db)
 ):
