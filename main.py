@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1 import auth, user, img, common
 from src.config.config import settings
 from src.config.log_config import logger
@@ -14,6 +15,16 @@ app = FastAPI(
     title=settings.api.project_name,
     openapi_url=None
 )
+
+# 配置CORS中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有源，生产环境中应该限制为特定域名
+    allow_credentials=True,  # 允许发送cookies等凭证
+    allow_methods=["*"],  # 允许所有HTTP方法
+    allow_headers=["*"],  # 允许所有HTTP头
+)
+
 logger.info("FastAPI 应用已启动")
 
 # 添加中间件
