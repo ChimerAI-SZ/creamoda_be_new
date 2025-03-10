@@ -20,9 +20,10 @@ database:
   name: "chimer_test"
 
 redis:
-  host: "r-bp1ml0wy14mbtvzpkf.redis.rds.aliyuncs.com"
+  host: "r-bp1ml0wy14mbtvzpkfpd.redis.rds.aliyuncs.com"
   port: 6379
-  # password: "cspg2022"
+  username: "local_test"
+  password: "chimer_test!@1"
   db: 1
 
 smtp:

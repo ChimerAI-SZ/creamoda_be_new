@@ -32,6 +32,7 @@ class APISettings(BaseModel):
 class RedisSettings(BaseModel):
     host: str
     port: int
+    username: str = ""
     password: str = ""
     db: int = 0
 
