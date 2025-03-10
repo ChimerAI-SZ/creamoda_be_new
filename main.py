@@ -20,12 +20,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # 明确添加前端开发服务器
-        "http://localhost:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
-        "https://creamoda.ai",
-        "https://www.creamoda.ai",
+        "http://localhost:3000/",  # 明确添加前端开发服务器
+        "http://localhost:8080/",
+        "http://127.0.0.1:3000/",
+        "http://127.0.0.1:8080/",
+        "https://creamoda.ai/",
+        "https://www.creamoda.ai/",
         "*"  # 允许所有源，如果需要更严格的控制，可以移除这一行
     ],
     allow_credentials=True,
