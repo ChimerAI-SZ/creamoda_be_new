@@ -20,6 +20,8 @@ class EmailSender:
         self.from_name = settings.smtp.from_name
         self.timeout = 10  # 设置10秒超时
         self.context = ssl.create_default_context()  # 创建SSL上下文
+        self.context.check_hostname = False
+        self.context.verify_mode = ssl.CERT_NONE
 
     def send_email(
         self,
