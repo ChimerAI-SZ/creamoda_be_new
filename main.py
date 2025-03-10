@@ -16,18 +16,28 @@ app = FastAPI(
     openapi_url=None
 )
 
-# 配置CORS中间件
+# 配置CORS中间件 - 确保这是第一个添加的中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许所有源，生产环境中应该限制为特定域名
-    allow_credentials=True,  # 允许发送cookies等凭证
+    allow_origins=[
+        "http://localhost:3000",  # 明确添加前端开发服务器
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "https://creamoda.ai",
+        "https://www.creamoda.ai",
+        "*"  # 允许所有源，如果需要更严格的控制，可以移除这一行
+    ],
+    allow_credentials=True,
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有HTTP头
+    expose_headers=["*"],  # 暴露所有响应头
+    max_age=86400,  # 预检请求结果缓存时间（秒）
 )
 
 logger.info("FastAPI 应用已启动")
 
-# 添加中间件
+# 添加其他中间件
 app.middleware("http")(api_exception_middleware)
 app.middleware("http")(log_middleware)
 
