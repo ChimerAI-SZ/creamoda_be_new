@@ -19,8 +19,7 @@ async def process_image_generation_compensate():
         timeout_threshold = now - timedelta(seconds=10)
         timeout_results = db.query(GenImgResult).filter(
             (GenImgResult.status == 1) | (GenImgResult.status == 4),  # 状态为待生成或生成失败
-            GenImgResult.update_time < timeout_threshold,  # 更新时间超过10秒
-            GenImgResult.fail_count < 3  # 失败次数小于3次
+            GenImgResult.update_time < timeout_threshold  # 更新时间超过10秒
         ).all()
         
         if not timeout_results:
@@ -40,7 +39,14 @@ async def process_image_generation_compensate():
             if not task:
                 logger.error(f"Task {result.gen_id} not found for result {result.id}")
                 continue
-            
+
+            # 如果失败次数大于3，更新状态为4
+            if result.fail_count > 3:
+                result.status = 4
+                db.commit()
+                db.refresh(result)
+                continue
+
             if task.type == 1:
                 await ImageService.process_image_generation(result.id)
             elif task.type == 2 and task.variation_type == 1:
