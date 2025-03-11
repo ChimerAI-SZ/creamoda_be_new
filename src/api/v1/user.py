@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Dict, Optional
 
 import jwt
 from fastapi import APIRouter, Depends, Header, Response
@@ -11,11 +11,12 @@ from src.db.redis import redis_client
 from src.db.session import get_db
 from src.dto.user import (LogoutResponse, UserLoginData, UserLoginRequest,
                          UserLoginResponse, UserRegisterRequest,
-                         UserRegisterResponse, EmailVerifyRequest, EmailVerifyResponse)
+                         UserRegisterResponse, EmailVerifyRequest, EmailVerifyResponse,
+                         ResendEmailRequest, ResendEmailResponse)
 from src.exceptions.user import AuthenticationError, ValidationError
 from src.models.models import UserInfo
 from src.utils.email import email_sender
-from src.utils.password import generate_salt, hash_password
+from src.utils.password import generate_salt, hash_password, verify_password
 from src.utils.security import create_access_token
 from src.utils.uid import generate_uid
 from src.utils.username import generate_username
@@ -23,9 +24,52 @@ from src.utils.verification import generate_verification_code
 from src.validators.user import UserValidator
 from src.core.context import get_current_user_context
 from src.dto.common import CommonResponse
+from src.exceptions.user import EmailVerifiedError
 import asyncio
 
 router = APIRouter()
+
+async def generate_and_send_verification_code(db: Session, user_id: int, email: str) -> bool:
+    """
+    生成验证码并发送验证邮件
+    
+    Args:
+        db: 数据库会话
+        user_id: 用户ID
+        email: 用户邮箱
+        
+    Returns:
+        bool: 是否成功发送验证码
+    """
+    try:
+        # 生成6位数字验证码
+        verification_code = generate_verification_code(6, True)
+        
+        # 存储验证码到Redis，10分钟有效
+        redis_key = f"email_verify:{user_id}"
+        redis_client.setex(redis_key, 600, verification_code)
+        
+        # 记录验证码信息（仅在开发环境）
+        logger.info(f"Generated verification code for user {user_id}: {verification_code}")
+        
+        # 异步发送验证邮件
+        success = await email_sender.send_verification_email_async(
+            email,
+            verification_code,
+            user_id
+        )
+        
+        if not success:
+            logger.error(f"Failed to send verification email to {email}")
+            # 如果邮件发送失败，删除Redis中的验证码
+            redis_client.delete(redis_key)
+            return False
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error generating and sending verification code: {str(e)}")
+        return False
 
 @router.post("/register", response_model=UserRegisterResponse)
 async def register(
@@ -46,6 +90,8 @@ async def register(
         # 检查邮箱是否已存在
         existing_user = db.query(UserInfo).filter(UserInfo.email == request.email).first()
         if existing_user:
+            if existing_user.email_verified == 2:
+                raise EmailVerifiedError()
             raise ValidationError("Email already registered")
         
         # 生成盐值和密码哈希
@@ -72,23 +118,14 @@ async def register(
         db.commit()
         db.refresh(new_user)
         
-        # 生成6位数字验证码
-        verification_code = generate_verification_code(6, True)
+        # 生成验证码并发送邮件
+        success = await generate_and_send_verification_code(db, new_user.id, request.email)
         
-        # 存储验证码到Redis，10分钟有效
-        redis_client.setex(f"email_verify:{new_user.id}", 600, verification_code)
-        
-        # 记录验证码信息（仅在开发环境）
-        logger.info(f"Generated verification code for user {new_user.id}: {verification_code}")
-        
-        # 异步发送验证邮件
-        asyncio.create_task(
-            email_sender.send_verification_email_async(
-                request.email,
-                verification_code,
-                new_user.id
+        if not success:
+            return UserRegisterResponse(
+                code=500,
+                msg="Registration successful but failed to send verification email. Please try resending the verification email."
             )
-        )
         
         return UserRegisterResponse(
             code=0,
@@ -97,6 +134,9 @@ async def register(
         
     except ValidationError as e:
         # 验证错误
+        raise e
+    except EmailVerifiedError as e:
+        # 邮箱未验证错误
         raise e
     except Exception as e:
         # 其他错误
@@ -228,17 +268,27 @@ async def verify_email(
 ):
     """验证用户邮箱接口"""
     try:
-        # 从Redis获取验证码对应的用户ID
-        redis_key = f"email_verification:{request.verifyCode}"
-        user_id = redis_client.get(redis_key)
+        # 验证邮箱格式
+        UserValidator.validate_email(request.email)
+
+        # 验证邮箱是否存在，不存在则返回错误
+        user = db.query(UserInfo).filter(UserInfo.email == request.email).first()
+        if not user:
+            raise ValidationError("Email not found or already verified")
         
-        if not user_id:
+        if user.email_verified == 1:
+            raise ValidationError("Email not found or already verified")
+
+        # 从Redis获取验证码对应的用户ID
+        redis_key = f"email_verify:{user.id}"
+        verifyCode = redis_client.get(redis_key)
+        
+        if not verifyCode:
             raise ValidationError("Invalid or expired verification code")
             
-        # 查询用户
-        user = db.query(UserInfo).filter(UserInfo.id == int(user_id)).first()
-        if not user:
-            raise ValidationError("User not found")
+        # 验证码比较
+        if verifyCode != request.verifyCode:
+            raise ValidationError("Invalid verification code")
             
         # 更新用户邮箱验证状态
         user.email_verified = 1
@@ -266,3 +316,57 @@ async def verify_email(
     except Exception as e:
         logger.error(f"Unexpected error during email verification: {str(e)}")
         raise ValidationError("Failed to verify email")
+    
+@router.post("/email/resend", response_model=ResendEmailResponse)
+async def resend_verification_email(
+    request: ResendEmailRequest,
+    db: Session = Depends(get_db)
+):
+    """重发验证邮件"""
+    try:
+        # 验证邮箱格式
+        UserValidator.validate_email(request.email)
+
+        # 验证邮箱是否存在，不存在则返回错误
+        user = db.query(UserInfo).filter(UserInfo.email == request.email).first()
+        if not user:
+            raise ValidationError("Email not found or already verified")
+        
+        if user.email_verified == 1:
+            raise ValidationError("Email not found or already verified")
+        
+        # 检查是否已有验证码
+        redis_key = f"email_verify:{user.id}"
+        existing_code = redis_client.get(redis_key)
+        
+        # 如果已有验证码且未过期，返回错误
+        if existing_code:
+            # 获取剩余过期时间
+            ttl = redis_client.ttl(redis_key)
+            if ttl > 0:
+                # 转换为分钟，向上取整
+                minutes_left = (ttl + 59) // 60
+                raise ValidationError(f"Verification code already sent. Please wait {minutes_left} minutes before requesting a new one.")
+        
+        # 生成新的验证码并发送邮件
+        success = await generate_and_send_verification_code(db, user.id, request.email)
+        
+        if not success:
+            return ResendEmailResponse(
+                code=500,
+                msg="Failed to send verification email. Please try again later."
+            )
+        
+        return ResendEmailResponse(
+            code=0,
+            msg="Verification email sent successfully. Please check your email."
+        )
+        
+    except ValidationError as e:
+        # 验证错误
+        logger.error(f"Email resend failed: {str(e)}")
+        raise e
+    except Exception as e:
+        # 其他错误
+        logger.error(f"Unexpected error during email resend: {str(e)}")
+        raise ValidationError("Failed to resend verification email")

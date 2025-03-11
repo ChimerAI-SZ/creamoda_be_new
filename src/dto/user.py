@@ -26,6 +26,13 @@ class LogoutResponse(CommonResponse):
 
 class EmailVerifyRequest(BaseModel):
     verifyCode: str
+    email: EmailStr
 
 class EmailVerifyResponse(CommonResponse):
+    pass 
+
+class ResendEmailRequest(BaseModel):
+    email: EmailStr
+
+class ResendEmailResponse(CommonResponse):
     pass 

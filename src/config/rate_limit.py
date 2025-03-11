@@ -43,6 +43,12 @@ class RateLimitConfig(BaseModel):
             max_requests=10,
             apply_to_anonymous=True
         ),
+        # 邮箱验证接口限流
+        "/api/v1/user/email/verify": RateLimitRule(
+            window_seconds=300,
+            max_requests=10,
+            apply_to_anonymous=True
+        ),
     }
     
     # 白名单路径（不进行限流）
