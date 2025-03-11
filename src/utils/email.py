@@ -145,16 +145,19 @@ class EmailSender:
         )
 
     async def send_verification_email_async(self, to_address: str, verification_code: str, user_id: int) -> bool:
-        """异步发送验证码邮件"""
-        verification_url = f"https://www.creamoda.ai/verify-email?code={verification_code}"
+        """异步发送验证码邮件
+        :param to_address: 收件人邮箱
+        :param verification_code: 验证码
+        :param user_id: 用户ID
+        :return: 是否发送成功
+        """
         subject = "Verify Your Email Address"
         body = f"""
         <html>
             <body>
                 <h2>Welcome to Creamoda!</h2>
-                <p>Please click the link below to verify your email address:</p>
-                <p><a href="{verification_url}">{verification_url}</a></p>
-                <p>This link will expire in 24 hours.</p>
+                <p>Your verification code is: <strong>{verification_code}</strong></p>
+                <p>This code will expire in 10 minutes.</p>
                 <p>If you didn't create an account with us, please ignore this email.</p>
             </body>
         </html>

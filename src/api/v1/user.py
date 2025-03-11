@@ -70,12 +70,16 @@ async def register(
         
         db.add(new_user)
         db.commit()
+        db.refresh(new_user)
         
-        # 生成验证码并发送验证邮件
-        verification_code = generate_verification_code()
+        # 生成6位数字验证码
+        verification_code = generate_verification_code(6, True)
         
-        # 存储验证码到Redis，24小时有效
-        redis_client.setex(f"email_verify:{new_user.id}", 86400, verification_code)
+        # 存储验证码到Redis，10分钟有效
+        redis_client.setex(f"email_verify:{new_user.id}", 600, verification_code)
+        
+        # 记录验证码信息（仅在开发环境）
+        logger.info(f"Generated verification code for user {new_user.id}: {verification_code}")
         
         # 异步发送验证邮件
         asyncio.create_task(

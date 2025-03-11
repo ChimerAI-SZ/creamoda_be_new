@@ -50,7 +50,7 @@ class ImageService:
             
             # 创建5个结果记录并存储它们的ID
             result_ids = []
-            for i in range(1):
+            for i in range(5):
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
@@ -226,7 +226,7 @@ class ImageService:
 
             # 创建5个结果记录并存储它们的ID
             result_ids = []
-            for i in range(1):
+            for i in range(5):
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
