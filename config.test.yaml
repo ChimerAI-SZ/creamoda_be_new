@@ -5,7 +5,7 @@ api:
 google_oauth2:
   client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
   client_secret: "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"
-  redirect_uri: "http://localhost:3000/google-callback"
+  redirect_uri: "https://test-mvp.creamoda.ai/google-callback"
 
 security:
   jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
