@@ -10,7 +10,7 @@ class ContactService:
         db: Session,
         uid: int,
         contactEmail: str,
-        source: int,
+        source: str,
         genImgId: int,
     ) -> bool:
         """创建联系商务记录
