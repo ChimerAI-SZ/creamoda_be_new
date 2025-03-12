@@ -27,6 +27,10 @@ from src.dto.common import CommonResponse
 from src.exceptions.user import EmailVerifiedError
 import asyncio
 
+# 常量定义
+EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS = 600  # 验证码有效期10分钟
+EMAIL_VERIFICATION_RESEND_LIMIT_SECONDS = 60   # 重发验证码限制1分钟
+
 router = APIRouter()
 
 async def generate_and_send_verification_code(db: Session, user_id: int, email: str) -> bool:
@@ -45,18 +49,19 @@ async def generate_and_send_verification_code(db: Session, user_id: int, email: 
         # 生成6位数字验证码
         verification_code = generate_verification_code(6, True)
         
-        # 存储验证码到Redis，10分钟有效
+        # 存储验证码到Redis，使用常量定义的有效期
         redis_key = f"email_verify:{user_id}"
-        redis_client.setex(redis_key, 600, verification_code)
+        redis_client.setex(redis_key, EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS, verification_code)
         
         # 记录验证码信息（仅在开发环境）
         logger.info(f"Generated verification code for user {user_id}: {verification_code}")
         
-        # 异步发送验证邮件
+        # 异步发送验证邮件，传入过期时间（分钟）
         success = await email_sender.send_verification_email_async(
             email,
             verification_code,
-            user_id
+            user_id,
+            expire_minutes=EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS // 60
         )
         
         if not success:
@@ -339,14 +344,21 @@ async def resend_verification_email(
         redis_key = f"email_verify:{user.id}"
         existing_code = redis_client.get(redis_key)
         
-        # 如果已有验证码且未过期，返回错误
+        # 如果已有验证码，检查上次发送时间
         if existing_code:
-            # 获取剩余过期时间
+            # 获取验证码的剩余过期时间
             ttl = redis_client.ttl(redis_key)
-            if ttl > 0:
-                # 转换为分钟，向上取整
-                minutes_left = (ttl + 59) // 60
-                raise ValidationError(f"Verification code already sent. Please wait {minutes_left} minutes before requesting a new one.")
+            
+            # 计算验证码已经存在的时间（总有效期 - 剩余有效期）
+            elapsed_time = EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS - ttl
+            
+            # 如果验证码发送时间不足1分钟，不允许重发
+            if elapsed_time < EMAIL_VERIFICATION_RESEND_LIMIT_SECONDS:
+                remaining_seconds = EMAIL_VERIFICATION_RESEND_LIMIT_SECONDS - elapsed_time
+                raise ValidationError(f"Please wait {int(remaining_seconds)} seconds before requesting a new verification code")
+            
+            # 如果验证码已存在但已经超过1分钟，允许重发，删除旧验证码
+            redis_client.delete(redis_key)
         
         # 生成新的验证码并发送邮件
         success = await generate_and_send_verification_code(db, user.id, request.email)

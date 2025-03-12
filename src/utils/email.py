@@ -144,11 +144,12 @@ class EmailSender:
             lambda: self.send_email(to_addresses, subject, body, html, cc_addresses, bcc_addresses)
         )
 
-    async def send_verification_email_async(self, to_address: str, verification_code: str, user_id: int) -> bool:
+    async def send_verification_email_async(self, to_address: str, verification_code: str, user_id: int, expire_minutes: int = 10) -> bool:
         """异步发送验证码邮件
         :param to_address: 收件人邮箱
         :param verification_code: 验证码
         :param user_id: 用户ID
+        :param expire_minutes: 验证码过期时间（分钟）
         :return: 是否发送成功
         """
         subject = "Verify Your Email Address"
@@ -157,7 +158,7 @@ class EmailSender:
             <body>
                 <h2>Welcome to Creamoda!</h2>
                 <p>Your verification code is: <strong>{verification_code}</strong></p>
-                <p>This code will expire in 10 minutes.</p>
+                <p>This code will expire in {expire_minutes} minutes.</p>
                 <p>If you didn't create an account with us, please ignore this email.</p>
             </body>
         </html>
