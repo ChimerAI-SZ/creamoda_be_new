@@ -6,7 +6,7 @@ from ...dto.image import TextToImageRequest, TextToImageResponse, ImageGeneratio
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
-from ...exceptions.user import AuthenticationError
+from ...exceptions.user import AuthenticationError, ValidationError
 from ...config.log_config import logger
 
 router = APIRouter()
@@ -21,6 +21,10 @@ async def text_to_image(
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
+    
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
     try:
         # 创建文生图任务
@@ -55,6 +59,10 @@ async def copy_style_generate(
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
+    
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
     try:
         # 创建洗图任务
@@ -87,6 +95,10 @@ async def change_clothes_generate(
     if not user:
         raise AuthenticationError()
 
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
     try:
         # 创建更换服装任务
         task_info = await ImageService.create_change_clothes_task(
