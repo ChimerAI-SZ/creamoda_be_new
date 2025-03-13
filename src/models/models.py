@@ -32,6 +32,7 @@ class ContactRecord(Base):
     img_id = mapped_column(BIGINT(20))
     uid = mapped_column(BIGINT(20))
     source = mapped_column(String(100), comment='联系场景')
+    contact_email = mapped_column(String(100), comment='联系邮箱')
     create_time = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
 
 

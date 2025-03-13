@@ -37,6 +37,7 @@ class ContactService:
             contact_record = ContactRecord(
                 gen_id=gen_img_result.gen_id if gen_img_result else None,
                 img_id=gen_img_result.id if gen_img_result else genImgId,
+                contactEmail=contactEmail,
                 uid=uid,
                 source=source,
                 create_time=now
