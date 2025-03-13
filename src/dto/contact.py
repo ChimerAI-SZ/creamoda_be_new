@@ -3,7 +3,7 @@ from typing import Optional
 from .common import CommonResponse
 
 class ContactBusinessRequest(BaseModel):
-    contactEmail: EmailStr = Field(..., description="联系邮箱")
+    contactEmail: str = Field(..., description="联系邮箱")
     source: str = Field(None, description="来源场景")
     genImgId: Optional[int] = Field(None, description="生成图片id")
 

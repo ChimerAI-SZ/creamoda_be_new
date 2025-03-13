@@ -12,6 +12,7 @@ from ...exceptions.user import AuthenticationError
 from ...config.log_config import logger
 from ...dto.constant import GetEnumResponse, EnumData, EnumItem
 from ...services.constant_service import ConstantService
+from src.validators.user import UserValidator
 
 router = APIRouter()
 
@@ -25,6 +26,9 @@ async def contact_business(
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
+    
+    # 验证邮箱格式
+    UserValidator.validate_email(request.contactEmail)
 
     try:
         # 创建联系记录
