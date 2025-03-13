@@ -65,6 +65,12 @@ class OSSSettings(BaseModel):
     url_prefix: str = ""  # OSS对象URL前缀
     upload_dir: str = "uploads/"  # 上传目录
 
+class ImageGenerationSettings(BaseModel):
+    text_to_image_count: int = 2
+    copy_style_count: int = 2
+    change_clothes_count: int = 2
+    estimated_time_seconds: int = 20
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
@@ -75,6 +81,7 @@ class Settings(BaseModel):
     algorithm: AlgorithmSettings
     scheduler: SchedulerSettings
     oss: OSSSettings = OSSSettings()
+    image_generation: ImageGenerationSettings
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

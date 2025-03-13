@@ -48,9 +48,12 @@ class ImageService:
             db.commit()
             db.refresh(task)
             
-            # 创建5个结果记录并存储它们的ID
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.text_to_image_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
-            for i in range(2):
+            for i in range(image_count):
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
@@ -66,7 +69,7 @@ class ImageService:
             # 提交事务
             db.commit()
             
-            # 启动5个并行的图像生成任务，每个任务处理一个特定的结果ID
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
             for result_id in result_ids:
                 asyncio.create_task(
                     ImageService.process_image_generation(result_id)
@@ -76,7 +79,7 @@ class ImageService:
             return {
                 "taskId": task.id,
                 "status": 1,  # 1-待生成
-                "estimatedTime": 20  # 估计20秒完成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
             }
             
         except Exception as e:
@@ -223,10 +226,13 @@ class ImageService:
             db.add(task)
             db.commit()
             db.refresh(task)
-
-            # 创建5个结果记录并存储它们的ID
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.copy_style_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
-            for i in range(2):
+            for i in range(image_count):
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
@@ -242,7 +248,7 @@ class ImageService:
             # 提交事务
             db.commit()
 
-            # 启动5个并行的图像生成任务，每个任务处理一个特定的结果ID
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
             for result_id in result_ids:
                 asyncio.create_task(
                     ImageService.process_copy_style_generation(result_id)
@@ -253,7 +259,7 @@ class ImageService:
             return {
                 "taskId": task.id,
                 "status": 1,  # 1-待生成
-                "estimatedTime": 20  # 估计20秒完成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
             }
             
         except Exception as e:
@@ -380,9 +386,12 @@ class ImageService:
             db.commit()
             db.refresh(task)
             
-            # 创建结果记录
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.change_clothes_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
-            for i in range(1):
+            for i in range(image_count):
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
@@ -413,7 +422,7 @@ class ImageService:
             return {
                 "taskId": task.id,
                 "status": 1,  # 1-待生成
-                "estimatedTime": 20  # 估计20秒完成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
             }
             
         except Exception as e:
