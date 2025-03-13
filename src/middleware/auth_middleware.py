@@ -77,7 +77,8 @@ class AuthMiddleware:
                     email=user.email,
                     username=user.username,
                     status=user.status,
-                    email_verified=user.email_verified
+                    email_verified=user.email_verified,
+                    head_pic=user.head_pic
                 ))
                 
                 # 继续处理请求
