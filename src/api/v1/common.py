@@ -77,7 +77,7 @@ async def upload_image(
         
         # 验证文件后缀
         file_ext = os.path.splitext(file.filename)[1]
-        if file_ext not in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+        if file_ext not in ['.jpg', '.jpeg', '.png']:
             return UploadImageResponse(
                 code=400,
                 msg="Invalid file type. Only images are allowed."
