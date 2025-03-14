@@ -208,8 +208,8 @@ class TheNewBlack:
             timeout: HTTP请求超时时间，默认5分钟
         """
         self.api = TheNewBlackAPI(timeout=timeout)
-        self.default_width = 1200
-        self.default_height = 1600
+        self.default_width = 900
+        self.default_height = 1200
         
     async def create_clothing(
         self,
