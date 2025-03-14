@@ -329,8 +329,6 @@ class TheNewBlack:
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future = executor.submit(
                     self.api.create_variation,
-                    width=self.default_width,
-                    height=self.default_height,
                     image_url=image_url,
                     prompt=prompt,
                     deviation=deviation
@@ -389,8 +387,6 @@ class TheNewBlack:
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future = executor.submit(
                     self.api.change_clothes,
-                    width=self.default_width,
-                    height=self.default_height,
                     image_url=image_url,
                     remove=remove,
                     replace=replace,
