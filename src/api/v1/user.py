@@ -13,7 +13,7 @@ from src.dto.user import (LogoutResponse, UserLoginData, UserLoginRequest,
                          UserLoginResponse, UserRegisterRequest,
                          UserRegisterResponse, EmailVerifyRequest, EmailVerifyResponse,
                          ResendEmailRequest, ResendEmailResponse)
-from src.exceptions.user import AuthenticationError, ServerError, ValidationError
+from src.exceptions.user import AuthenticationError, ServerError, UserInfoError, ValidationError
 from src.models.models import UserInfo
 from src.utils.email import email_sender
 from src.utils.password import generate_salt, hash_password, verify_password
@@ -190,12 +190,12 @@ async def login(
             )
         )
         
-    except (ValidationError, AuthenticationError) as e:
+    except (ValidationError, AuthenticationError, UserInfoError) as e:
         logger.error(f"Login validation failed: {str(e)}")
         raise e
     except Exception as e:
         logger.error(f"Login failed: {str(e)}")
-        raise ServerError()
+        raise ServerError("login failed")
 
 @router.post("/logout", response_model=LogoutResponse)
 async def logout(
