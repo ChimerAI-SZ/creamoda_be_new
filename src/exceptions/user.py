@@ -2,6 +2,9 @@ from typing import Any, Dict, Optional
 
 from .base import CustomException
 
+class ServerError(CustomException):
+    def __init__(self, message: str = "Server error", data: Optional[Dict[str, Any]] = None):
+        super().__init__(code=500, message=message, data=data)
 
 class ValidationError(CustomException):
     def __init__(self, message: str = "Validation error", data: Optional[Dict[str, Any]] = None):
