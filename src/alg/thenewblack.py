@@ -208,8 +208,8 @@ class TheNewBlack:
             timeout: HTTP请求超时时间，默认5分钟
         """
         self.api = TheNewBlackAPI(timeout=timeout)
-        self.default_width = 1024
-        self.default_height = 1024
+        self.default_width = 1200
+        self.default_height = 1600
         
     async def create_clothing(
         self,
@@ -263,6 +263,8 @@ class TheNewBlack:
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future = executor.submit(
                     self.api.create_clothing,
+                    width=self.default_width,
+                    height=self.default_height,
                     outfit=outfit_prompt,
                     gender=gender_enum,
                     country=country,
@@ -327,6 +329,8 @@ class TheNewBlack:
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future = executor.submit(
                     self.api.create_variation,
+                    width=self.default_width,
+                    height=self.default_height,
                     image_url=image_url,
                     prompt=prompt,
                     deviation=deviation
@@ -385,6 +389,8 @@ class TheNewBlack:
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future = executor.submit(
                     self.api.change_clothes,
+                    width=self.default_width,
+                    height=self.default_height,
                     image_url=image_url,
                     remove=remove,
                     replace=replace,
