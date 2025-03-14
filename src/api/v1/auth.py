@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.utils.uid import generate_uid
 from src.dto.user import (UserLoginResponse, UserLoginData)
 from src.config.log_config import logger
+from src.utils.image import download_and_upload_image
 
 from ...dto.token import Token
 from ...models.models import UserInfo
@@ -82,7 +83,11 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
         else:
             profile_pic_url = None
             if user_data.get("picture"):
-                profile_pic_url = await upload_avatar(user_data.get("picture"), user_info.id)
+                # 使用新的工具函数下载并上传头像
+                profile_pic_url = await download_and_upload_image(
+                    user_data.get("picture"),
+                    f"google_avatar_{user_data.get('id')}"
+                )
             user_info.head_pic = profile_pic_url
             user_info.status = 1
             user_info.uid = generate_uid()
@@ -104,39 +109,3 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
                 authorization=bearer_token.replace("+", "%2B")  # 转义 + 字符
             )
         )
-    
-# 上传头像方法
-async def upload_avatar(pic_url: str, user_id: int):
-    try:
-        # 下载Google头像
-        pic_response = httpx.get(pic_url)
-        pic_response.raise_for_status()
-        
-        # 准备上传到OSS
-        pic_content = BytesIO(pic_response.read())
-        
-        # 创建一个类似UploadFile的对象
-        class MockUploadFile:
-            def __init__(self, content, filename):
-                self.file = content
-                self.filename = filename
-                self.content_type = "image/jpeg"  # 假设是JPEG
-            
-            async def read(self):
-                return self.file.getvalue()
-        
-        # 创建模拟文件对象
-        mock_file = MockUploadFile(
-            pic_content, 
-            f"google_avatar_{user_id}.jpg"
-        )
-        
-        # 上传到OSS
-        upload_result = await UploadService.upload_to_oss(mock_file)
-        profile_pic_url = upload_result["url"]
-        
-        logger.info(f"Uploaded Google profile picture to OSS: {profile_pic_url}")
-        return profile_pic_url
-    except Exception as e:
-        logger.error(f"Failed to upload Google profile picture: {str(e)}")
-        # 继续创建用户，但不设置头像
