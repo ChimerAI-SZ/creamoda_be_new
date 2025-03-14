@@ -1,10 +1,13 @@
+from io import BytesIO
 import httpx
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Depends, Response
+from src.services.upload_service import UploadService
 from src.config.config import settings
 from sqlalchemy.orm import Session
 from src.utils.uid import generate_uid
 from src.dto.user import (UserLoginResponse, UserLoginData)
+from src.config.log_config import logger
 
 from ...dto.token import Token
 from ...models.models import UserInfo
@@ -62,7 +65,6 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
         user_info = UserInfo(
             email=user_data["email"],
             username=user_data.get("name", ""),
-            head_pic=user_data.get("picture"),
             google_sub_id=user_data.get("id"),
             google_access_token=access_token
         )
@@ -70,7 +72,6 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
         # 检查用户是否存在，如果存在则更新用户信息，否则创建新用户
         user = db.query(UserInfo).filter(UserInfo.email == user_info.email).first()
         if user:
-            user.head_pic = user_info.head_pic
             user.email_verified = 1
             user.google_sub_id = user_info.google_sub_id
             user.google_access_token = user_info.google_access_token
@@ -79,6 +80,10 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
             db.commit()
             db.refresh(user)
         else:
+            profile_pic_url = None
+            if user_data.get("picture"):
+                profile_pic_url = await upload_avatar(user_data.get("picture"), user_info.id)
+            user_info.head_pic = profile_pic_url
             user_info.status = 1
             user_info.uid = generate_uid()
             user_info.email_verified = 1
@@ -99,3 +104,39 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
                 authorization=bearer_token.replace("+", "%2B")  # 转义 + 字符
             )
         )
+    
+# 上传头像方法
+async def upload_avatar(pic_url: str, user_id: int):
+    try:
+        # 下载Google头像
+        pic_response = httpx.get(pic_url)
+        pic_response.raise_for_status()
+        
+        # 准备上传到OSS
+        pic_content = BytesIO(pic_response.read())
+        
+        # 创建一个类似UploadFile的对象
+        class MockUploadFile:
+            def __init__(self, content, filename):
+                self.file = content
+                self.filename = filename
+                self.content_type = "image/jpeg"  # 假设是JPEG
+            
+            async def read(self):
+                return self.file.getvalue()
+        
+        # 创建模拟文件对象
+        mock_file = MockUploadFile(
+            pic_content, 
+            f"google_avatar_{user_id}.jpg"
+        )
+        
+        # 上传到OSS
+        upload_result = await UploadService.upload_to_oss(mock_file)
+        profile_pic_url = upload_result["url"]
+        
+        logger.info(f"Uploaded Google profile picture to OSS: {profile_pic_url}")
+        return profile_pic_url
+    except Exception as e:
+        logger.error(f"Failed to upload Google profile picture: {str(e)}")
+        # 继续创建用户，但不设置头像

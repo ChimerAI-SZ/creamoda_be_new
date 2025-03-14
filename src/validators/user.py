@@ -2,7 +2,7 @@ import re
 
 from sqlalchemy.orm import Session
 
-from ..exceptions.user import AuthenticationError, EmailVerifiedError, ValidationError
+from ..exceptions.user import AuthenticationError, EmailVerifiedError, ValidationError, UserInfoError
 from ..models.models import UserInfo  # 使用生成的模型
 from ..utils.password import verify_password
 
@@ -81,11 +81,11 @@ class UserValidator:
         """验证用户登录"""
         user = db.query(UserInfo).filter(UserInfo.email == email).first()
         if not user:
-            raise AuthenticationError("User not found")
+            raise UserInfoError("User not found")
         
         # 验证用户状态
         if user.status != 1:
-            raise AuthenticationError("Account is disabled")
+            raise UserInfoError("Account is disabled")
             
         # 验证邮箱是否已验证
         if user.email_verified != 1:
@@ -93,6 +93,6 @@ class UserValidator:
         
         # 验证密码
         if not verify_password(password, user.pwd, user.salt):
-            raise AuthenticationError("Invalid password")
+            raise UserInfoError("Invalid password")
         
         return user 
