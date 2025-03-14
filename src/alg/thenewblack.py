@@ -269,8 +269,6 @@ class TheNewBlack:
                     gender=gender_enum,
                     country=country,
                     age=age,
-                    width=self.default_width,
-                    height=self.default_height,
                     body_type=body_type
                 )
                 
