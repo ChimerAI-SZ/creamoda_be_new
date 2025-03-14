@@ -7,6 +7,7 @@ from typing import Optional
 
 from src.config.config import settings
 from src.config.log_config import logger
+from src.utils.image import download_and_upload_image  # 导入图片转存工具
 
 
 class Gender(Enum):
@@ -274,9 +275,19 @@ class TheNewBlack:
                 # 添加超时处理，避免无限等待
                 image_url = await asyncio.wrap_future(future)
                 
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    image_url,
+                    f"tnb_clothing_{result_id}"
+                )
+                
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                    return image_url
+                
                 # 记录成功结果
-                logger.info(f"Successfully generated image for task result {result_id}: {image_url}")
-                return image_url
+                logger.info(f"Successfully generated image for task result {result_id}: {oss_image_url}")
+                return oss_image_url
             
         except Exception as e:
             # 详细记录异常
@@ -324,9 +335,19 @@ class TheNewBlack:
                 # 添加超时处理，避免无限等待
                 image_url = await asyncio.wrap_future(future)
                 
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    image_url,
+                    f"tnb_variation_{result_id}"
+                )
+                
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                    return image_url
+                
                 # 记录成功结果
-                logger.info(f"Successfully generated image variation for task result {result_id}: {image_url}")
-                return image_url
+                logger.info(f"Successfully generated image variation for task result {result_id}: {oss_image_url}")
+                return oss_image_url
             
         except Exception as e:
             # 详细记录异常
@@ -373,9 +394,19 @@ class TheNewBlack:
                 # 添加超时处理，避免无限等待
                 image_url = await asyncio.wrap_future(future)
                 
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    image_url,
+                    f"tnb_clothes_{result_id}"
+                )
+                
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                    return image_url
+                
                 # 记录成功结果
-                logger.info(f"Successfully changed clothes for task result {result_id}: {image_url}")
-                return image_url
+                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+                return oss_image_url
             
         except Exception as e:
             # 详细记录异常
