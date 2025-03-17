@@ -141,7 +141,7 @@ class TheNewBlackAPI:
             "image": image_url,
             "remove": "white t-shirt",
             "replace": replace,
-            "negative": "Background pattern"
+            "negative": "Background pattern, poor details"
         }
         if negative:
             data["negative"] = negative
