@@ -79,8 +79,7 @@ async def startup_event():
     )
     
     # 启动调度器
-    # todo revert
-    # scheduler.start()
+    scheduler.start()
     logger.info("APScheduler started")
 
 @app.on_event("shutdown")
