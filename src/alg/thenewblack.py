@@ -139,7 +139,7 @@ class TheNewBlackAPI:
             "email": self.email,
             "password": self.password,
             "image": image_url,
-            "remove": "",
+            "remove": remove,
             "replace": replace,
             "negative": "Background pattern, poor details"
         }

@@ -521,7 +521,7 @@ class ImageService:
     @staticmethod
     async def process_change_clothes_generation(
         result_id: int,
-        remove: str = "None",
+        remove: str = "Original clothes",
         replace: str = "None",
         negative: Optional[str] = None
     ):
