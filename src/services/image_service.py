@@ -11,6 +11,7 @@ from ..db.session import SessionLocal
 from ..config.log_config import logger
 from ..config.config import settings
 from ..alg.thenewblack import TheNewBlack  # 导入TheNewBlack服务
+from ..utils.style_prompts import get_random_style_prompt
 
 class ImageService:
     @staticmethod
@@ -51,13 +52,27 @@ class ImageService:
             # 从配置中获取要创建的结果记录数量
             image_count = settings.image_generation.text_to_image_count
             
+            # 获取所有可用风格，确保不重复
+            used_styles = set()
+            
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
             for i in range(image_count):
+                # 选择一个未使用的风格
+                style_name, style_prompt = ImageService._get_unique_style(used_styles)
+                used_styles.add(style_name)
+
+                # 合并原始提示词和风格提示词
+                enhanced_prompt = f"{task.original_prompt}{style_prompt}"
+                logger.info(f"Enhanced prompt with style '{style_name}': {enhanced_prompt}")
+                
+                # 创建结果记录，包含风格信息
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
                     status=1,  # 1-待生成
+                    style=style_name,  # 保存风格名称
+                    prompt=enhanced_prompt,
                     result_pic="",
                     create_time=now,
                     update_time=now
@@ -88,7 +103,32 @@ class ImageService:
             raise e
     
     @staticmethod
-    async def call_generation_api(task: GenImgRecord, result: GenImgResult) -> str:
+    def _get_unique_style(used_styles: set) -> tuple:
+        """获取一个未使用的风格
+        
+        Args:
+            used_styles: 已使用的风格名称集合
+            
+        Returns:
+            tuple: (风格名称, 风格提示词)
+        """
+        from ..utils.style_prompts import STYLE_PROMPTS
+        
+        # 如果所有风格都已使用，则重新开始
+        if len(used_styles) >= len(STYLE_PROMPTS):
+            return get_random_style_prompt()
+        
+        # 尝试获取未使用的风格
+        for _ in range(20):  # 最多尝试20次
+            style_name, style_prompt = get_random_style_prompt()
+            if style_name not in used_styles:
+                return style_name, style_prompt
+        
+        # 如果无法找到未使用的风格，返回随机风格
+        return get_random_style_prompt()
+    
+    @staticmethod
+    async def call_generation_api(task: GenImgRecord, result: GenImgResult, enhanced_prompt: str) -> str:
         """调用图像生成API"""
         try:
             # 初始化TheNewBlack服务
@@ -96,7 +136,7 @@ class ImageService:
             
             # 调用create_clothing方法生成图片
             result_pic = await thenewblack.create_clothing(
-                prompt=task.original_prompt,
+                prompt=enhanced_prompt,
                 with_human_model=task.with_human_model,
                 gender=task.gender,
                 age=task.age,
@@ -150,7 +190,7 @@ class ImageService:
             
             try:
                 # 调用生成API
-                result_pic = await ImageService.call_generation_api(task, result)
+                result_pic = await ImageService.call_generation_api(task, result, result.prompt)
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -196,6 +236,26 @@ class ImageService:
             db.rollback()
         finally:
             db.close()
+    
+    @staticmethod
+    def _get_style_by_name(style_name: str) -> tuple:
+        """根据风格名称获取风格提示词
+        
+        Args:
+            style_name: 风格名称
+            
+        Returns:
+            tuple: (风格名称, 风格提示词)
+        """
+        from ..utils.style_prompts import STYLE_PROMPTS
+        
+        # 查找匹配的风格
+        for name, prompt in STYLE_PROMPTS:
+            if name == style_name:
+                return name, prompt
+        
+        # 如果找不到，返回默认风格
+        return STYLE_PROMPTS[0]
 
     @staticmethod
     async def create_copy_style_task(
@@ -230,13 +290,27 @@ class ImageService:
             # 从配置中获取要创建的结果记录数量
             image_count = settings.image_generation.copy_style_count
             
+            # 获取所有可用风格，确保不重复
+            used_styles = set()
+            
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
             for i in range(image_count):
+                # 选择一个未使用的风格
+                style_name, style_prompt = ImageService._get_unique_style(used_styles)
+                used_styles.add(style_name)
+
+                # 合并原始提示词和风格提示词
+                enhanced_prompt = f"{task.original_prompt}{style_prompt}"
+                logger.info(f"Enhanced prompt with style '{style_name}': {enhanced_prompt}")
+                
+                # 创建结果记录，包含风格信息
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
                     status=1,  # 1-待生成
+                    style=style_name,  # 保存风格名称
+                    prompt=enhanced_prompt,
                     result_pic="",
                     create_time=now,
                     update_time=now
@@ -308,7 +382,7 @@ class ImageService:
                 # 使用create_variation方法
                 result_pic = await thenewblack.create_image_variation(
                     image_url=task.original_pic_url,
-                    prompt=task.original_prompt,
+                    prompt=result.prompt,
                     fidelity=fidelity,
                     result_id=result.id
                 )
@@ -354,7 +428,7 @@ class ImageService:
             logger.error(f"Error processing copy style generation for result {result_id}: {str(e)}")
             db.rollback()
         finally:
-            db.close() 
+            db.close()
 
     @staticmethod
     async def create_change_clothes_task(
@@ -389,13 +463,27 @@ class ImageService:
             # 从配置中获取要创建的结果记录数量
             image_count = settings.image_generation.change_clothes_count
             
+            # 获取所有可用风格，确保不重复
+            used_styles = set()
+
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
             for i in range(image_count):
+                # 选择一个未使用的风格
+                style_name, style_prompt = ImageService._get_unique_style(used_styles)
+                used_styles.add(style_name)
+
+                # 合并原始提示词和风格提示词
+                enhanced_prompt = f"{task.original_prompt}{style_prompt}"
+                logger.info(f"Enhanced prompt with style '{style_name}': {enhanced_prompt}")
+                
+
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
                     status=1,  # 1-待生成
+                    style=style_name,  # 保存风格名称
+                    prompt=enhanced_prompt,
                     result_pic="",
                     create_time=now,
                     update_time=now
@@ -471,7 +559,7 @@ class ImageService:
                 result_pic = await thenewblack.change_clothes(
                     image_url=task.original_pic_url,
                     remove=remove,
-                    replace=replace,
+                    replace=result.prompt,
                     negative=negative,
                     result_id=result.id
                 )

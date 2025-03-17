@@ -70,6 +70,7 @@ class GenImgResult(Base):
     gen_id = mapped_column(BIGINT(20), nullable=False)
     uid = mapped_column(BIGINT(20), nullable=False)
     style = mapped_column(String(50))
+    prompt = mapped_column(Text)
     status = mapped_column(TINYINT(4), comment='1-待生成 2-生成中 3-已生成')
     result_pic = mapped_column(Text, comment='生成结果图片')
     fail_count = mapped_column(INTEGER(11), server_default=text("'0'"), comment='失败次数')
