@@ -136,7 +136,7 @@ async def get_image_history(
         history_data = ImageService.get_image_history(
             db=db,
             uid=user.id,
-            page_num=page,
+            page=page,
             page_size=pageSize,
             record_type=type
         )
