@@ -3,14 +3,13 @@ from typing import List, Tuple
 
 # 定义风格提示词列表
 STYLE_PROMPTS: List[Tuple[str, str]] = [
-    ("Classic Style", ", classic style, timeless design, elegant and refined"),
-    ("Bohemian Style", ", bohemian style, flowy and relaxed, with ethnic patterns and fringe details"),
-    ("Streetwear Style", ", streetwear style, oversized fit, urban and edgy with bold graphics"),
-    ("Minimalist Style", ", minimalist style, clean lines, neutral colors, and no unnecessary embellishments"),
-    ("Luxury Style", ", luxury style, high-end fabrics, intricate detailing, and opulent accents"),
-    ("Vintage Style", ", vintage style, inspired by the 70s, with retro patterns and nostalgic charm"),
-    ("Athleisure Style", ", athleisure style, sporty and functional, with performance fabrics and casual comfort"),
-    ("Punk Style", ", punk style, rebellious and bold, with leather, studs, and distressed elements")
+    ("Classic Style", ", classic style"),
+    ("Bohemian Style", ", bohemian style"),
+    ("Streetwear Style", ", streetwear style"),
+    ("Minimalist Style", ", minimalist style"),
+    ("Luxury Style", ", luxury style"),
+    ("Vintage Style", ", vintage style"),
+    ("Athleisure Style", ", athleisure style")
 ]
 
 def get_random_style_prompt() -> Tuple[str, str]:
