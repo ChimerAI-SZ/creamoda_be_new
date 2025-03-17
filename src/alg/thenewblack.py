@@ -139,8 +139,9 @@ class TheNewBlackAPI:
             "email": self.email,
             "password": self.password,
             "image": image_url,
-            "remove": remove,
+            "remove": "white t-shirt",
             "replace": replace,
+            "negative": "Background pattern"
         }
         if negative:
             data["negative"] = negative
