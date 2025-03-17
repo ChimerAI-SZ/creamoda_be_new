@@ -611,7 +611,7 @@ class ImageService:
     def get_image_history(
         db: Session,
         uid: int,
-        page_num: int = 1,
+        page: int = 1,
         page_size: int = 10,
         record_type: Optional[int] = None,
     ) -> Dict[str, Any]:
@@ -647,7 +647,7 @@ class ImageService:
         
         # 分页并按创建时间倒序排序
         paginated_results = query.order_by(GenImgResult.id.desc())\
-            .offset((page_num - 1) * page_size)\
+            .offset((page - 1) * page_size)\
             .limit(page_size)\
             .all()
         

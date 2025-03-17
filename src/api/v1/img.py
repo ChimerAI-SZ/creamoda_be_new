@@ -120,7 +120,7 @@ async def change_clothes_generate(
 
 @router.get("/generate/list", response_model=GetImageHistoryResponse)
 async def get_image_history(
-    pageNum: int = 1,
+    page: int = 1,
     pageSize: int = 10,
     type: Optional[int] = None,
     db: Session = Depends(get_db)
@@ -136,7 +136,7 @@ async def get_image_history(
         history_data = ImageService.get_image_history(
             db=db,
             uid=user.id,
-            page_num=pageNum,
+            page_num=page,
             page_size=pageSize,
             record_type=type
         )
