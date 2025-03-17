@@ -10,9 +10,7 @@ STYLE_PROMPTS: List[Tuple[str, str]] = [
     ("Luxury Style", ", luxury style, high-end fabrics, intricate detailing, and opulent accents"),
     ("Vintage Style", ", vintage style, inspired by the 70s, with retro patterns and nostalgic charm"),
     ("Athleisure Style", ", athleisure style, sporty and functional, with performance fabrics and casual comfort"),
-    ("Punk Style", ", punk style, rebellious and bold, with leather, studs, and distressed elements"),
-    ("Ethnic Style", ", ethnic style, handcrafted details, cultural patterns, and artisanal touches"),
-    ("Gothic Style", ", gothic style, dark and dramatic, with lace, velvet, and mysterious undertones")
+    ("Punk Style", ", punk style, rebellious and bold, with leather, studs, and distressed elements")
 ]
 
 def get_random_style_prompt() -> Tuple[str, str]:

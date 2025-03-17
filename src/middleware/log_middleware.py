@@ -11,6 +11,6 @@ async def log_middleware(request: Request, call_next):
     process_time = time.time() - start_time
     logger.info(
         f"{request.client.host} - {request.method} {request.url.path} - {response.status_code} "
-        f"({process_time:.2f}s)"
+        f" cost time: ({process_time:.2f}s)"
     )
     return response
