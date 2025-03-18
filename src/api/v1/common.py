@@ -83,8 +83,12 @@ async def upload_image(
                 msg="Invalid file type. Only images are allowed."
             )
         
-        # 上传文件到OSS
-        upload_result = await UploadService.upload_to_oss(file)
+        # 上传文件到OSS并创建记录
+        upload_result = await UploadService.upload_image_with_record(
+            db=db,
+            uid=user.id,
+            file=file
+        )
         
         # 返回上传结果
         return UploadImageResponse(

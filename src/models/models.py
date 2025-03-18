@@ -88,6 +88,7 @@ class UploadRecord(Base):
     pic_url = mapped_column(Text, nullable=False)
     uid = mapped_column(BIGINT(20))
     create_time = mapped_column(TIMESTAMP)
+    origin_pic_url = mapped_column(Text, nullable=False)
 
 
 class UserInfo(Base):

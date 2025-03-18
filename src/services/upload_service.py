@@ -5,6 +5,10 @@ from fastapi import UploadFile
 from datetime import datetime
 from ..config.config import settings
 from ..config.log_config import logger
+from typing import Dict, Any, BinaryIO
+from sqlalchemy.orm import Session
+
+from ..models.models import UploadRecord
 
 class UploadService:
     @staticmethod
@@ -58,3 +62,56 @@ class UploadService:
         except Exception as e:
             logger.error(f"Failed to upload file to OSS: {str(e)}")
             raise 
+
+    @staticmethod
+    async def upload_image_with_record(
+        db: Session,
+        uid: int,
+        file: UploadFile
+    ) -> Dict[str, Any]:
+        """上传图片到OSS并在数据库中创建记录
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            file: 上传的文件对象
+        Returns:
+            包含上传结果的字典
+        """
+        try:
+            # 根据文件类型生成合适的存储路径
+            file_path = f"user_uploads/{uid}"
+            
+            # 上传文件到OSS
+            oss_url = await UploadService.upload_to_oss(file, file_path)
+            
+            if not oss_url:
+                raise Exception("Failed to upload file to OSS")
+            
+            # 创建上传记录
+            now = datetime.utcnow()
+            upload_record = UploadRecord(
+                uid=uid,
+                pic_url=oss_url,
+                create_time=now
+            )
+            
+            # 保存到数据库
+            db.add(upload_record)
+            db.commit()
+            db.refresh(upload_record)
+            
+            logger.info(f"User {uid} uploaded file {file.filename}, saved as {file_path}, record ID: {upload_record.id}")
+            
+            # 返回上传结果
+            return {
+                "recordId": upload_record.id,
+                "fileName": file.filename,
+                "fileUrl": oss_url,
+                "uploadTime": now.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to upload image with record: {str(e)}")
+            raise e 
