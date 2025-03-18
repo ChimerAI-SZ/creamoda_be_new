@@ -11,11 +11,11 @@ jobstores = {
     'default': RedisJobStore(
         jobs_key='apscheduler.jobs',
         run_times_key='apscheduler.run_times',
-        # host=settings.redis.host,
-        # port=settings.redis.port,
-        # password=settings.redis.password,
-        # db=settings.redis.db
-        redis=redis_client
+        host=settings.redis.host,
+        port=settings.redis.port,
+        password=settings.redis.password,
+        db=settings.redis.db
+        # redis=redis_client
     )
 }
 
