@@ -51,7 +51,7 @@ oss:
   access_key_secret: "qzQGBjcgmnIRVg0jFKzXnOmvwLO7QK"
   endpoint: "oss-us-west-1.aliyuncs.com"
   bucket_name: "new-creamoda"
-  url_prefix: "https://oss-us-west-1.aliyuncs.com"
+  url_prefix: "https://new-creamoda.oss-us-west-1.aliyuncs.com/"
   upload_dir: "uploads/"
 
 # 添加图片生成任务配置
