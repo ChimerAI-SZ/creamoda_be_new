@@ -190,7 +190,7 @@ async def login(
             )
         )
         
-    except (ValidationError, AuthenticationError, UserInfoError) as e:
+    except (ValidationError, AuthenticationError, UserInfoError, EmailVerifiedError) as e:
         logger.error(f"Login validation failed: {str(e)}")
         raise e
     except Exception as e:
