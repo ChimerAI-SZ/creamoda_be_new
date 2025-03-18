@@ -38,6 +38,7 @@ algorithm:
   thenewblack_password: "!W5gwscU6duZ3DE"
 
 scheduler:
+  enabled: true
   jobstores:
     redis: redis
   job_defaults:

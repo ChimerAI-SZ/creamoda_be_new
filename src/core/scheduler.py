@@ -14,7 +14,8 @@ jobstores = {
         host=settings.redis.host,
         port=settings.redis.port,
         password=settings.redis.password,
-        db=settings.redis.db
+        db=settings.redis.db,
+        username=settings.redis.username,
         # redis=redis_client
     )
 }

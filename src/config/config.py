@@ -54,6 +54,7 @@ class JobDefaults(BaseModel):
     misfire_grace_time: int = 60
 
 class SchedulerSettings(BaseModel):
+    enabled: bool = True
     jobstores: dict = {"default": "redis"}
     job_defaults: JobDefaults
 
