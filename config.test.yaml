@@ -39,7 +39,7 @@ algorithm:
 
 scheduler:
   jobstores:
-    default: redis
+    redis: redis
   job_defaults:
     coalesce: true      # 堆积的任务只跑一次
     max_instances: 1    # 同一个任务同时只能有一个实例

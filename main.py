@@ -75,11 +75,11 @@ async def startup_event():
         'interval',
         seconds=30,  # 每30秒执行一次
         id='img_generation_compensate_task',  # 任务唯一标识
-        replace_existing=True  # 如果任务已存在则替换
+        replace_existing=True,  # 如果任务已存在则替换
     )
     
     # 启动调度器
-    scheduler.start()
+    # scheduler.start()
     logger.info("APScheduler started")
 
 @app.on_event("shutdown")
