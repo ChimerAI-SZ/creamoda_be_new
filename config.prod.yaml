@@ -38,8 +38,9 @@ algorithm:
   thenewblack_password: "!W5gwscU6duZ3DE"
 
 scheduler:
+  enabled: true
   jobstores:
-    default: redis
+    redis: redis
   job_defaults:
     coalesce: true      # 堆积的任务只跑一次
     max_instances: 1    # 同一个任务同时只能有一个实例
@@ -52,3 +53,10 @@ oss:
   bucket_name: "new-creamoda"
   url_prefix: "https://oss-us-west-1.aliyuncs.com"
   upload_dir: "uploads/"
+
+# 添加图片生成任务配置
+image_generation:
+  text_to_image_count: 5      # 文生图任务生成的图片数量
+  copy_style_count: 5         # 洗图任务生成的图片数量
+  change_clothes_count: 5     # 换装任务生成的图片数量
+  estimated_time_seconds: 20  # 预计完成时间(秒)
