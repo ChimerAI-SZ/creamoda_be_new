@@ -95,8 +95,8 @@ async def upload_image(
             code=0,
             msg="Image uploaded successfully",
             data=UploadResponse(
-                url=upload_result["url"],
-                filename=upload_result["filename"]
+                url=upload_result["fileUrl"],
+                filename=upload_result["fileName"]
             )
         )
     

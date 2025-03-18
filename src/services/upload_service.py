@@ -85,7 +85,7 @@ class UploadService:
             # 上传文件到OSS
             upload_result = await UploadService.upload_to_oss(file, file_path)
             oss_url = upload_result["url"]
-            
+
             if not oss_url:
                 raise Exception("Failed to upload file to OSS")
             
