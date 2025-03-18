@@ -16,7 +16,7 @@ database:
   host: "rm-2ev1h3g9294sr1vjopo.mysql.rds.aliyuncs.com"
   port: 3306
   user: "new_creamoda"
-  password: "new_creamoda_test2024"
+  password: "&creamoda_2025@%"
   name: "new_creamoda"
 
 redis:
