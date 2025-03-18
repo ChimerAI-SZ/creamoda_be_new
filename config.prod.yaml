@@ -13,14 +13,14 @@ security:
   access_token_expire_minutes: 10080
 
 database:
-  host: "rm-2ev1h3g9294sr1vjo.mysql.rds.aliyuncs.com"
+  host: "rm-2ev1h3g9294sr1vjopo.mysql.rds.aliyuncs.com"
   port: 3306
   user: "new_creamoda"
   password: "new_creamoda_test2024"
   name: "new_creamoda"
 
 redis:
-  host: "r-2evuw58o1ka6g8k5bp.redis.rds.aliyuncs.com"
+  host: "r-2evuw58o1ka6g8k5bppd.redis.rds.aliyuncs.com"
   port: 6379
   username: "creamoda"
   password: "&creamoda_2025@%"
