@@ -9,6 +9,7 @@ class UserContext(BaseModel):
     username: str
     status: int
     email_verified: int
+    head_pic: Optional[str] = None
 
 # 创建上下文变量
 user_context: ContextVar[Optional[UserContext]] = ContextVar('user_context', default=None)

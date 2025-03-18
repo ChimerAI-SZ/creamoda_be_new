@@ -1,9 +1,11 @@
 import smtplib
 import ssl
+import asyncio
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from typing import List, Optional
+import traceback
 
 from ..config.config import settings
 from ..config.log_config import logger
@@ -18,6 +20,8 @@ class EmailSender:
         self.from_name = settings.smtp.from_name
         self.timeout = 10  # 设置10秒超时
         self.context = ssl.create_default_context()  # 创建SSL上下文
+        self.context.check_hostname = False
+        self.context.verify_mode = ssl.CERT_NONE
 
     def send_email(
         self,
@@ -71,8 +75,16 @@ class EmailSender:
                     msg.as_string()
                 )
                 
-            logger.info(f"Email sent successfully to {to_addresses}")
-            return True
+                # 增加详细日志
+                logger.info(
+                    "Email sent successfully. Details: \n"
+                    f"To: {to_addresses}\n"
+                    f"Subject: {subject}\n"
+                    f"CC: {cc_addresses or 'None'}\n"
+                    f"BCC: {bcc_addresses or 'None'}\n"
+                    f"Content: {body[:500]}{'...' if len(body) > 500 else ''}"  # 记录前500个字符
+                )
+                return True
 
         except smtplib.SMTPConnectError as e:
             logger.error(f"Failed to connect to SMTP server: {str(e)}")
@@ -84,7 +96,14 @@ class EmailSender:
             logger.error(f"SMTP error occurred: {str(e)}")
             return False
         except Exception as e:
-            logger.error(f"Failed to send email: {str(e)}")
+            # 记录失败详情
+            stack_trace = traceback.format_exc()
+            logger.error(
+                f"Failed to send email. Error: {str(e)}\n"
+                f"To: {to_addresses}\n"
+                f"Subject: {subject}\n"
+                f"Stack Trace: {stack_trace}"
+            )
             return False
 
     def send_verification_email(self, to_address: str, verification_code: str, user_id: int) -> bool:
@@ -109,6 +128,42 @@ class EmailSender:
         </html>
         """
         return self.send_email([to_address], subject, body)
+
+    async def send_email_async(
+        self,
+        to_addresses: List[str],
+        subject: str,
+        body: str,
+        html: bool = True,
+        cc_addresses: Optional[List[str]] = None,
+        bcc_addresses: Optional[List[str]] = None
+    ) -> bool:
+        """异步发送邮件"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, 
+            lambda: self.send_email(to_addresses, subject, body, html, cc_addresses, bcc_addresses)
+        )
+
+    async def send_verification_email_async(self, to_address: str, verification_code: str, user_id: int, expire_minutes: int = 10) -> bool:
+        """异步发送验证码邮件
+        :param to_address: 收件人邮箱
+        :param verification_code: 验证码
+        :param user_id: 用户ID
+        :param expire_minutes: 验证码过期时间（分钟）
+        :return: 是否发送成功
+        """
+        subject = "Verify Your Email Address"
+        body = f"""
+        <html>
+            <body>
+                <h2>Welcome to Creamoda!</h2>
+                <p>Your verification code is: <strong>{verification_code}</strong></p>
+                <p>This code will expire in {expire_minutes} minutes.</p>
+                <p>If you didn't create an account with us, please ignore this email.</p>
+            </body>
+        </html>
+        """
+        return await self.send_email_async([to_address], subject, body)
 
 
 # 创建全局邮件发送器实例

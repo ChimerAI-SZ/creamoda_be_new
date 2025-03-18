@@ -1,0 +1,62 @@
+api:
+  v1_str: "/api/v1"
+  project_name: "Creamoda BE"
+
+google_oauth2:
+  client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
+  client_secret: "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"
+  redirect_uri: "https://test-mvp.creamoda.ai/google-callback"
+
+security:
+  jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
+  jwt_algorithm: "HS256"
+  access_token_expire_minutes: 10080
+
+database:
+  host: "rm-bp15vgy612f39t5p05o.mysql.rds.aliyuncs.com"
+  port: 3306
+  user: "new_creamoda"
+  password: "new_creamoda_test2024"
+  name: "chimer_test"
+
+redis:
+  host: "r-bp1ml0wy14mbtvzpkfpd.redis.rds.aliyuncs.com"
+  port: 6379
+  username: "local_test"
+  password: "chimer_test!@1"
+  db: 1
+
+smtp:
+  host: "smtp.feishu.cn"
+  port: 465
+  username: "no-reply@creamoda.ai"
+  password: "WaEFPjn8uNOSiz7f"
+  from_name: "creamoda" 
+
+algorithm:
+  thenewblack_email: "no-reply@chimerai.tech"
+  thenewblack_password: "!W5gwscU6duZ3DE"
+
+scheduler:
+  enabled: true
+  jobstores:
+    redis: redis
+  job_defaults:
+    coalesce: true      # 堆积的任务只跑一次
+    max_instances: 1    # 同一个任务同时只能有一个实例
+    misfire_grace_time: 60  # 任务错过执行时间的容错范围(秒)
+
+oss:
+  access_key_id: "LTAI5tS9WAmWwjbVsuKv6YBf"
+  access_key_secret: "Ur2lyCA3tXHsklbI6SwVhoReAgfmYj"
+  endpoint: "https://oss-cn-beijing.aliyuncs.com"
+  bucket_name: "creamoda-test"
+  url_prefix: "https://creamoda-test.oss-cn-beijing.aliyuncs.com"
+  upload_dir: "uploads/"
+
+# 添加图片生成任务配置
+image_generation:
+  text_to_image_count: 2      # 文生图任务生成的图片数量
+  copy_style_count: 2         # 洗图任务生成的图片数量
+  change_clothes_count: 2     # 换装任务生成的图片数量
+  estimated_time_seconds: 20  # 预计完成时间(秒)

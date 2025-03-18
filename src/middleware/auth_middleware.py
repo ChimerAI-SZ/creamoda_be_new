@@ -56,9 +56,9 @@ class AuthMiddleware:
                 raise ValueError("Invalid token payload")
                 
             # 检查Redis中的会话
-            stored_token = redis_client.get(f"user_session:{email}")
-            if not stored_token or stored_token != token:
-                raise ValueError("Invalid or expired session")
+            # stored_token = redis_client.get(f"user_session:{email}")
+            # if not stored_token or stored_token != token:
+            #     raise ValueError("Invalid or expired session")
             
             # 获取用户信息
             db = SessionLocal()
@@ -77,7 +77,8 @@ class AuthMiddleware:
                     email=user.email,
                     username=user.username,
                     status=user.status,
-                    email_verified=user.email_verified
+                    email_verified=user.email_verified,
+                    head_pic=user.head_pic
                 ))
                 
                 # 继续处理请求
