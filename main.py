@@ -13,24 +13,18 @@ app = FastAPI(
 
 logger.info("FastAPI 应用已启动")
 
-# 设置中间件
 MiddlewareManager.setup_middlewares(app)
-
-# 注册路由
 RouterManager.register_routers(app)
 
 @app.on_event("startup")
 async def startup_event():
     """应用启动时的初始化操作"""
-    # 初始化定时任务
     await TaskManager.initialize_tasks()
-    # 启动调度器
     await TaskManager.start_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时的清理操作"""
-    # 关闭调度器
     await TaskManager.shutdown_scheduler()
 
 if __name__ == "__main__":

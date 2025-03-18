@@ -13,16 +13,17 @@ security:
   access_token_expire_minutes: 10080
 
 database:
-  host: "rm-bp15vgy612f39t5p05o.mysql.rds.aliyuncs.com"
+  host: "rm-2ev1h3g9294sr1vjo.mysql.rds.aliyuncs.com"
   port: 3306
   user: "new_creamoda"
   password: "new_creamoda_test2024"
-  name: "chimer_test"
+  name: "new_creamoda"
 
 redis:
-  host: "r-bp1ml0wy14mbtvzpkf.redis.rds.aliyuncs.com"
+  host: "r-2evuw58o1ka6g8k5bp.redis.rds.aliyuncs.com"
   port: 6379
-  # password: "cspg2022"
+  username: "creamoda"
+  password: "&creamoda_2025@%"
   db: 1
 
 smtp:
@@ -45,9 +46,9 @@ scheduler:
     misfire_grace_time: 60  # 任务错过执行时间的容错范围(秒)
 
 oss:
-  access_key_id: "LTAI5tS9WAmWwjbVsuKv6YBf"
-  access_key_secret: "Ur2lyCA3tXHsklbI6SwVhoReAgfmYj"
-  endpoint: "https://oss-cn-beijing.aliyuncs.com"
-  bucket_name: "creamoda-test"
-  url_prefix: "https://creamoda-test.oss-cn-beijing.aliyuncs.com"
+  access_key_id: "LTAI5tFJDBnKUYZJ1sVCB1JP"
+  access_key_secret: "qzQGBjcgmnIRVg0jFKzXnOmvwLO7QK"
+  endpoint: "oss-us-west-1.aliyuncs.com"
+  bucket_name: "new-creamoda"
+  url_prefix: "https://oss-us-west-1.aliyuncs.com"
   upload_dir: "uploads/"
