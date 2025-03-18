@@ -6,7 +6,8 @@ from ..services.image_service import ImageService
 from ..config.log_config import logger
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from ..models.models import GenImgRecord, GenImgResult  # 使用已有模型
+from ..models.models import GenImgRecord, GenImgResult
+from sqlalchemy import or_
 
 async def process_image_generation_compensate():
     """补偿处理未完成的图像生成任务"""
@@ -15,11 +16,24 @@ async def process_image_generation_compensate():
         # 获取当前时间
         now = datetime.utcnow()
         
-        # 查询所有更新时间超过10秒且失败次数小于3次的结果记录
-        timeout_threshold = now - timedelta(seconds=10)
+        # 查询所有满足条件的记录：
+        # 1.status为1或4，更新时间超过10秒且失败次数小于3次的结果记录 
+        # 2.status为2，更新时间超过600秒的记录且失败次数小于3次的结果记录
+        short_timeout_threshold = now - timedelta(seconds=10)
+        long_timeout_threshold = now - timedelta(seconds=600)
+        
         timeout_results = db.query(GenImgResult).filter(
-            (GenImgResult.status == 1) | (GenImgResult.status == 4),  # 状态为待生成或生成失败
-            GenImgResult.update_time < timeout_threshold  # 更新时间超过10秒
+            or_(
+                # 条件1：状态为待生成(1)或生成失败(4)，更新时间超过10秒，且失败次数小于3次
+                ((GenImgResult.status == 1) | (GenImgResult.status == 4)) &
+                (GenImgResult.update_time < short_timeout_threshold) &
+                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count < 3)),
+                
+                # 条件2：状态为生成中(2)，更新时间超过600秒，且失败次数小于3次
+                (GenImgResult.status == 2) &
+                (GenImgResult.update_time < long_timeout_threshold) &
+                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count < 3))
+            )
         ).all()
         
         if not timeout_results:
