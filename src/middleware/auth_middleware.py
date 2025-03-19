@@ -89,6 +89,15 @@ class AuthMiddleware:
                 db.close()
                 clear_user_context()
                 
+        except ValueError as e:
+            logger.warn(f"Authentication error: {str(e)}")
+            return JSONResponse(
+                status_code=200,
+                content=CommonResponse(
+                    code=401,
+                    msg="Invalid or expired token"
+                ).model_dump()
+            )
         except Exception as e:
             logger.error(f"Authentication error: {str(e)}")
             return JSONResponse(

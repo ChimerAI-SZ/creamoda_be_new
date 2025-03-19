@@ -190,7 +190,10 @@ async def login(
             )
         )
         
-    except (ValidationError, AuthenticationError, UserInfoError, EmailVerifiedError) as e:
+    except EmailVerifiedError as e:
+        logger.warn(f"Email verification failed: {str(e)}")
+        raise e
+    except (ValidationError, AuthenticationError, UserInfoError) as e:
         logger.error(f"Login validation failed: {str(e)}")
         raise e
     except Exception as e:
@@ -317,7 +320,7 @@ async def verify_email(
         )
         
     except ValidationError as e:
-        logger.error(f"Email verification failed: {str(e)}")
+        logger.warn(f"Email verification failed: {str(e)}")
         raise e
     except Exception as e:
         logger.error(f"Unexpected error during email verification: {str(e)}")
