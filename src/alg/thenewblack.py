@@ -101,7 +101,7 @@ class TheNewBlackAPI:
             elapsed_time = time.time() - start_time  # 计算请求用时
             logger.info(f"TheNewBlack create_clothing API request took {elapsed_time:.2f} seconds")
 
-    def get_credit_balance(self) -> int:
+    def get_credit_balance(self) -> float:
         """
         Retrieves the current credit balance of the account.
 
@@ -123,7 +123,7 @@ class TheNewBlackAPI:
             logger.info(f"TheNewBlack API credit balance response content: {response.text}")
             
             response.raise_for_status()
-            return int(response.text)  # response is the credit balance as an integer
+            return float(response.text)  # response is the credit balance as an float
         except (requests.exceptions.RequestException, ValueError) as e:
             logger.error(f"Error getting credit balance: {str(e)}")
             raise
