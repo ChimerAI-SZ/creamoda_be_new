@@ -30,7 +30,25 @@ class ChangeClothesRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
     
+class CopyFabricRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+    gender: int = Field(..., title="模特性别", description="1-男 2-女")
+    age: int = Field(..., title="年龄")
+    country: str = Field(..., title="国家code")
+        
+class VirtualTryOnRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    clothingPhoto: str = Field(..., title="服装图片链接", description="服装图片链接")
+    clothType: str = Field(..., title="服装类型", description="服装类型,Value can be 'tops', 'bottoms' or 'one-pieces'")
+    
 class ChangeClothesResponse(CommonResponse[ImageGenerationData]):
+    pass
+
+class CopyFabricResponse(CommonResponse[ImageGenerationData]):
+    pass
+
+class VirtualTryOnResponse(CommonResponse[ImageGenerationData]):
     pass
 
 class GetImageHistoryRequest(BaseModel):

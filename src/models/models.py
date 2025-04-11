@@ -47,6 +47,8 @@ class GenImgRecord(Base):
     type = mapped_column(INTEGER(11), comment='生图类型 1-文生图 2-图生图')
     original_pic_url = mapped_column(Text)
     original_prompt = mapped_column(Text)
+    clothing_photo = mapped_column(Text)
+    cloth_type = mapped_column(INTEGER(11), comment='服装类型')
     variation_type = mapped_column(INTEGER(11), comment='变化类型')
     status = mapped_column(TINYINT(4), comment='1-待生成 2-生成中 3-已生成')
     with_human_model = mapped_column(TINYINT(4))

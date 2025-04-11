@@ -71,6 +71,10 @@ async def process_image_generation_compensate():
                     replace=task.original_prompt,   # 使用原始提示词作为替换内容
                     negative=None                   # 没有负面提示词
                 )
+            elif task.type == 2 and task.variation_type == 3:
+                await ImageService.process_copy_fabric_generation(result.id)
+            elif task.type == 3:
+                await ImageService.process_virtual_try_on_generation(result.id)
             else:
                 logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                 continue

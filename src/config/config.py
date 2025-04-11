@@ -70,6 +70,8 @@ class ImageGenerationSettings(BaseModel):
     text_to_image_count: int = 2
     copy_style_count: int = 2
     change_clothes_count: int = 2
+    copy_fabric_count: int = 2
+    virtual_try_on_count: int = 2
     estimated_time_seconds: int = 20
 
 class Settings(BaseModel):

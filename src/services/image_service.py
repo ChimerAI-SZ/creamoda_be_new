@@ -103,6 +103,153 @@ class ImageService:
             raise e
     
     @staticmethod
+    async def create_copy_fabric_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        prompt: str,
+        gender: int,
+        age: int,
+        country: str
+    ) -> Dict[str, Any]:
+        """创建复制面料任务"""
+
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=2,  # 2-图生图
+            variation_type=3, # 2-复制服装面料
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            original_prompt=prompt,
+            gender=gender,
+            age=age,
+            country=country,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.copy_fabric_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                
+                # 创建结果记录，包含风格信息
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    prompt=prompt,
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_copy_fabric_generation(result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create copy fabric task: {str(e)}")
+            raise e
+
+
+    @staticmethod
+    async def create_virtual_try_on_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        clothing_photo: str,
+        cloth_type: str,
+    ) -> Dict[str, Any]:
+        """创建虚拟试穿任务"""
+
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=3,  # 2-虚拟试穿
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            clothing_photo=clothing_photo,
+            cloth_type=cloth_type,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.virtual_try_on_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                
+                # 创建结果记录，包含风格信息
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_virtual_try_on_generation(result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create virtual try on task: {str(e)}")
+            raise e
+
+    @staticmethod
     def _get_unique_style(used_styles: set) -> tuple:
         """获取一个未使用的风格
         
@@ -237,6 +384,174 @@ class ImageService:
         finally:
             db.close()
     
+    @staticmethod
+    async def process_copy_fabric_generation(result_id: int):
+        """处理洗图任务"""
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
+                
+                # 使用create_variation方法
+                result_pic = await thenewblack.create_clothing_with_fabric(
+                    fabric_image_url=task.original_pic_url,
+                    prompt=task.original_prompt,
+                    gender=task.gender,
+                    country=task.country,
+                    age=task.age,
+                    result_id=result.id
+                )
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+        except Exception as e:
+            logger.error(f"Error processing copy fabric generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def process_virtual_try_on_generation(result_id: int):
+        """处理洗图任务"""
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
+                
+                # 使用create_variation方法
+                result_pic = await thenewblack.create_virtual_try_on(
+                    model_image_url=task.original_pic_url,
+                    clothing_image_url=task.clothing_photo,
+                    clothing_type=task.cloth_type,
+                    result_id=result.id
+                )
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+        except Exception as e:
+            logger.error(f"Error processing copy fabric generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
     @staticmethod
     def _get_style_by_name(style_name: str) -> tuple:
         """根据风格名称获取风格提示词

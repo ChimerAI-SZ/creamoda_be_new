@@ -539,3 +539,137 @@ class TheNewBlack:
             import traceback
             logger.error(f"Exception traceback: {traceback.format_exc()}")
             raise
+
+    async def create_clothing_with_fabric(
+        self,
+        fabric_image_url: str, 
+        prompt: str, 
+        gender: int,
+        country: str, 
+        age: int,
+        result_id: str = None
+    ) -> str:
+        """更换图片中的服装 - 与业务代码接口匹配的方法
+
+        Args:
+            image_url: 原始图片URL
+            remove: 描述要从图片中移除的内容
+            replace: 描述要替换成的新内容
+            negative: 描述不想要的内容(可选)
+            result_id: 生成任务结果ID
+
+        Returns:
+            生成的图片URL
+        """
+        # 记录开始调用
+        logger.info(f"Starting change clothes with TheNewBlack for task result {result_id}")
+        logger.info(f"Parameters: fabric_image_url='{fabric_image_url}', prompt='{prompt}', gender={gender}, country='{country}', age={age}")
+
+        gender_enum = Gender.MAN if gender == 1 else Gender.WOMAN
+
+        # 使用线程池执行同步请求，避免阻塞事件循环
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.api.create_clothing_with_fabric,
+                    fabric_image_url=fabric_image_url,
+                    prompt=prompt,
+                    gender=gender_enum,
+                    country=country,
+                    age=age
+                )
+
+                # 添加超时处理，避免无限等待
+                image_url = await asyncio.wrap_future(future)
+
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    image_url,
+                    f"tnb_clothes_{result_id}"
+                )
+
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                    return image_url
+
+                # 记录成功结果
+                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+                return oss_image_url
+
+        except Exception as e:
+            # 详细记录异常
+            logger.error(f"Error in TheNewBlack change clothes for task result {result_id}: {str(e)}")
+            import traceback
+            logger.error(f"Exception traceback: {traceback.format_exc()}")
+            raise
+
+    async def create_virtual_try_on(
+        self,
+        model_image_url: str,
+        clothing_image_url: str,
+        clothing_type: str,
+        result_id: str = None
+    ) -> str:
+        """虚拟试穿 - 与业务代码接口匹配的方法
+
+        Args:
+            model_image_url: 模特图片URL
+            clothing_image_url: 服装图片URL
+            clothing_type: 服装类型
+            result_id: 生成任务结果ID
+
+        Returns:
+            生成的图片URL
+        """
+        # 记录开始调用
+        logger.info(f"Starting change clothes with TheNewBlack for task result {result_id}")
+        logger.info(f"Parameters: model_image_url='{model_image_url}', clothing_image_url='{clothing_image_url}', clothing_type='{clothing_type}'")
+
+        clothing_type_enum = ClothingType.TOPS if clothing_type == 'tops' else ClothingType.BOTTOMS if clothing_type == 'bottoms' else ClothingType.ONE_PIECES
+
+        # 使用线程池执行同步请求，避免阻塞事件循环
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.api.start_virtual_try_on,
+                    model_image_url=model_image_url,
+                    clothing_image_url=clothing_image_url,
+                    clothing_type=clothing_type_enum
+                )
+
+                # 添加超时处理，避免无限等待
+                job_id = await asyncio.wrap_future(future)
+
+                # 获取虚拟试穿结果，每十秒获取一次，最多尝试300秒
+                start_time = time.time()
+                result_pic = None
+                while True:
+                    result = self.api.get_results(job_id)
+                    if result:
+                        result_pic = result
+                        break
+                    await asyncio.sleep(10)
+                    if time.time() - start_time > 300:
+                        logger.error(f"Virtual try on job {job_id} timed out after 300 seconds")
+                        raise Exception("Virtual try on job timed out")
+
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    result_pic,
+                    f"tnb_clothes_{result_id}"
+                )
+
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
+                    return result_pic
+
+                # 记录成功结果
+                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+                return oss_image_url
+
+        except Exception as e:
+            # 详细记录异常
+            logger.error(f"Error in TheNewBlack change clothes for task result {result_id}: {str(e)}")
+            import traceback
+            logger.error(f"Exception traceback: {traceback.format_exc()}")
+            raise

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse
+from ...dto.image import CopyFabricRequest, CopyFabricResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -271,4 +271,74 @@ async def refresh_image_status(
     
     except Exception as e:
         logger.error(f"Failed to refresh image status: {str(e)}")
+        raise e 
+
+
+@router.post("/copy_fabric", response_model=CopyFabricResponse)
+async def copy_fabric(
+    request: CopyFabricRequest,
+    db: Session = Depends(get_db)
+):
+    """复制面料接口 - 复制图片中的面料"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    try:
+        # 创建复制面料任务
+        task_info = await ImageService.create_copy_fabric_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            prompt=request.prompt,
+            gender=request.gender,
+            age=request.age,
+            country=request.country
+        )
+        
+        # 返回任务信息
+        return CopyFabricResponse(
+            code=0,
+            msg="Copy fabric task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process copy fabric: {str(e)}")
+        raise e 
+
+
+@router.post("/virtual_try_on", response_model=VirtualTryOnResponse)
+async def virtual_try_on(
+    request: VirtualTryOnRequest,
+    db: Session = Depends(get_db)
+):
+    """虚拟试穿接口 - 虚拟试穿图片中的服装"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    try:
+        # 创建虚拟试穿任务
+        task_info = await ImageService.create_virtual_try_on_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            clothing_photo=request.clothingPhoto,
+            cloth_type=request.clothType
+        )
+        
+        # 返回任务信息
+        return VirtualTryOnResponse(
+            code=0,
+            msg="Virtual try on task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process virtual try on: {str(e)}")
         raise e 
