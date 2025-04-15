@@ -324,6 +324,175 @@ class TheNewBlackAPI:
             elapsed_time = time.time() - start_time
             logger.info(f"TheNewBlack get_results API request took {elapsed_time:.2f} seconds")
 
+    def start_generate_ai_model(
+            self,
+            clothing_photo_url: str,
+            clothing_type: ClothingType,
+            gender: Gender,
+            country: str,
+            age: int,
+            other_clothes: str,
+            image_context: str,
+            width: int,
+            height: int
+    ) -> str:
+        """
+        Creates an AI generated model from a clothing photo.
+        This is an asynchronous operation that returns a job ID for later retrieval.
+
+        :param clothing_photo_url: URL of the clothing image (required)
+        :param clothing_type: Type of clothing (tops, bottoms, one-pieces) (required)
+        :param gender: Gender of the model (required)
+        :param country: Name of the country for the model (required)
+        :param age: Age of the model, between 20 and 70 (required)
+        :param other_clothes: Description of other clothes besides the main one (required)
+        :param image_context: Description of the background and context (required)
+        :param width: Width of the output image (required)
+        :param height: Height of the output image (required)
+        :return: Job ID for retrieving the result
+        """
+        url = f"{self.base_url}/generated-models"
+        data = {
+            "email": self.email,
+            "password": self.password,
+            "clothing_photo": clothing_photo_url,
+            "clothing_type": clothing_type.value,
+            "gender": gender.value,
+            "country": country,
+            "age": str(age),
+            "other_clothes": other_clothes,
+            "image_context": image_context,
+            "width": str(width),
+            "height": str(height),
+        }
+
+        logger.info(f"Sending request to TheNewBlack API for AI model generation")
+        start_time = time.time()  # 记录开始时间
+
+        try:
+            response = self.session.post(url, data=data, timeout=self.timeout)
+
+            # 记录响应内容
+            logger.info(f"TheNewBlack API AI model generation response status: {response.status_code}")
+            logger.info(f"TheNewBlack API AI model generation response content: {response.text}")
+
+            response.raise_for_status()
+            return response.text  # response is a job ID
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error generating AI model: {str(e)}")
+            raise
+        finally:
+            elapsed_time = time.time() - start_time
+            logger.info(f"TheNewBlack generate_ai_model API request took {elapsed_time:.2f} seconds")
+
+    def change_model(self, image_url: str, model: str) -> str:
+        """
+        Creates the same photo by only changing the model.
+
+        :param image_url: URL of the original image (required)
+        :param model: Description of the new model (required)
+        :return: Response from the API as a URL to the modified image
+        """
+        url = f"{self.base_url}/change_model"
+        data = {
+            "email": self.email,
+            "password": self.password,
+            "image": image_url,
+            "model": model,
+        }
+
+        start_time = time.time()  # 记录开始时间
+
+        try:
+            response = self.session.post(url, data=data, timeout=self.timeout)
+
+            # 记录响应内容
+            logger.info(f"TheNewBlack API change model response status: {response.status_code}")
+            logger.info(f"TheNewBlack API change model response content: {response.text}")
+
+            response.raise_for_status()
+            return response.text  # response is a URL to the modified image
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error changing model: {str(e)}")
+            raise
+        finally:
+            elapsed_time = time.time() - start_time  # 计算请求用时
+            logger.info(f"TheNewBlack change_model API request took {elapsed_time:.2f} seconds")
+
+    def sketch_to_design(self, sketch_url: str, prompt: str, strength: float = 0.55) -> str:
+        """
+        Creates a real clothing design from a sketch.
+
+        :param sketch_url: URL of the original sketch/image (required)
+        :param prompt: Describe the final design (required)
+        :param strength: Value between 0 and 1. Defines how strongly the original sketch should be altered (default 0.55)
+        :return: Response from the API as a URL to the generated design
+        """
+        url = f"{self.base_url}/sketch"
+        data = {
+            "email": self.email,
+            "password": self.password,
+            "sketch": sketch_url,
+            "prompt": prompt,
+            "strength": str(strength),  # Convert to string as required by the API
+        }
+
+        start_time = time.time()  # 记录开始时间
+
+        try:
+            response = self.session.post(url, data=data, timeout=self.timeout)
+
+            # 记录响应内容
+            logger.info(f"TheNewBlack API sketch to design response status: {response.status_code}")
+            logger.info(f"TheNewBlack API sketch to design response content: {response.text}")
+
+            response.raise_for_status()
+            return response.text  # response is a URL to the generated design
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error in sketch to design: {str(e)}")
+            raise
+        finally:
+            elapsed_time = time.time() - start_time  # 计算请求用时
+            logger.info(f"TheNewBlack sketch_to_design API request took {elapsed_time:.2f} seconds")
+
+    def change_background(self, image_url: str, replace: str, negative: str = None) -> str:
+        """
+        Changes the background of an image given a prompt.
+
+        :param image_url: URL of the original image (required)
+        :param replace: Describe the new background (required)
+        :param negative: Describe what you DON'T want in the design (optional)
+        :return: Response from the API as a URL to the modified image
+        """
+        url = f"{self.base_url}/change-background"
+        data = {
+            "email": self.email,
+            "password": self.password,
+            "image": image_url,
+            "replace": replace,
+        }
+        if negative:
+            data["negative"] = negative
+
+        start_time = time.time()  # 记录开始时间
+
+        try:
+            response = self.session.post(url, data=data, timeout=self.timeout)
+
+            # 记录响应内容
+            logger.info(f"TheNewBlack API change background response status: {response.status_code}")
+            logger.info(f"TheNewBlack API change background response content: {response.text}")
+
+            response.raise_for_status()
+            return response.text  # response is a URL to the modified image
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error changing background: {str(e)}")
+            raise
+        finally:
+            elapsed_time = time.time() - start_time  # 计算请求用时
+            logger.info(f"TheNewBlack change_background API request took {elapsed_time:.2f} seconds")
+
+
 # 适配器类，与业务代码对接
 class TheNewBlack:
     def __init__(self, timeout: int = 300):
