@@ -48,3 +48,7 @@ if __name__ == "__main__":
     detector = IntentionDetector()
     result = detector.clothing_swap(image_url, "I want a t-shirt.")
     print(result)
+    from src.alg.thenewblack import TheNewBlackAPI
+    thenewblack_api = TheNewBlackAPI()
+    result = thenewblack_api.change_clothes(image_url, *result)
+    print(result)
