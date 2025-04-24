@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
     infini_ai = InfiniAI()
 
-    # Example of uploading and processing images
+    # Example of Mixing Styles
     image_a_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=384,h=,f=auto,dpr=2,fit=contain/f1744616433323x773760165443033100/upscale"
     image_b_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=384,h=,f=auto,dpr=2,fit=contain/f1744612696516x389731609267175230/gGaWt1YY3fgb6aUQrHybE_output.png"
 
@@ -376,4 +376,25 @@ if __name__ == "__main__":
     transfer_ab_prompt_id = infini_ai.comfy_request_transfer_ab(image_a_url, image_b_url, 0.9,
                                                                 seed=random.randint(0, 2147483647))
     result_urls = infini_ai.get_task_result(transfer_ab_prompt_id)
+    print(result_urls[0])
+
+    # Example of Changing Fabric
+    fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
+    model_image_url = "https://replicate.delivery/pbxt/JF3LddQgRiMM9Q4Smyfw7q7BR9Gn0PwkSWvJjKDPxyvr8Ru0/cool-dog.png"
+    model_mask_url = "https://replicate.delivery/pbxt/JF3Ld3yPLVA3JIELHx1uaAV5CQOyr4AoiOfo6mJZn2fofGaT/dog-mask.png"
+
+    fabric_image = Image.open(io.BytesIO(requests.get(fabric_image_url).content))
+    model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+    model_mask = Image.open(io.BytesIO(requests.get(model_mask_url).content))
+
+    # Upload images to InfiniAI's OSS
+    fabric_image_url = infini_ai.upload_image_to_infiniai_oss(fabric_image)
+    model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+    model_mask_url = infini_ai.upload_image_to_infiniai_oss(model_mask)
+
+    seed = random.randint(0, 2147483647)
+    transfer_fabric_prompt_id = infini_ai.comfy_request_transfer_fabric_to_clothes(
+        fabric_image_url, model_image_url, model_mask_url, seed
+    )
+    result_urls = infini_ai.get_task_result(transfer_fabric_prompt_id)
     print(result_urls[0])
