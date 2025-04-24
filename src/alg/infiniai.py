@@ -133,28 +133,21 @@ class InfiniAI:
 
             final_files = result['data']['comfy_task_info'][0]['final_files']
 
-            for image_url in final_files:
-                logger.info(f"Downloading image from: {image_url}")
-                response = requests.get(image_url)
-                if response.status_code == 200:
-                    ret_images.append(Image.open(BytesIO(response.content)))
-                    logger.info(f"Image download successful.")
-                else:
-                    logger.error(f"Image download failed with status code: {response.status_code}")
             end_time = time.time()
             logger.info(f"Task completed in {end_time - start_time:.2f} seconds.")
-            return ret_images
+            return final_files
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Request error during task result retrieval: {e}")
             return str(e)
 
-    def comfy_request_transfer_ab(self, image_a_url: str, image_b_url: str, seed: int) -> str:
+    def comfy_request_transfer_ab(self, image_a_url: str, image_b_url: str, strength:float, seed: int) -> str:
         """
         Send a request for AB flow image transformation.
 
         :param image_a_url: URL of image A.
         :param image_b_url: URL of image B.
+        :param strength: 0 for image A, 1 for image B.
         :param seed: The seed for randomization.
 
         :return: The prompt ID for the task.
@@ -167,14 +160,149 @@ class InfiniAI:
         payload = {
             "workflow_id": "wf-da4nq3lky7culoia",
             "prompt": {
-                "4": {"inputs": {"ckpt_name": "sdxl/realvisxlV50_v50Bakedvae_fp16.safetensors"}},
-                "6": {"inputs": {"text": ""}},
-                "7": {"inputs": {
-                    "text": "Nsfw, ugly, paintings, sketches, (worstquality:2), (low quality:2), (normal quality:2),lowres"}},
-                "18": {"inputs": {"image": image_b_url}},
-                "24": {"inputs": {"image": image_a_url}},
-                "104": {"inputs": {"seed": seed}},
-                # Other parameters omitted for brevity
+                "4": {
+                    "inputs": {
+                        "ckpt_name": "sdxl/realvisxlV50_v50Bakedvae_fp16.safetensors"
+                    }
+                },
+                "6": {
+                    "inputs": {
+                        "text": ""
+                    }
+                },
+                "7": {
+                    "inputs": {
+                        "text": "Nsfw, ugly, paintings, sketches, (worstquality:2), (low quality:2), (normal quality:2),lowres"
+                    }
+                },
+                "18": {
+                    "inputs": {
+                        "image": image_b_url
+                    }
+                },
+                "19": {
+                    "inputs": {
+                        "batch_size": 1,
+                        "height": 1152,
+                        "width": 832
+                    }
+                },
+                "24": {
+                    "inputs": {
+                        "image": image_a_url
+                    }
+                },
+                "40": {
+                    "inputs": {
+                        "cfg": 8,
+                        "denoise": 1,
+                        "sampler_name": "euler",
+                        "scheduler": "normal",
+                        "steps": 20
+                    }
+                },
+                "45": {
+                    "inputs": {
+                        "embeds_scaling": "V only",
+                        "end_at": 1,
+                        "start_at": 0,
+                        "weight": 1,
+                        "weight_type": "style transfer precise"
+                    }
+                },
+                "47": {
+                    "inputs": {
+                        "method": "average"
+                    }
+                },
+                "48": {
+                    "inputs": {
+                        "preset": "STANDARD (medium strength)"
+                    }
+                },
+                "50": {
+                    "inputs": {
+                        "embeds_scaling": "V only",
+                        "end_at": 1,
+                        "start_at": 0,
+                        "weight": 0.9,
+                        "weight_type": "composition"
+                    }
+                },
+                "51": {
+                    "inputs": {
+                        "method": "average"
+                    }
+                },
+                "92": {
+                    "inputs": {
+                        "a_value": "1",
+                        "b_value": "",
+                        "operator": "-"
+                    }
+                },
+                "93": {
+                    "inputs": {
+                        "float_value": strength
+                    }
+                },
+                "104": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "105": {
+                    "inputs": {
+                        "cfg": 1,
+                        "denoise": 0.3,
+                        "sampler_name": "euler",
+                        "scheduler": "simple",
+                        "steps": 12
+                    }
+                },
+                "111": {
+                    "inputs": {
+                        "clip_name1": "clip_l.safetensors",
+                        "clip_name2": "t5xxl_fp16.safetensors",
+                        "device": "default",
+                        "type": "flux"
+                    }
+                },
+                "112": {
+                    "inputs": {
+                        "vae_name": "flux/ae.safetensors"
+                    }
+                },
+                "113": {
+                    "inputs": {
+                        "text": ""
+                    }
+                },
+                "115": {
+                    "inputs": {
+                        "blind_watermark": "",
+                        "custom_path": "",
+                        "filename_prefix": "comfyui",
+                        "format": "png",
+                        "meta_data": False,
+                        "preview": True,
+                        "quality": 80,
+                        "save_workflow_as_json": False,
+                        "timestamp": "None"
+                    }
+                },
+                "116": {
+                    "inputs": {
+                        "max_skip_steps": 3,
+                        "model_type": "flux",
+                        "rel_l1_thresh": 0.2
+                    }
+                },
+                "118": {
+                    "inputs": {
+                        "unet_name": "flux1-dev-Q8_0.gguf"
+                    }
+                }
             }
         }
 
@@ -245,9 +373,7 @@ if __name__ == "__main__":
     image_a_url = infini_ai.upload_image_to_infiniai_oss(image_a)
     image_b_url = infini_ai.upload_image_to_infiniai_oss(image_b)
 
-    transfer_ab_prompt_id = infini_ai.comfy_request_transfer_ab(image_a_url, image_b_url,
+    transfer_ab_prompt_id = infini_ai.comfy_request_transfer_ab(image_a_url, image_b_url, 0.9,
                                                                 seed=random.randint(0, 2147483647))
-    transfer_ab_result = infini_ai.get_task_result(transfer_ab_prompt_id)
-    image_bytes = transfer_ab_result[0].tobytes()
-    with open("test.png", 'wb') as f:
-        f.write(image_bytes)
+    result_urls = infini_ai.get_task_result(transfer_ab_prompt_id)
+    print(result_urls[0])
