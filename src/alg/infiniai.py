@@ -336,11 +336,188 @@ class InfiniAI:
         payload = {
             "workflow_id": "wf-da4oumbjat2wufpd",
             "prompt": {
-                "39": {"inputs": {"image": fabric_image_url}},
-                "260": {"inputs": {"image": model_image_url}},
-                "342": {"inputs": {"image": model_mask_url}},
-                "331": {"inputs": {"seed": seed}},
-                # Other parameters omitted for brevity
+                "39": {
+                    "inputs": {
+                        "image": fabric_image_url
+                    }
+                },
+                "47": {
+                    "inputs": {
+                        "base_multiplier": 0.8,
+                        "flip_weights": False,
+                        "uncond_multiplier": 1
+                    }
+                },
+                "110": {
+                    "inputs": {
+                        "aspect_ratio": "original",
+                        "background_color": "#000000",
+                        "fit": "fill",
+                        "method": "lanczos",
+                        "proportional_height": 1,
+                        "proportional_width": 1,
+                        "round_to_multiple": "8",
+                        "scale_to_length": 1024,
+                        "scale_to_side": "width"
+                    }
+                },
+                "115": {
+                    "inputs": {
+                        "text": "Nsfw, ugly, paintings, sketches, (worstquality:2), (low quality:2), (normal quality:2),lowres"
+                    }
+                },
+                "116": {
+                    "inputs": {
+                        "end_percent": 1,
+                        "start_percent": 0,
+                        "strength": 0.8
+                    }
+                },
+                "119": {
+                    "inputs": {
+                        "cfg": 5,
+                        "denoise": 1,
+                        "sampler_name": "euler",
+                        "scheduler": "normal",
+                        "steps": 30
+                    }
+                },
+                "140": {
+                    "inputs": {
+                        "combine_embeds": "concat",
+                        "embeds_scaling": "V only",
+                        "end_at": 1,
+                        "start_at": 0,
+                        "weight": 1.0,
+                        "weight_type": "style transfer"
+                    }
+                },
+                "142": {
+                    "inputs": {
+                        "preset": "STANDARD (medium strength)"
+                    }
+                },
+                "260": {
+                    "inputs": {
+                        "image": model_image_url
+                    }
+                },
+                "289": {
+                    "inputs": {
+                        "text": "Dynamic pose, photography, masterpiece, bestquality,8K,HDR, highres,(absurdres: 1.2),Kodak portra 400,film grain, blurrybackground, (bokeh: 1.2), lens flare"
+                    }
+                },
+                "294": {
+                    "inputs": {
+                        "text": "Nsfw, ugly, paintings, sketches, (worstquality:2), (low quality:2), (normal quality:2),lowres"
+                    }
+                },
+                "295": {
+                    "inputs": {
+                        "cfg": 8,
+                        "denoise": 1,
+                        "sampler_name": "euler",
+                        "scheduler": "normal",
+                        "steps": 20
+                    }
+                },
+                "296": {
+                    "inputs": {
+                        "control_net_name": "xinsir/controlnet-union-promax-sdxl-1.0.safetensors"
+                    }
+                },
+                "297": {
+                    "inputs": {
+                        "end_percent": 1,
+                        "start_percent": 0,
+                        "strength": 1
+                    }
+                },
+                "301": {
+                    "inputs": {
+                        "ckpt_name": "sdxl/realvisxlV40_v40Bakedvae.safetensors"
+                    }
+                },
+                "303": {
+                    "inputs": {
+                        "base_multiplier": 0.9,
+                        "flip_weights": False,
+                        "uncond_multiplier": 1
+                    }
+                },
+                "305": {
+                    "inputs": {
+                        "text": "white clothing,  solo, full body,\nSolid color studio, solid color background, cool white tones, studio scene, premium, Canon DSLR shooting, 50mm prime lens, cinematic filter, medium depth of field, wide format,"
+                    }
+                },
+                "306": {
+                    "inputs": {
+                        "aspect_ratio": "original",
+                        "background_color": "#000000",
+                        "fit": "crop",
+                        "method": "lanczos",
+                        "proportional_height": 1,
+                        "proportional_width": 1,
+                        "round_to_multiple": "8",
+                        "scale_to_length": 1024,
+                        "scale_to_side": "width"
+                    }
+                },
+                "322": {
+                    "inputs": {
+                        "expand": 4,
+                        "tapered_corners": True
+                    }
+                },
+                "326": {
+                    "inputs": {
+                        "blend_mode": "normal",
+                        "invert_mask": False,
+                        "opacity": 100
+                    }
+                },
+                "331": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "332": {
+                    "inputs": {
+                        "blind_watermark": "",
+                        "custom_path": "",
+                        "filename_prefix": "comfyui",
+                        "format": "png",
+                        "meta_data": False,
+                        "preview": True,
+                        "quality": 80,
+                        "save_workflow_as_json": False,
+                        "timestamp": "None"
+                    }
+                },
+                "333": {
+                    "inputs": {
+                        "background_color": "#FFFFFF",
+                        "fit": "fill",
+                        "method": "lanczos"
+                    }
+                },
+                "339": {
+                    "inputs": {
+                        "blur": 7,
+                        "grow": 0,
+                        "invert_mask": False
+                    }
+                },
+                "342": {
+                    "inputs": {
+                        "image": model_mask_url
+                    }
+                },
+                "343": {
+                    "inputs": {
+                        "channel": "red"
+                    }
+                }
             }
         }
 
