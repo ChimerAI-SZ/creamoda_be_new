@@ -513,6 +513,8 @@ class TheNewBlack:
         age: int,
         country: str,
         model_size: int,
+        width: int,
+        height: int,
         result_id: str
     ) -> str:
         """创建服装图片 - 与业务代码接口匹配的方法
@@ -557,8 +559,8 @@ class TheNewBlack:
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future = executor.submit(
                     self.api.create_clothing,
-                    width=self.default_width,
-                    height=self.default_height,
+                    width=width if width != None else self.default_width,
+                    height=height if height != None else self.default_height,
                     outfit=outfit_prompt,
                     gender=gender_enum,
                     country=country,

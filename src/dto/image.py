@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from .common import CommonResponse
+from ..constants.image_constants import SUPPORTED_IMAGE_FORMATS, IMAGE_FORMAT_SIZE_MAP
+
 
 class TextToImageRequest(BaseModel):
     prompt: str = Field(..., title="提示词")
@@ -9,6 +11,19 @@ class TextToImageRequest(BaseModel):
     age: int = Field(..., title="年龄")
     country: str = Field(..., title="国家code")
     modelSize: int = Field(..., title="模特身材code")
+    format: str = Field(..., title="图片比例", description="1:1 2:3 3:2 3:4 4:3 9:16 16:9")
+
+    @validator("format")
+    def validate_format(cls, v):
+        """验证图像格式是否支持"""
+        if v not in SUPPORTED_IMAGE_FORMATS:
+            supported_formats = ", ".join(SUPPORTED_IMAGE_FORMATS)
+            raise ValueError(f"不支持的图像格式: {v}。支持的格式: {supported_formats}")
+        return v
+    
+    def get_image_size(self):
+        """获取对应的图像尺寸"""
+        return IMAGE_FORMAT_SIZE_MAP[self.format] 
 
 class ImageGenerationData(BaseModel):
     taskId: str

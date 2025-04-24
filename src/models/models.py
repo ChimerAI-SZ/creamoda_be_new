@@ -45,6 +45,7 @@ class GenImgRecord(Base):
     id = mapped_column(BIGINT(20), primary_key=True)
     uid = mapped_column(BIGINT(20), nullable=False)
     type = mapped_column(INTEGER(11), comment='生图类型 1-文生图 2-图生图')
+    format = mapped_column(String(50), comment='图片比例 1-1:1 2-2:3 3-3:2 4-3:4 5-4:3 6-9:16 7-16:9')
     original_pic_url = mapped_column(Text)
     original_prompt = mapped_column(Text)
     clothing_photo = mapped_column(Text)
@@ -59,6 +60,8 @@ class GenImgRecord(Base):
     fidelity = mapped_column(INTEGER(11), comment='保真度（乘以100）')
     create_time = mapped_column(TIMESTAMP)
     update_time = mapped_column(TIMESTAMP)
+    width = mapped_column(INTEGER(11), comment='图像宽度')
+    height = mapped_column(INTEGER(11), comment='图像高度')
 
 
 class GenImgResult(Base):

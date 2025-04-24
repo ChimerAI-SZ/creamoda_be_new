@@ -27,6 +27,11 @@ async def text_to_image(
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
     try:
+        # 从请求中获取图像尺寸
+        image_size = request.get_image_size()
+        width = image_size["width"]
+        height = image_size["height"]
+
         # 创建文生图任务
         task_info = await ImageService.create_text_to_image_task(
             db=db,
@@ -36,7 +41,10 @@ async def text_to_image(
             gender=request.gender,
             age=request.age,
             country=request.country,
-            model_size=request.modelSize
+            model_size=request.modelSize,
+            format=request.format,
+            width=width,
+            height=height
         )
         
         # 返回任务信息

@@ -19,11 +19,14 @@ class ImageService:
         db: Session,
         uid: int,
         prompt: str,
+        width: int,
+        height: int,
         with_human_model: int,
         gender: int,
         age: int,
         country: str,
-        model_size: int
+        model_size: int,
+        format: str
     ) -> Dict[str, Any]:
         """创建文生图任务"""
 
@@ -32,6 +35,9 @@ class ImageService:
         task = GenImgRecord(
             uid=uid,
             type=1,  # 1-文生图
+            format=format,
+            width=width,
+            height=height,
             status=1,  # 1-待生成
             original_prompt=prompt,
             with_human_model=with_human_model,
@@ -289,6 +295,8 @@ class ImageService:
                 age=task.age,
                 country=task.country,
                 model_size=task.model_size,
+                width=task.width,
+                height=task.height,
                 result_id=result.id
             )
             
