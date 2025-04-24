@@ -6,9 +6,7 @@ IMAGE_FORMAT_SIZE_MAP = {
     "2:3": {"width": 800, "height": 1200},
     "3:2": {"width": 1200, "height": 800},
     "3:4": {"width": 900, "height": 1200},
-    "4:3": {"width": 1200, "height": 900},
     "9:16": {"width": 768, "height": 1366},
-    "16:9": {"width": 1366, "height": 768},
 }
 
 # 支持的图像格式列表
