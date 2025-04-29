@@ -47,6 +47,8 @@ class SMTPSettings(BaseModel):
 class AlgorithmSettings(BaseModel):
     thenewblack_email: str
     thenewblack_password: str
+    openrouter_api_key: str
+    infiniai_api_key: str
 
 class JobDefaults(BaseModel):
     coalesce: bool = True
