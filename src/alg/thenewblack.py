@@ -419,13 +419,12 @@ class TheNewBlackAPI:
             elapsed_time = time.time() - start_time  # 计算请求用时
             logger.info(f"TheNewBlack change_model API request took {elapsed_time:.2f} seconds")
 
-    def sketch_to_design(self, sketch_url: str, prompt: str, strength: float = 0.55) -> str:
+    def sketch_to_design(self, sketch_url: str, prompt: str) -> str:
         """
         Creates a real clothing design from a sketch.
 
         :param sketch_url: URL of the original sketch/image (required)
         :param prompt: Describe the final design (required)
-        :param strength: Value between 0 and 1. Defines how strongly the original sketch should be altered (default 0.55)
         :return: Response from the API as a URL to the generated design
         """
         url = f"{self.base_url}/sketch"
@@ -433,8 +432,7 @@ class TheNewBlackAPI:
             "email": self.email,
             "password": self.password,
             "sketch": sketch_url,
-            "prompt": prompt,
-            "strength": str(strength),  # Convert to string as required by the API
+            "prompt": prompt
         }
 
         start_time = time.time()  # 记录开始时间
