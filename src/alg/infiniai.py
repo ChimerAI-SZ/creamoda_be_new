@@ -141,10 +141,12 @@ class InfiniAI:
             logger.error(f"Request error during task result retrieval: {e}")
             return str(e)
 
-    def comfy_request_transfer_ab(self, image_a_url: str, image_b_url: str, strength:float, seed: int) -> str:
+    def comfy_request_transfer_ab(self, prompt: str, image_a_url: str, image_b_url: str, strength: float,
+                                  seed: int) -> str:
         """
         Send a request for AB flow image transformation.
 
+        :param prompt: Image prompt.
         :param image_a_url: URL of image A.
         :param image_b_url: URL of image B.
         :param strength: 0 for image A, 1 for image B.
@@ -167,7 +169,7 @@ class InfiniAI:
                 },
                 "6": {
                     "inputs": {
-                        "text": ""
+                        "text": {prompt}
                     }
                 },
                 "7": {
