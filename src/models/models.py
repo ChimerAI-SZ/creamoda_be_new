@@ -48,6 +48,7 @@ class GenImgRecord(Base):
     format = mapped_column(String(50), comment='图片比例 1-1:1 2-2:3 3-3:2 4-3:4 5-4:3 6-9:16 7-16:9')
     original_pic_url = mapped_column(Text)
     original_prompt = mapped_column(Text)
+    refer_pic_url = mapped_column(Text)
     clothing_photo = mapped_column(Text)
     cloth_type = mapped_column(INTEGER(11), comment='服装类型')
     variation_type = mapped_column(INTEGER(11), comment='变化类型')

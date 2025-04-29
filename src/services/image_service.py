@@ -13,6 +13,7 @@ from ..config.config import settings
 from ..alg.thenewblack import TheNewBlack  # 导入TheNewBlack服务
 from ..utils.style_prompts import get_random_style_prompt
 from ..alg.intention_detector import IntentionDetector
+from ..alg.infiniai_adapter import InfiniAIAdapter
 
 class ImageService:
     @staticmethod
@@ -187,6 +188,91 @@ class ImageService:
             raise e
 
     @staticmethod
+    async def create_copy_style_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        fidelity: float,
+        prompt: str
+    ) -> Dict[str, Any]:
+        """创建洗图任务 (图片风格转换)"""
+
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=2,  # 2-图转图(洗图)
+            variation_type = 1, # 1-洗图
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            original_prompt=prompt,
+            fidelity=int(fidelity * 100),  # 将0-1的保真度转为0-100的整数存储
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.copy_style_count
+            
+            # 获取所有可用风格，确保不重复
+            used_styles = set()
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                # 选择一个未使用的风格
+                style_name, style_prompt = ImageService._get_unique_style(used_styles)
+                used_styles.add(style_name)
+
+                # 合并原始提示词和风格提示词
+                enhanced_prompt = f"{task.original_prompt}{style_prompt}"
+                logger.info(f"Enhanced prompt with style '{style_name}': {enhanced_prompt}")
+                
+                # 创建结果记录，包含风格信息
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    style=style_name,  # 保存风格名称
+                    prompt=enhanced_prompt,
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_copy_style_generation(result_id)
+                )
+            
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create copy style task: {str(e)}")
+            raise e
+
+
+    @staticmethod
     async def create_sketch_to_design_task(
         db: Session,
         uid: int,
@@ -255,6 +341,79 @@ class ImageService:
             db.rollback()
             logger.error(f"Failed to create sketch to design task: {str(e)}")
             raise e
+
+    @staticmethod
+    async def create_mix_image_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        refer_pic_url: str,
+        prompt: str,
+        fidelity: float
+    ) -> Dict[str, Any]:
+        """创建草图转设计任务"""
+
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=5,  # 5-混合图片
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            original_prompt=prompt,
+            refer_pic_url=refer_pic_url,
+            fidelity=fidelity,
+            create_time=now,
+            update_time=now
+        )
+
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.mix_image_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                
+                # 创建结果记录，包含风格信息
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_mix_image_generation(result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create mix image task: {str(e)}")
+            raise e
+
 
     @staticmethod
     async def create_virtual_try_on_task(
@@ -721,6 +880,89 @@ class ImageService:
             db.close()
 
     @staticmethod
+    async def process_mix_image_generation(result_id: int):
+        """处理混合图片任务"""
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
+                
+                # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
+                fidelity = task.fidelity / 100.0
+                
+                # 确保保真度在有效范围内
+                fidelity = min(max(fidelity, 0.0), 1.0)
+
+                result_pic = InfiniAIAdapter.transfer_style(image_a_url=task.original_pic_url, image_b_url=task.refer_pic_url, strength=fidelity)
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Image mix image completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to generate mix image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+        except Exception as e:
+            logger.error(f"Error processing mix image generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
     def _get_style_by_name(style_name: str) -> tuple:
         """根据风格名称获取风格提示词
         
@@ -740,89 +982,6 @@ class ImageService:
         # 如果找不到，返回默认风格
         return STYLE_PROMPTS[0]
 
-    @staticmethod
-    async def create_copy_style_task(
-        db: Session,
-        uid: int,
-        original_pic_url: str,
-        fidelity: float,
-        prompt: str
-    ) -> Dict[str, Any]:
-        """创建洗图任务 (图片风格转换)"""
-
-        # 创建任务记录
-        now = datetime.utcnow()
-        task = GenImgRecord(
-            uid=uid,
-            type=2,  # 2-图转图(洗图)
-            variation_type = 1, # 1-洗图
-            status=1,  # 1-待生成
-            original_pic_url=original_pic_url,
-            original_prompt=prompt,
-            fidelity=int(fidelity * 100),  # 将0-1的保真度转为0-100的整数存储
-            create_time=now,
-            update_time=now
-        )
-        
-        try:
-            # 保存到数据库
-            db.add(task)
-            db.commit()
-            db.refresh(task)
-            
-            # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.copy_style_count
-            
-            # 获取所有可用风格，确保不重复
-            used_styles = set()
-            
-            # 创建指定数量的结果记录并存储它们的ID
-            result_ids = []
-            for i in range(image_count):
-                # 选择一个未使用的风格
-                style_name, style_prompt = ImageService._get_unique_style(used_styles)
-                used_styles.add(style_name)
-
-                # 合并原始提示词和风格提示词
-                enhanced_prompt = f"{task.original_prompt}{style_prompt}"
-                logger.info(f"Enhanced prompt with style '{style_name}': {enhanced_prompt}")
-                
-                # 创建结果记录，包含风格信息
-                result = GenImgResult(
-                    gen_id=task.id,
-                    uid=uid,
-                    status=1,  # 1-待生成
-                    style=style_name,  # 保存风格名称
-                    prompt=enhanced_prompt,
-                    result_pic="",
-                    create_time=now,
-                    update_time=now
-                )
-                db.add(result)
-                db.flush()  # 刷新以获取ID，但不提交事务
-                result_ids.append(result.id)
-            
-            # 提交事务
-            db.commit()
-
-            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
-            for result_id in result_ids:
-                asyncio.create_task(
-                    ImageService.process_copy_style_generation(result_id)
-                )
-            
-            
-            # 返回任务信息
-            return {
-                "taskId": task.id,
-                "status": 1,  # 1-待生成
-                "estimatedTime": settings.image_generation.estimated_time_seconds
-            }
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Failed to create copy style task: {str(e)}")
-            raise e
 
     @staticmethod
     async def process_copy_style_generation(result_id: int):
@@ -1276,3 +1435,344 @@ class ImageService:
             result_list.append(status_item)
         
         return result_list 
+
+    @staticmethod
+    async def create_style_transfer_task(
+        db: Session,
+        uid: int,
+        image_a_url: str,
+        image_b_url: str,
+        strength: float = 0.5
+    ) -> Dict[str, Any]:
+        """创建风格转换任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            image_a_url: 内容图片URL
+            image_b_url: 风格图片URL
+            strength: 风格应用强度，0-1之间
+            
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=4,  # 4-风格转换
+            status=1,  # 1-待生成
+            original_pic_url=image_a_url,
+            style_pic_url=image_b_url,
+            strength=int(strength * 100),  # 将0-1的强度转为0-100的整数存储
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为2
+            image_count = settings.image_generation.style_transfer_count if hasattr(settings.image_generation, "style_transfer_count") else 2
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理风格转换
+            first_result_id = result_ids[0] if result_ids else None
+            if first_result_id:
+                asyncio.create_task(
+                    ImageService.process_style_transfer(first_result_id, strength)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create style transfer task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_style_transfer(result_id: int, strength: float = 0.5):
+        """处理风格转换任务
+        
+        Args:
+            result_id: 结果记录ID
+            strength: 风格应用强度，0-1之间
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用风格转换
+                generated_urls = adapter.transfer_style(
+                    image_a_url=task.original_pic_url,
+                    image_b_url=task.style_pic_url,
+                    strength=strength or 0.5
+                )
+                
+                if not generated_urls:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 获取第一个生成的图片URL
+                result_pic = generated_urls[0]
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Style transfer completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Style transfer failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Style transfer failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in style transfer for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing style transfer for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def create_fabric_transfer_task(
+        db: Session,
+        uid: int,
+        fabric_image_url: str,
+        model_image_url: str,
+        model_mask_url: str = None
+    ) -> Dict[str, Any]:
+        """创建面料转换任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            fabric_image_url: 面料图片URL
+            model_image_url: 模特图片URL
+            model_mask_url: 模特蒙版URL，可选
+            
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=5,  # 5-面料转换
+            status=1,  # 1-待生成
+            original_pic_url=fabric_image_url,
+            model_pic_url=model_image_url,
+            mask_pic_url=model_mask_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为2
+            image_count = settings.image_generation.fabric_transfer_count if hasattr(settings.image_generation, "fabric_transfer_count") else 2
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理面料转换
+            first_result_id = result_ids[0] if result_ids else None
+            if first_result_id:
+                asyncio.create_task(
+                    ImageService.process_fabric_transfer(first_result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create fabric transfer task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_fabric_transfer(result_id: int):
+        """处理面料转换任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用面料转换
+                generated_urls = adapter.transfer_fabric(
+                    fabric_image_url=task.original_pic_url,
+                    model_image_url=task.model_pic_url,
+                    model_mask_url=task.mask_pic_url
+                )
+                
+                if not generated_urls:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 获取第一个生成的图片URL
+                result_pic = generated_urls[0]
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Fabric transfer completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Fabric transfer failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Fabric transfer failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in fabric transfer for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing fabric transfer for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 

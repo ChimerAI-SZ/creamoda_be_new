@@ -51,6 +51,17 @@ class SketchToDesignRequest(BaseModel):
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
     referLevel: int = Field(..., title="保真度", description="保真度")
 
+class SketchToDesignResponse(CommonResponse[ImageGenerationData]):
+    pass
+        
+class MixImageRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    referPicUrl: str = Field(..., title="参考图片链接", description="参考图片链接")
+    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+    referLevel: int = Field(..., title="保真度", description="保真度")
+
+class MixImageResponse(CommonResponse[ImageGenerationData]):
+    pass
 class VirtualTryOnRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     clothingPhoto: str = Field(..., title="服装图片链接", description="服装图片链接")
@@ -125,4 +136,28 @@ class RefreshImageStatusData(BaseModel):
     list: List[RefreshImageStatusDataItem] = Field(..., description="记录列表")
 
 class RefreshImageStatusResponse(CommonResponse[RefreshImageStatusData]):
-    pass 
+    pass
+
+class StyleTransferRequest(BaseModel):
+    """风格转换请求DTO"""
+    imageUrl: str = Field(..., description="内容图片URL")
+    styleUrl: str = Field(..., description="风格图片URL")
+    strength: float = Field(0.5, description="风格应用强度，0-1之间，0为完全保留原图，1为完全应用风格")
+    
+class StyleTransferResponse(BaseModel):
+    """风格转换响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None
+    
+class FabricTransferRequest(BaseModel):
+    """面料转换请求DTO"""
+    fabricUrl: str = Field(..., description="面料图片URL")
+    modelUrl: str = Field(..., description="模特图片URL")
+    maskUrl: Optional[str] = Field(None, description="模特服装区域蒙版URL，可选")
+    
+class FabricTransferResponse(BaseModel):
+    """面料转换响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 

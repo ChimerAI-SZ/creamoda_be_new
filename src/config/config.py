@@ -75,6 +75,7 @@ class ImageGenerationSettings(BaseModel):
     fabric_to_design_count: int = 2
     virtual_try_on_count: int = 2
     sketch_to_design_count: int = 2
+    mix_image_count: int = 2
     estimated_time_seconds: int = 20
 
 class Settings(BaseModel):

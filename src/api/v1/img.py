@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import FabricToDesignRequest, FabricToDesignResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse
+from ...dto.image import FabricToDesignRequest, FabricToDesignResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -10,7 +10,7 @@ from ...exceptions.user import AuthenticationError, ValidationError
 from ...config.log_config import logger
 from ...constants.image_constants import IMAGE_FORMAT_SIZE_MAP
 from ...constants.refer_constants import REFER_LEVEL_MAP
-from ...dto.image import SketchToDesignRequest, SketchToDesignResponse
+from ...dto.image import SketchToDesignRequest, SketchToDesignResponse, MixImageRequest, MixImageResponse
 
 router = APIRouter()
 
@@ -400,3 +400,106 @@ async def sketch_to_design(
     except Exception as e:
         logger.error(f"Failed to process sketch to design: {str(e)}")
         raise e 
+
+@router.post("/mix_image", response_model=MixImageResponse)
+async def mix_image(
+    request: MixImageRequest,
+    db: Session = Depends(get_db)
+):
+    """复制面料接口 - 复制图片中的面料"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    try:
+        # 从请求中获取参考等级
+        fidelity = get_fidelity(request.referLevel)
+
+        # 创建复制面料任务
+        task_info = await ImageService.create_mix_image_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl,
+            prompt=request.prompt,
+            fidelity=fidelity
+        )
+        
+        # 返回任务信息
+        return MixImageResponse(
+            code=0,
+            msg="mix image task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process mix image: {str(e)}")
+        raise e 
+
+@router.post("/style_transfer", response_model=StyleTransferResponse)
+async def style_transfer(
+    request: StyleTransferRequest,
+    db: Session = Depends(get_db)
+):
+    """风格转换接口 - 将一张图片的风格应用到另一张图片上"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建风格转换任务
+        task_info = await ImageService.create_style_transfer_task(
+            db=db,
+            uid=user.id,
+            image_a_url=request.imageUrl,
+            image_b_url=request.styleUrl,
+            strength=request.strength
+        )
+        
+        # 返回任务信息
+        return StyleTransferResponse(
+            code=0,
+            msg="Style transfer task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process style transfer: {str(e)}")
+        raise e 
+
+@router.post("/fabric_transfer", response_model=FabricTransferResponse)
+async def fabric_transfer(
+    request: FabricTransferRequest,
+    db: Session = Depends(get_db)
+):
+    """面料转换接口 - 将面料图案应用到服装上"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建面料转换任务
+        task_info = await ImageService.create_fabric_transfer_task(
+            db=db,
+            uid=user.id,
+            fabric_image_url=request.fabricUrl,
+            model_image_url=request.modelUrl,
+            model_mask_url=request.maskUrl
+        )
+        
+        # 返回任务信息
+        return FabricTransferResponse(
+            code=0,
+            msg="Fabric transfer task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process fabric transfer: {str(e)}")
+        raise e
