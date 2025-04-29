@@ -169,7 +169,7 @@ class InfiniAI:
                 },
                 "6": {
                     "inputs": {
-                        "text": {prompt}
+                        "text": prompt
                     }
                 },
                 "7": {
@@ -552,7 +552,7 @@ if __name__ == "__main__":
     image_a_url = infini_ai.upload_image_to_infiniai_oss(image_a)
     image_b_url = infini_ai.upload_image_to_infiniai_oss(image_b)
 
-    transfer_ab_prompt_id = infini_ai.comfy_request_transfer_ab(image_a_url, image_b_url, 0.9,
+    transfer_ab_prompt_id = infini_ai.comfy_request_transfer_ab("simple background", image_a_url, image_b_url, 0.9,
                                                                 seed=random.randint(0, 2147483647))
     result_urls = infini_ai.get_task_result(transfer_ab_prompt_id)
     print(result_urls[0])
