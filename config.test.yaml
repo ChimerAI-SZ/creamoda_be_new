@@ -61,4 +61,5 @@ image_generation:
   change_clothes_count: 2     # 换装任务生成的图片数量
   copy_fabric_count: 1        # 复制面料任务生成的图片数量
   virtual_try_on_count: 1     # 虚拟试穿任务生成的图片数量
+  sketch_to_design_count: 1   # 草图转设计任务生成的图片数量
   estimated_time_seconds: 20  # 预计完成时间(秒)

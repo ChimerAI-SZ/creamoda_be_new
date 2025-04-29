@@ -8,8 +8,20 @@ from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
 from ...exceptions.user import AuthenticationError, ValidationError
 from ...config.log_config import logger
+from ...constants.image_constants import IMAGE_FORMAT_SIZE_MAP
+from ...constants.refer_constants import REFER_LEVEL_MAP
+from ...dto.image import SketchToDesignRequest, SketchToDesignResponse
 
 router = APIRouter()
+
+
+def get_image_size(format: str):
+    """获取对应的图像尺寸"""
+    return IMAGE_FORMAT_SIZE_MAP[format] 
+
+def get_fidelity(refer_level: int):
+    """获取对应的参考等级"""
+    return REFER_LEVEL_MAP[refer_level] 
 
 @router.post("/txt_generate", response_model=TextToImageResponse)
 async def text_to_image(
@@ -28,7 +40,7 @@ async def text_to_image(
 
     try:
         # 从请求中获取图像尺寸
-        image_size = request.get_image_size()
+        image_size = get_image_size(request.format)
         width = image_size["width"]
         height = image_size["height"]
 
@@ -73,12 +85,15 @@ async def copy_style_generate(
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
     try:
+        # 从请求中获取参考等级
+        fidelity = get_fidelity(request.referLevel)
+
         # 创建洗图任务
         task_info = await ImageService.create_copy_style_task(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            fidelity=request.fidelity,
+            fidelity=fidelity,
             prompt=request.prompt
         )
         
@@ -303,10 +318,8 @@ async def copy_fabric(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            prompt=request.prompt,
-            gender=request.gender,
-            age=request.age,
-            country=request.country
+            fabric_pic_url=request.fabricPicUrl,
+            prompt=request.prompt
         )
         
         # 返回任务信息
@@ -349,4 +362,42 @@ async def virtual_try_on(
     
     except Exception as e:
         logger.error(f"Failed to process virtual try on: {str(e)}")
+        raise e 
+
+@router.post("/sketch_to_design", response_model=SketchToDesignResponse)
+async def sketch_to_design(
+    request: SketchToDesignRequest,
+    db: Session = Depends(get_db)
+):
+    """复制面料接口 - 复制图片中的面料"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    try:
+        # 从请求中获取参考等级
+        fidelity = get_fidelity(request.referLevel)
+
+        # 创建复制面料任务
+        task_info = await ImageService.create_sketch_to_design_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            prompt=request.prompt,
+            fidelity=fidelity
+        )
+        
+        # 返回任务信息
+        return SketchToDesignResponse(
+            code=0,
+            msg="Sketch to design task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process sketch to design: {str(e)}")
         raise e 

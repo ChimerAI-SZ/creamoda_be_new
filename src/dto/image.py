@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from .common import CommonResponse
-from ..constants.image_constants import SUPPORTED_IMAGE_FORMATS, IMAGE_FORMAT_SIZE_MAP
+from ..constants.image_constants import SUPPORTED_IMAGE_FORMATS
 
 
 class TextToImageRequest(BaseModel):
@@ -21,9 +21,6 @@ class TextToImageRequest(BaseModel):
             raise ValueError(f"不支持的图像格式: {v}。支持的格式: {supported_formats}")
         return v
     
-    def get_image_size(self):
-        """获取对应的图像尺寸"""
-        return IMAGE_FORMAT_SIZE_MAP[self.format] 
 
 class ImageGenerationData(BaseModel):
     taskId: str
@@ -35,7 +32,7 @@ class TextToImageResponse(CommonResponse[ImageGenerationData]):
 
 class CopyStyleRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="图转图 或细节修改传递")
-    fidelity: float = Field(..., description="仅洗图填写", title="保真度")
+    referLevel: float = Field(..., description="仅洗图填写", title="保真度")
     prompt: str = Field(..., title="提示词")
 
 class CopyStyleResponse(CommonResponse[ImageGenerationData]):
@@ -47,11 +44,14 @@ class ChangeClothesRequest(BaseModel):
     
 class CopyFabricRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    fabricPicUrl: str = Field(..., title="面料图片链接", description="面料图片链接")
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
-    gender: int = Field(..., title="模特性别", description="1-男 2-女")
-    age: int = Field(..., title="年龄")
-    country: str = Field(..., title="国家code")
         
+class SketchToDesignRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+    referLevel: int = Field(..., title="保真度", description="保真度")
+
 class VirtualTryOnRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     clothingPhoto: str = Field(..., title="服装图片链接", description="服装图片链接")
