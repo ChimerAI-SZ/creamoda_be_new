@@ -207,13 +207,13 @@ class TheNewBlackAPI:
             elapsed_time = time.time() - start_time  # 计算请求用时
             logger.info(f"TheNewBlack create_variation API request took {elapsed_time:.2f} seconds")
 
-    def create_clothing_with_fabric(self, fabric_image_url: str, prompt: str, gender: Gender,
+    def create_clothing_with_fabric(self, fabric_image_url: str, clothing_prompt: str, gender: Gender,
                                     country: str, age: int) -> str:
         """
         Creates a clothing design from a fabric pattern image.
 
         :param fabric_image_url: URL of the fabric image (required)
-        :param prompt: Description of the clothing piece with the fabric pattern (required)
+        :param clothing_prompt: Description of the clothing piece with the fabric pattern (required)
         :param gender: Gender of the model (required, use Gender enum)
         :param country: Name of the country for the model (required)
         :param age: Age of the model, between 20 and 70 (required)
@@ -224,7 +224,7 @@ class TheNewBlackAPI:
             "email": self.email,
             "password": self.password,
             "fabric_image": fabric_image_url,
-            "clothing_prompt": prompt,
+            "clothing_prompt": clothing_prompt,
         }
 
         if gender is not None:
