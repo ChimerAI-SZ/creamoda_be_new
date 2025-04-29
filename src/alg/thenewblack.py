@@ -844,3 +844,72 @@ class TheNewBlack:
             import traceback
             logger.error(f"Exception traceback: {traceback.format_exc()}")
             raise
+
+    async def create_sketch_to_design(
+        self,
+        original_pic_url: str,
+        prompt: str,
+        fidelity: float,
+        result_id: str = None
+    ) -> str:
+        """虚拟试穿 - 与业务代码接口匹配的方法
+
+        Args:
+            original_pic_url: 原始图片URL
+            prompt: 草图转设计提示词
+            fidelity: 保真度，值在0-1之间（1表示最高保真度）
+            result_id: 生成任务结果ID
+
+        Returns:
+            生成的图片URL
+        """
+        # 记录开始调用
+        logger.info(f"Starting sketch to design with TheNewBlack for task result {result_id}")
+        logger.info(f"Parameters: original_pic_url='{original_pic_url}', prompt='{prompt}', fidelity={fidelity}")
+
+        # 使用线程池执行同步请求，避免阻塞事件循环
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.api.sketch_to_design,
+                    sketch_url=original_pic_url,
+                    prompt=prompt,
+                    strength=fidelity
+                )
+
+                # 添加超时处理，避免无限等待
+                job_id = await asyncio.wrap_future(future)
+
+                # 获取虚拟试穿结果，每十秒获取一次，最多尝试300秒
+                start_time = time.time()
+                result_pic = None
+                while True:
+                    result = self.api.get_results(job_id)
+                    if result:
+                        result_pic = result
+                        break
+                    await asyncio.sleep(10)
+                    if time.time() - start_time > 300:
+                        logger.error(f"Sketch to design job {job_id} timed out after 300 seconds")
+                        raise Exception("Sketch to design job timed out")
+
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    result_pic,
+                    f"tnb_clothes_{result_id}"
+                )
+
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
+                    return result_pic
+
+                # 记录成功结果
+                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+                return oss_image_url
+
+        except Exception as e:
+            # 详细记录异常
+            logger.error(f"Error in TheNewBlack sketch to design for task result {result_id}: {str(e)}")
+            import traceback
+            logger.error(f"Exception traceback: {traceback.format_exc()}")
+            raise

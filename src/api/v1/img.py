@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import CopyFabricRequest, CopyFabricResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse
+from ...dto.image import FabricToDesignRequest, FabricToDesignResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -297,12 +297,12 @@ async def refresh_image_status(
         raise e 
 
 
-@router.post("/copy_fabric", response_model=CopyFabricResponse)
-async def copy_fabric(
-    request: CopyFabricRequest,
+@router.post("/fabric_to_design", response_model=FabricToDesignResponse)
+async def fabric_to_design(
+    request: FabricToDesignRequest,
     db: Session = Depends(get_db)
 ):
-    """复制面料接口 - 复制图片中的面料"""
+    """面料转设计接口"""
     # 获取当前用户信息
     user = get_current_user_context()
     if not user:
@@ -313,23 +313,22 @@ async def copy_fabric(
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
     try:
-        # 创建复制面料任务
-        task_info = await ImageService.create_copy_fabric_task(
+        # 创建面料转设计任务
+        task_info = await ImageService.create_fabric_to_design_task(
             db=db,
             uid=user.id,
-            original_pic_url=request.originalPicUrl,
             fabric_pic_url=request.fabricPicUrl,
             prompt=request.prompt
         )
         
         # 返回任务信息
-        return CopyFabricResponse(
+        return FabricToDesignResponse(
             code=0,
-            msg="Copy fabric task submitted successfully"
+            msg="Fabric to design task submitted successfully"
         )
     
     except Exception as e:
-        logger.error(f"Failed to process copy fabric: {str(e)}")
+        logger.error(f"Failed to process fabric to design: {str(e)}")
         raise e 
 
 

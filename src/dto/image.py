@@ -42,8 +42,7 @@ class ChangeClothesRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
     
-class CopyFabricRequest(BaseModel):
-    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+class FabricToDesignRequest(BaseModel):
     fabricPicUrl: str = Field(..., title="面料图片链接", description="面料图片链接")
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
         
@@ -60,7 +59,7 @@ class VirtualTryOnRequest(BaseModel):
 class ChangeClothesResponse(CommonResponse[ImageGenerationData]):
     pass
 
-class CopyFabricResponse(CommonResponse[ImageGenerationData]):
+class FabricToDesignResponse(CommonResponse[ImageGenerationData]):
     pass
 
 class VirtualTryOnResponse(CommonResponse[ImageGenerationData]):

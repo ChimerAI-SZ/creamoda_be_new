@@ -12,6 +12,7 @@ from ..config.log_config import logger
 from ..config.config import settings
 from ..alg.thenewblack import TheNewBlack  # 导入TheNewBlack服务
 from ..utils.style_prompts import get_random_style_prompt
+from ..alg.intention_detector import IntentionDetector
 
 class ImageService:
     @staticmethod
@@ -109,16 +110,17 @@ class ImageService:
             raise e
     
     @staticmethod
-    async def create_copy_fabric_task(
+    async def create_fabric_to_design_task(
         db: Session,
         uid: int,
-        original_pic_url: str,
         fabric_pic_url: str,
         prompt: str
     ) -> Dict[str, Any]:
-        """创建复制面料任务"""
+        """创建面料转设计任务"""
 
-        # todo 调用ai获取模特信息
+        # 调用ai获取模特信息
+        intention_detector = IntentionDetector()
+        gender, clothing_prompt, country, age = intention_detector.copy_fabric(fabric_pic_url, prompt)
 
         # 创建任务记录
         now = datetime.utcnow()
@@ -127,11 +129,11 @@ class ImageService:
             type=2,  # 2-图生图
             variation_type=3, # 2-复制服装面料
             status=1,  # 1-待生成
-            original_pic_url=original_pic_url,
+            original_pic_url=fabric_pic_url,
             original_prompt=prompt,
-            # gender=gender,
-            # age=age,
-            # country=country,
+            gender=gender,
+            age=age,
+            country=country,
             create_time=now,
             update_time=now
         )
@@ -143,7 +145,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.copy_fabric_count
+            image_count = settings.image_generation.fabric_to_design_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -154,7 +156,7 @@ class ImageService:
                     gen_id=task.id,
                     uid=uid,
                     status=1,  # 1-待生成
-                    prompt=prompt,
+                    prompt=clothing_prompt,
                     result_pic="",
                     create_time=now,
                     update_time=now
@@ -169,7 +171,7 @@ class ImageService:
             # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
             for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_copy_fabric_generation(result_id)
+                    ImageService.process_fabric_to_design_generation(result_id)
                 )
             
             # 返回任务信息
@@ -462,8 +464,8 @@ class ImageService:
             db.close()
     
     @staticmethod
-    async def process_copy_fabric_generation(result_id: int):
-        """处理洗图任务"""
+    async def process_fabric_to_design_generation(result_id: int):
+        """处理面料转设计任务"""
         db = SessionLocal()
         try:
             # 获取结果记录
@@ -496,7 +498,7 @@ class ImageService:
                 # 使用create_variation方法
                 result_pic = await thenewblack.create_clothing_with_fabric(
                     fabric_image_url=task.original_pic_url,
-                    prompt=task.original_prompt,
+                    prompt=result.prompt,
                     gender=task.gender,
                     country=task.country,
                     age=task.age,
@@ -521,10 +523,10 @@ class ImageService:
                 
                 db.commit()
                 
-                logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
+                logger.info(f"Image fabric to design completed for result {result_id}, task {task.id}")
                 
             except Exception as e:
-                logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
+                logger.error(f"Failed to generate fabric to design image for result {result_id}, task {task.id}: {str(e)}")
                 
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -541,7 +543,7 @@ class ImageService:
                 db.commit()
         
         except Exception as e:
-            logger.error(f"Error processing copy fabric generation for result {result_id}: {str(e)}")
+            logger.error(f"Error processing fabric to design generation for result {result_id}: {str(e)}")
             db.rollback()
         finally:
             db.close()
@@ -661,10 +663,17 @@ class ImageService:
                 # 调用TheNewBlack API创建变体
                 thenewblack = TheNewBlack()
                 
+                # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
+                fidelity = task.fidelity / 100.0
+                
+                # 确保保真度在有效范围内
+                fidelity = min(max(fidelity, 0.0), 1.0)
+
                 # 使用create_variation方法
                 result_pic = await thenewblack.create_sketch_to_design(
-                    model_image_url=task.original_pic_url,
+                    original_pic_url=task.original_pic_url,
                     prompt=task.original_prompt,
+                    fidelity=fidelity,
                     result_id=result.id
                 )
                 
