@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 import json
 import asyncio
@@ -14,6 +15,7 @@ from ..alg.thenewblack import TheNewBlack  # 导入TheNewBlack服务
 from ..utils.style_prompts import get_random_style_prompt
 from ..alg.intention_detector import IntentionDetector
 from ..alg.infiniai_adapter import InfiniAIAdapter
+from ..alg.thenewblack import Gender
 
 class ImageService:
     @staticmethod
@@ -121,14 +123,21 @@ class ImageService:
 
         # 调用ai获取模特信息
         intention_detector = IntentionDetector()
-        gender, clothing_prompt, country, age = intention_detector.copy_fabric(fabric_pic_url, prompt)
+        intention_result = intention_detector.copy_fabric(fabric_pic_url, prompt)
+        gender_enum = intention_result['gender']
+        gender = 2
+        if gender_enum.value == Gender.MAN.value:
+            gender = 1
+        clothing_prompt = intention_result['clothing_prompt']
+        country = intention_result['country']
+        age = intention_result['age']
 
         # 创建任务记录
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
             type=2,  # 2-图生图
-            variation_type=3, # 2-复制服装面料
+            variation_type=3, # 2-Fabric to Design
             status=1,  # 1-待生成
             original_pic_url=fabric_pic_url,
             original_prompt=prompt,
@@ -277,8 +286,7 @@ class ImageService:
         db: Session,
         uid: int,
         original_pic_url: str,
-        prompt: str,
-        fidelity: float
+        prompt: str
     ) -> Dict[str, Any]:
         """创建草图转设计任务"""
 
@@ -286,11 +294,11 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=3,  # 2-虚拟试穿
+            type=3,  # 2-图生图
+            variation_type=4, # Sketch to Design
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=prompt,
-            fidelity=fidelity,
             create_time=now,
             update_time=now
         )
@@ -357,7 +365,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=5,  # 5-混合图片
+            type=2,  # 2-图生图
+            variation_type=5, # 5-混合图片
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=prompt,
@@ -821,18 +830,11 @@ class ImageService:
             try:
                 # 调用TheNewBlack API创建变体
                 thenewblack = TheNewBlack()
-                
-                # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
-                fidelity = task.fidelity / 100.0
-                
-                # 确保保真度在有效范围内
-                fidelity = min(max(fidelity, 0.0), 1.0)
 
                 # 使用create_variation方法
                 result_pic = await thenewblack.create_sketch_to_design(
                     original_pic_url=task.original_pic_url,
                     prompt=task.original_prompt,
-                    fidelity=fidelity,
                     result_id=result.id
                 )
                 
@@ -908,17 +910,23 @@ class ImageService:
             db.commit()
             
             try:
-                # 调用TheNewBlack API创建变体
-                thenewblack = TheNewBlack()
-                
                 # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
                 fidelity = task.fidelity / 100.0
                 
                 # 确保保真度在有效范围内
                 fidelity = min(max(fidelity, 0.0), 1.0)
 
-                result_pic = InfiniAIAdapter.transfer_style(image_a_url=task.original_pic_url, image_b_url=task.refer_pic_url, strength=fidelity)
+                # 创建线程池执行器
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        InfiniAIAdapter.get_adapter().transfer_style,
+                        prompt=task.original_prompt, 
+                        image_a_url=task.original_pic_url, 
+                        image_b_url=task.refer_pic_url, 
+                        strength=fidelity
+                    )
                 
+                result_pic = await asyncio.wrap_future(future)
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
                 result.result_pic = result_pic

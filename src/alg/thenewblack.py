@@ -742,7 +742,7 @@ class TheNewBlack:
                 future = executor.submit(
                     self.api.create_clothing_with_fabric,
                     fabric_image_url=fabric_image_url,
-                    prompt=prompt,
+                    clothing_prompt=prompt,
                     gender=gender_enum,
                     country=country,
                     age=age
@@ -847,7 +847,6 @@ class TheNewBlack:
         self,
         original_pic_url: str,
         prompt: str,
-        fidelity: float,
         result_id: str = None
     ) -> str:
         """虚拟试穿 - 与业务代码接口匹配的方法
@@ -863,7 +862,7 @@ class TheNewBlack:
         """
         # 记录开始调用
         logger.info(f"Starting sketch to design with TheNewBlack for task result {result_id}")
-        logger.info(f"Parameters: original_pic_url='{original_pic_url}', prompt='{prompt}', fidelity={fidelity}")
+        logger.info(f"Parameters: original_pic_url='{original_pic_url}', prompt='{prompt}'")
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
@@ -871,25 +870,11 @@ class TheNewBlack:
                 future = executor.submit(
                     self.api.sketch_to_design,
                     sketch_url=original_pic_url,
-                    prompt=prompt,
-                    strength=fidelity
+                    prompt=prompt
                 )
 
                 # 添加超时处理，避免无限等待
-                job_id = await asyncio.wrap_future(future)
-
-                # 获取虚拟试穿结果，每十秒获取一次，最多尝试300秒
-                start_time = time.time()
-                result_pic = None
-                while True:
-                    result = self.api.get_results(job_id)
-                    if result:
-                        result_pic = result
-                        break
-                    await asyncio.sleep(10)
-                    if time.time() - start_time > 300:
-                        logger.error(f"Sketch to design job {job_id} timed out after 300 seconds")
-                        raise Exception("Sketch to design job timed out")
+                result_pic = await asyncio.wrap_future(future)
 
                 # 将第三方图片URL转存到阿里云OSS
                 oss_image_url = await download_and_upload_image(

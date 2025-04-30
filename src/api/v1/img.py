@@ -368,7 +368,7 @@ async def sketch_to_design(
     request: SketchToDesignRequest,
     db: Session = Depends(get_db)
 ):
-    """复制面料接口 - 复制图片中的面料"""
+    """草图转设计接口 - 草图转设计"""
     # 获取当前用户信息
     user = get_current_user_context()
     if not user:
@@ -379,16 +379,13 @@ async def sketch_to_design(
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
     try:
-        # 从请求中获取参考等级
-        fidelity = get_fidelity(request.referLevel)
 
         # 创建复制面料任务
         task_info = await ImageService.create_sketch_to_design_task(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            prompt=request.prompt,
-            fidelity=fidelity
+            prompt=request.prompt
         )
         
         # 返回任务信息

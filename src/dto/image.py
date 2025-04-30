@@ -49,7 +49,6 @@ class FabricToDesignRequest(BaseModel):
 class SketchToDesignRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
-    referLevel: int = Field(..., title="保真度", description="保真度")
 
 class SketchToDesignResponse(CommonResponse[ImageGenerationData]):
     pass

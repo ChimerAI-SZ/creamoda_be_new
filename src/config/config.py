@@ -69,13 +69,13 @@ class OSSSettings(BaseModel):
     upload_dir: str = "uploads/"  # 上传目录
 
 class ImageGenerationSettings(BaseModel):
-    text_to_image_count: int = 2
-    copy_style_count: int = 2
-    change_clothes_count: int = 2
-    fabric_to_design_count: int = 2
-    virtual_try_on_count: int = 2
-    sketch_to_design_count: int = 2
-    mix_image_count: int = 2
+    text_to_image_count: int = 1
+    copy_style_count: int = 1
+    change_clothes_count: int = 1
+    fabric_to_design_count: int = 1
+    virtual_try_on_count: int = 1
+    sketch_to_design_count: int = 1
+    mix_image_count: int = 1
     estimated_time_seconds: int = 20
 
 class Settings(BaseModel):

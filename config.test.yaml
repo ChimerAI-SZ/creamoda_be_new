@@ -58,9 +58,9 @@ oss:
 
 # 添加图片生成任务配置
 image_generation:
-  text_to_image_count: 2      # 文生图任务生成的图片数量
-  copy_style_count: 2         # 洗图任务生成的图片数量
-  change_clothes_count: 2     # 换装任务生成的图片数量
+  text_to_image_count: 1      # 文生图任务生成的图片数量
+  copy_style_count: 1         # 洗图任务生成的图片数量
+  change_clothes_count: 1     # 换装任务生成的图片数量
   copy_fabric_count: 1        # 复制面料任务生成的图片数量
   virtual_try_on_count: 1     # 虚拟试穿任务生成的图片数量
   sketch_to_design_count: 1   # 草图转设计任务生成的图片数量

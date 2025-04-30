@@ -85,7 +85,7 @@ class InfiniAIAdapter:
         
         return oss_image_ids
     
-    def transfer_style(self, image_a_url: str, image_b_url: str, strength: float = 0.5, 
+    def transfer_style(self, image_a_url: str, image_b_url: str, prompt: str, strength: float = 0.5, 
                       seed: int = None, wait_for_result: bool = True) -> Union[str, List[str]]:
         """
         混合两个图片的风格
@@ -111,6 +111,7 @@ class InfiniAIAdapter:
             
             # 调用InfiniAI的混合风格接口
             prompt_id = self.infiniai.comfy_request_transfer_ab(
+                prompt=prompt,
                 image_a_url=oss_image_ids[0],
                 image_b_url=oss_image_ids[1],
                 strength=strength,
