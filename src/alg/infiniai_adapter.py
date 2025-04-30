@@ -1,3 +1,5 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import random
 import io
 import requests
@@ -85,7 +87,7 @@ class InfiniAIAdapter:
         
         return oss_image_ids
     
-    def transfer_style(self, image_a_url: str, image_b_url: str, prompt: str, strength: float = 0.5, 
+    async def transfer_style(self, image_a_url: str, image_b_url: str, prompt: str, strength: float = 0.5, 
                       seed: int = None, wait_for_result: bool = True) -> Union[str, List[str]]:
         """
         混合两个图片的风格
@@ -102,31 +104,40 @@ class InfiniAIAdapter:
             如果wait_for_result为False，返回任务ID
         """
         try:
-            # 设置随机种子
-            if seed is None:
-                seed = random.randint(0, 2147483647)
-            
-            # 处理图片
-            oss_image_ids = self._process_images(image_a_url, image_b_url)
-            
-            # 调用InfiniAI的混合风格接口
-            prompt_id = self.infiniai.comfy_request_transfer_ab(
-                prompt=prompt,
-                image_a_url=oss_image_ids[0],
-                image_b_url=oss_image_ids[1],
-                strength=strength,
-                seed=seed
-            )
-            
-            logger.info(f"风格混合任务已提交，任务ID: {prompt_id}")
-            
-            # 是否等待结果
-            if wait_for_result:
-                result_urls = self.infiniai.get_task_result(prompt_id)
-                logger.info(f"风格混合任务完成，生成了 {len(result_urls)} 张图片")
-                return result_urls
-            else:
-                return prompt_id
+            with ThreadPoolExecutor() as executor:
+                # 设置随机种子
+                if seed is None:
+                    seed = random.randint(0, 2147483647)
+                
+                # 处理图片
+                future = executor.submit(
+                    self._process_images,
+                    image_a_url, image_b_url)
+                oss_image_ids = await asyncio.wrap_future(future)
+                
+                # 调用InfiniAI的混合风格接口
+                future2 = executor.submit(
+                    self.infiniai.comfy_request_transfer_ab,
+                    prompt=prompt,
+                    image_a_url=oss_image_ids[0],
+                    image_b_url=oss_image_ids[1],
+                    strength=strength,
+                    seed=seed
+                )
+                prompt_id = await asyncio.wrap_future(future2)
+                
+                logger.info(f"风格混合任务已提交，任务ID: {prompt_id}")
+                
+                # 是否等待结果
+                if wait_for_result:
+                    future3 = executor.submit(
+                        self.infiniai.get_task_result,
+                        prompt_id)
+                    result_urls = await asyncio.wrap_future(future3)
+                    logger.info(f"风格混合任务完成，生成了 {len(result_urls)} 张图片")
+                    return result_urls
+                else:
+                    return prompt_id
                 
         except Exception as e:
             logger.error(f"风格混合失败: {e}")

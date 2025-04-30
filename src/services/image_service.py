@@ -917,16 +917,13 @@ class ImageService:
                 fidelity = min(max(fidelity, 0.0), 1.0)
 
                 # 创建线程池执行器
-                with ThreadPoolExecutor() as executor:
-                    future = executor.submit(
-                        InfiniAIAdapter.get_adapter().transfer_style,
-                        prompt=task.original_prompt, 
-                        image_a_url=task.original_pic_url, 
-                        image_b_url=task.refer_pic_url, 
-                        strength=fidelity
-                    )
+                result_pic = await InfiniAIAdapter.get_adapter().transfer_style(
+                    image_a_url=task.original_pic_url, 
+                    image_b_url=task.refer_pic_url, 
+                    prompt=task.original_prompt, 
+                    strength=fidelity
+                )
                 
-                result_pic = await asyncio.wrap_future(future)
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
                 result.result_pic = result_pic
