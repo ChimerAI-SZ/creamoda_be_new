@@ -50,6 +50,7 @@ class AlgorithmSettings(BaseModel):
     openrouter_api_key: str
     infiniai_api_key: str
     replicate_api_key: str
+    ideogram_api_key: str
 
 class JobDefaults(BaseModel):
     coalesce: bool = True
