@@ -490,6 +490,42 @@ class TheNewBlackAPI:
             elapsed_time = time.time() - start_time  # 计算请求用时
             logger.info(f"TheNewBlack change_background API request took {elapsed_time:.2f} seconds")
 
+    def change_color(self, image_url: str, clothing_text: str, hex_color: str) -> str:
+        """
+        Changes the color of a specific clothing item in an image.
+
+        :param image_url: URL of the original image (required)
+        :param clothing_text: Description of the clothing item to change color (required)
+        :param hex_color: Hex color code to change to (e.g., "#799d7a") (required)
+        :return: Response from the API as a URL to the modified image
+        """
+        url = f"{self.base_url}/color_change"
+        data = {
+            "email": self.email,
+            "password": self.password,
+            "image": image_url,
+            "clothing_text": clothing_text,
+            "Hex_color": hex_color
+        }
+
+        start_time = time.time()  # 记录开始时间
+
+        try:
+            response = self.session.post(url, data=data, timeout=self.timeout)
+
+            # 记录响应内容
+            logger.info(f"TheNewBlack API color change response status: {response.status_code}")
+            logger.info(f"TheNewBlack API color change response content: {response.text}")
+
+            response.raise_for_status()
+            return response.text  # response is a URL to the modified image
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error changing color: {str(e)}")
+            raise
+        finally:
+            elapsed_time = time.time() - start_time  # 计算请求用时
+            logger.info(f"TheNewBlack change_color API request took {elapsed_time:.2f} seconds")
+
 
 # 适配器类，与业务代码对接
 class TheNewBlack:
