@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:363e9e04e0bd019020b350eb3c38cd5ace676c43a827bb8eea484f4fb219a73d"
+content_hash = "sha256:e3b19c474c509e04d1235549804bd82b06925c5bac5df9d2e85b99d0dd93e85f"
 
 [[metadata.targets]]
 requires_python = "==3.11.*"
@@ -946,6 +946,23 @@ files = [
     {file = "regex-2024.11.6-cp311-cp311-win32.whl", hash = "sha256:c36f9b6f5f8649bb251a5f3f66564438977b7ef8386a52460ae77e6070d309d9"},
     {file = "regex-2024.11.6-cp311-cp311-win_amd64.whl", hash = "sha256:02e28184be537f0e75c1f9b2f8847dc51e08e6e171c6bde130b2687e0c33cf60"},
     {file = "regex-2024.11.6.tar.gz", hash = "sha256:7ab159b063c52a0333c884e4679f8d7a85112ee3078fe3d9004b2dd875585519"},
+]
+
+[[package]]
+name = "replicate"
+version = "1.0.6"
+requires_python = ">=3.8"
+summary = "Python client for Replicate"
+groups = ["default"]
+dependencies = [
+    "httpx<1,>=0.21.0",
+    "packaging",
+    "pydantic>1.10.7",
+    "typing-extensions>=4.5.0",
+]
+files = [
+    {file = "replicate-1.0.6-py3-none-any.whl", hash = "sha256:d544f837dc7e9dc3b3c1df60a145c7d6f362d6719b719793a44a4be28837103d"},
+    {file = "replicate-1.0.6.tar.gz", hash = "sha256:b8a0f1649ed4146c3d624e22a418b8c6decce9346cffc110c90fde5995c46e60"},
 ]
 
 [[package]]
