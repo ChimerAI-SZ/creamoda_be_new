@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import FabricToDesignRequest, FabricToDesignResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, FabricToDesignRequest, FabricToDesignResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -499,4 +499,100 @@ async def fabric_transfer(
     
     except Exception as e:
         logger.error(f"Failed to process fabric transfer: {str(e)}")
+        raise e
+
+
+@router.post("/change_color", response_model=ChangeColorResponse)
+async def change_color(
+    request: ChangeColorRequest,
+    db: Session = Depends(get_db)
+):
+    """改变颜色接口 - 改变图片中的颜色"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变颜色任务
+        task_info = await ImageService.create_change_color_task(
+            db=db,
+            uid=user.id,
+            image_url=request.imageUrl,
+            clothing_text=request.clothingText,
+            hex_color=request.hexColor
+        )
+        
+        # 返回任务信息
+        return ChangeColorResponse(
+            code=0,
+            msg="Change color task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change color: {str(e)}")
+        raise e
+    
+@router.post("/change_background", response_model=ChangeBackgroundResponse)
+async def change_background(
+    request: ChangeBackgroundRequest,
+    db: Session = Depends(get_db)
+):
+    """改变背景接口 - 改变图片中的背景"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_change_background_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            reference_pic_url=request.referencePicUrl,
+            background_prompt=request.backgroundPrompt
+        )
+        
+        # 返回任务信息
+        return ChangeBackgroundResponse(
+            code=0,
+            msg="Change background task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change background: {str(e)}")
+        raise e
+    
+        
+@router.post("/remove_background", response_model=RemoveBackgroundResponse)
+async def remove_background(
+    request: RemoveBackgroundRequest,
+    db: Session = Depends(get_db)
+):
+    """移除背景接口 - 移除图片中的背景"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_remove_background_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl
+        )
+        
+        # 返回任务信息
+        return RemoveBackgroundResponse(
+            code=0,
+            msg="Remove background task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process remove background: {str(e)}")
         raise e

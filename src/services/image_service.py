@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
+from src.alg.replicate_adapter import ReplicateAdapter
+
 from ..models.models import GenImgRecord, GenImgResult  # 导入两个模型
 from ..db.redis import redis_client
 from ..db.session import SessionLocal
@@ -294,7 +296,7 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=3,  # 2-图生图
+            type=2,  # 2-图生图
             variation_type=4, # Sketch to Design
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
@@ -438,7 +440,7 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=3,  # 2-虚拟试穿
+            type=3,  # 3-虚拟试穿
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             clothing_photo=clothing_photo,
@@ -1465,7 +1467,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=4,  # 4-风格转换
+            type=2,  # 2-图生图
+            variation_type=6,  # 5-风格转换
             status=1,  # 1-待生成
             original_pic_url=image_a_url,
             style_pic_url=image_b_url,
@@ -1691,6 +1694,86 @@ class ImageService:
             raise e
 
     @staticmethod
+    async def create_change_color_task(
+        db: Session,
+        uid: int,
+        image_url: str,
+        clothing_text: str,
+        hex_color: str
+    ) -> Dict[str, Any]:
+        """创建改变颜色任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            image_url: 图片URL
+            clothing_text: 服装描述
+            hex_color: 十六进制颜色代码
+            
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=4,  # 4-magic kit
+            variation_type=1,  # 1-change color
+            status=1,  # 1-待生成
+            original_pic_url=image_url,
+            prompt=clothing_text,
+            hex_color=hex_color,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为2
+            image_count = settings.image_generation.change_color_count if hasattr(settings.image_generation, "change_color_count") else 2
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理面料转换
+            first_result_id = result_ids[0] if result_ids else None
+            if first_result_id:
+                asyncio.create_task(
+                    ImageService.process_change_color(first_result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change color task: {str(e)}")
+            raise e
+
+
+    @staticmethod
     async def process_fabric_transfer(result_id: int):
         """处理面料转换任务
         
@@ -1781,3 +1864,426 @@ class ImageService:
             db.rollback()
         finally:
             db.close() 
+            
+    @staticmethod
+    async def process_change_color(result_id: int):
+        """处理改变颜色任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 调用TheNewBlack API更换服装
+                thenewblack = TheNewBlack()
+                
+                # 调用change_clothes方法
+                result_pic = await thenewblack.create_change_color(
+                    image_url=task.original_pic_url,
+                    clothing_text=task.prompt,
+                    hex_color=task.hex_color,
+                    result_id=result.id
+                )
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Change color completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Change color failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Change color failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in change color for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing change color for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
+
+
+    @staticmethod
+    async def create_change_background_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        reference_pic_url: str,
+        background_prompt: str
+    ) -> Dict[str, Any]:
+        """创建改变背景任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            reference_pic_url: 参考图片URL
+            background_prompt: 背景描述
+            
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=4,  # 4-magic kit
+            variation_type=2,  # 2-change background
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            prompt=background_prompt,
+            reference_pic_url=reference_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为2
+            image_count = settings.image_generation.change_background_count if hasattr(settings.image_generation, "change_background_count") else 2
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理面料转换
+            first_result_id = result_ids[0] if result_ids else None
+            if first_result_id:
+                asyncio.create_task(
+                    ImageService.process_change_background(first_result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change background task: {str(e)}")
+            raise e
+
+
+    @staticmethod
+    async def process_change_background(result_id: int):
+        """处理改变背景任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用面料转换
+                generated_urls = adapter.comfy_request_change_background(
+                    original_image_url=task.original_pic_url,
+                    reference_image_url=task.reference_pic_url,
+                    background_prompt=task.prompt
+                )
+                
+                if not generated_urls:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 获取第一个生成的图片URL
+                result_pic = generated_urls[0]
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Fabric transfer completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Fabric transfer failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Fabric transfer failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in fabric transfer for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing fabric transfer for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
+       
+
+    @staticmethod
+    async def create_remove_background_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str
+    ) -> Dict[str, Any]:
+        """创建去除背景任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=4,  # 4-magic kit
+            variation_type=3,  # 3-remove background
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为2
+            image_count = settings.image_generation.remove_background_count if hasattr(settings.image_generation, "remove_background_count") else 2
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理面料转换
+            first_result_id = result_ids[0] if result_ids else None
+            if first_result_id:
+                asyncio.create_task(
+                    ImageService.process_remove_background(first_result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create remove background task: {str(e)}")
+            raise e
+
+
+    @staticmethod
+    async def process_remove_background(result_id: int):
+        """处理去除背景任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建Replicate适配器
+                adapter = ReplicateAdapter()
+                
+                # 调用面料转换
+                result_pic = adapter.remove_background(
+                    original_image_url=task.original_pic_url,
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from Replicate")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Remove background completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Remove background failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Remove background failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in remove background for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing remove background for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
+       

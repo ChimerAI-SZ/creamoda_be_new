@@ -932,3 +932,59 @@ class TheNewBlack:
             import traceback
             logger.error(f"Exception traceback: {traceback.format_exc()}")
             raise
+
+    async def create_change_color(
+        self,
+        image_url: str, 
+        clothing_text: str, 
+        hex_color: str,
+        result_id: str = None
+    ) -> str:
+        """改变颜色 - 与业务代码接口匹配的方法
+
+        Args:
+            image_url: 原始图片URL
+            clothing_text: 服装描述
+            hex_color: 十六进制颜色代码
+            result_id: 生成任务结果ID
+
+        Returns:
+            生成的图片URL
+        """
+        # 记录开始调用
+        logger.info(f"Starting change color with TheNewBlack for task result {result_id}")
+        logger.info(f"Parameters: image_url='{image_url}', clothing_text='{clothing_text}', hex_color='{hex_color}'")
+
+        # 使用线程池执行同步请求，避免阻塞事件循环
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.api.change_color,
+                    image_url=image_url,
+                    clothing_text=clothing_text,
+                    hex_color=hex_color
+                )
+
+                # 添加超时处理，避免无限等待
+                result_pic = await asyncio.wrap_future(future)
+
+                # 将第三方图片URL转存到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                    result_pic,
+                    f"tnb_clothes_{result_id}"
+                )
+
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
+                    return result_pic
+
+                # 记录成功结果
+                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+                return oss_image_url
+
+        except Exception as e:
+            # 详细记录异常
+            logger.error(f"Error in TheNewBlack change color for task result {result_id}: {str(e)}")
+            import traceback
+            logger.error(f"Exception traceback: {traceback.format_exc()}")
+            raise

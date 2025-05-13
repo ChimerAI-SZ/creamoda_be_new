@@ -160,3 +160,37 @@ class FabricTransferResponse(BaseModel):
     code: int
     msg: str
     data: Optional[ImageGenerationData] = None 
+
+class ChangeColorRequest(BaseModel):
+    """改变颜色请求DTO"""
+    imageUrl: str = Field(..., description="图片URL")
+    clothingText: str = Field(..., description="服装描述")
+    hexColor: str = Field(..., description="十六进制颜色代码")
+    
+class ChangeColorResponse(BaseModel):
+    """改变颜色响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class ChangeBackgroundRequest(BaseModel):
+    """改变背景请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    referencePicUrl: str = Field(..., description="参考图片URL")
+    backgroundPrompt: str = Field(..., description="背景描述")
+
+class ChangeBackgroundResponse(BaseModel):
+    """改变背景响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class RemoveBackgroundRequest(BaseModel):
+    """移除背景请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+
+class RemoveBackgroundResponse(BaseModel):
+    """移除背景响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
