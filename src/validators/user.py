@@ -47,7 +47,7 @@ class UserValidator:
         """验证密码强度
         
         规则:
-        - 最小长度：密码至少包含6个字符
+        - 最小长度：密码至少包含8个字符
         - 最大长度：密码最多包含50个字符
         - 大写字母（A-Z）：至少包含一个大写字母
         - 小写字母（a-z）：至少包含一个小写字母
@@ -56,8 +56,8 @@ class UserValidator:
         - 不允许使用除上述字符之外的其他字符
         """
         # 检查长度
-        if len(password) < 6:
-            raise ValidationError("Password must be at least 6 characters")
+        if len(password) < 8:
+            raise ValidationError("Password must be at least 8 characters")
         if len(password) > 50:
             raise ValidationError("Password cannot exceed 50 characters")
             

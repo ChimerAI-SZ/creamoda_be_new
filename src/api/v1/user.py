@@ -12,7 +12,8 @@ from src.db.session import get_db
 from src.dto.user import (LogoutResponse, UserLoginData, UserLoginRequest,
                          UserLoginResponse, UserRegisterRequest,
                          UserRegisterResponse, EmailVerifyRequest, EmailVerifyResponse,
-                         ResendEmailRequest, ResendEmailResponse)
+                         ResendEmailRequest, ResendEmailResponse, ChangeUserInfoRequest,
+                         ChangeUserInfoResponse)
 from src.exceptions.user import AuthenticationError, ServerError, UserInfoError, ValidationError
 from src.models.models import UserInfo
 from src.utils.email import email_sender
@@ -191,7 +192,7 @@ async def login(
         )
         
     except EmailVerifiedError as e:
-        logger.warn(f"Email verification failed: {str(e)}")
+        logger.warning(f"Email verification failed: {str(e)}")
         raise e
     except (ValidationError, AuthenticationError, UserInfoError) as e:
         logger.error(f"Login validation failed: {str(e)}")
@@ -320,7 +321,7 @@ async def verify_email(
         )
         
     except ValidationError as e:
-        logger.warn(f"Email verification failed: {str(e)}")
+        logger.warning(f"Email verification failed: {str(e)}")
         raise e
     except Exception as e:
         logger.error(f"Unexpected error during email verification: {str(e)}")
@@ -386,3 +387,88 @@ async def resend_verification_email(
         # 其他错误
         logger.error(f"Unexpected error during email resend: {str(e)}")
         raise ValidationError("Failed to resend verification email")
+
+@router.post("/change/user-info", response_model=ChangeUserInfoResponse)
+async def change_user_info(
+    request: ChangeUserInfoRequest,
+    db: Session = Depends(get_db)
+):
+    """修改用户信息（用户名、邮箱、密码）"""
+    try:
+        # 获取当前用户上下文
+        user_context = get_current_user_context()
+        if not user_context:
+            raise AuthenticationError()
+            
+        # 获取从数据库中获取用户信息
+        user = db.query(UserInfo).filter(UserInfo.id == user_context.id).first()
+        if not user:
+            raise AuthenticationError("User not found")
+            
+        # 检查是否有至少一个字段需要更新
+        if not request.username and not request.pwd and not request.head_pic:
+            raise ValidationError("At least one field (username, password, or profile picture) must be provided")
+            
+        # 更新标志，用于跟踪是否有字段被更新
+        updated = False
+        
+        # 更新用户名
+        if request.username:
+            # 验证用户名格式
+            UserValidator.validate_username(request.username)
+            
+            # 检查用户名是否已存在
+            existing_username = db.query(UserInfo).filter(
+                UserInfo.username == request.username,
+                UserInfo.id != user.id
+            ).first()
+            
+            if existing_username:
+                raise ValidationError("Username already exists")
+                
+            user.username = request.username
+            updated = True
+            logger.info(f"Username updated for user: {user.email}")
+        
+        
+        # 更新头像
+        if request.head_pic:
+            # 验证头像URL是否合法
+            if not request.head_pic.startswith(('http://', 'https://')):
+                raise ValidationError("Invalid profile picture URL")
+                
+            user.head_pic = request.head_pic
+            updated = True
+            logger.info(f"Profile picture updated for user: {user.email}")
+        
+        # 更新密码
+        if request.pwd:
+            # 验证密码强度
+            UserValidator.validate_password(request.pwd)
+            
+            # 使用用户当前的盐值，生成新密码的哈希
+            hashed_password = hash_password(request.pwd, user.salt)
+            user.pwd = hashed_password
+            updated = True
+            logger.info(f"Password updated for user: {user.email}")
+        
+        # 如果有字段被更新，更新更新时间
+        if updated:
+            user.update_time = datetime.utcnow()
+            db.commit()
+        
+        return ChangeUserInfoResponse(
+            code=0,
+            msg="User information updated successfully"
+        )
+        
+    except ValidationError as e:
+        logger.warning(f"User info update validation failed: {str(e)}")
+        raise e
+    except AuthenticationError as e:
+        logger.error(f"Authentication failed: {str(e)}")
+        raise e
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update user information: {str(e)}")
+        raise ServerError("Failed to update user information")

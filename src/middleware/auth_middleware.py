@@ -90,7 +90,7 @@ class AuthMiddleware:
                 clear_user_context()
                 
         except ValueError as e:
-            logger.warn(f"Authentication error: {str(e)}")
+            logger.warning(f"Authentication error: {str(e)}")
             return JSONResponse(
                 status_code=200,
                 content=CommonResponse(
