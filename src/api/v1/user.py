@@ -267,7 +267,8 @@ async def get_user_info():
             "email": user.email,
             "status": user.status,
             "emailVerified": user.email_verified,
-            "headPic": user.head_pic
+            "headPic": user.head_pic,
+            "sign": user.sign
         }
     )
 

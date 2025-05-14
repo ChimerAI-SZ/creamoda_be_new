@@ -78,7 +78,8 @@ class AuthMiddleware:
                     username=user.username,
                     status=user.status,
                     email_verified=user.email_verified,
-                    head_pic=user.head_pic
+                    head_pic=user.head_pic,
+                    sign=bool(user.pwd)  # pwd为空则sign为False，否则为True
                 ))
                 
                 # 继续处理请求
