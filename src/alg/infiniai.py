@@ -658,6 +658,59 @@ class InfiniAI:
             logger.error(f"Request error during change background request: {e}")
             return None
 
+    def comfy_request_change_fabric(self, original_image_url: str, original_mask_url: str, fabric_image_url: str,
+                                    seed: int,
+                                    fabric_size: int = 2048) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 13="Load Original Image"
+        # 64="Load Original Mask"
+        # 35="Fabric Image"
+        # 63="Fabric Size"
+        # 69="Seed"
+        payload = {
+            "workflow_id": "wf-da7vgrwa7aihyvbx",
+            "prompt": {
+                "13": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "35": {
+                    "inputs": {
+                        "image": fabric_image_url
+                    }
+                },
+                "63": {
+                    "inputs": {
+                        "int_value": fabric_size
+                    }
+                },
+                "64": {
+                    "inputs": {
+                        "image": original_mask_url
+                    }
+                },
+                "69": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Change fabric request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during change fabric request: {e}")
+            return None
+
 
 # Example usage
 if __name__ == "__main__":
@@ -685,7 +738,7 @@ if __name__ == "__main__":
         return result_urls[0]
 
 
-    def test_change_fabric():
+    def test_transfer_fabric():
         # Example of Changing Fabric
         fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
         model_image_url = "https://replicate.delivery/pbxt/JF3LddQgRiMM9Q4Smyfw7q7BR9Gn0PwkSWvJjKDPxyvr8Ru0/cool-dog.png"
@@ -740,4 +793,27 @@ if __name__ == "__main__":
         change_background_prompt_id = infini_ai.comfy_request_change_background(image_url, background_image_url, prompt,
                                                                                 seed)
         result_urls = infini_ai.get_task_result(change_background_prompt_id)
+        return result_urls[0]
+
+
+    def test_change_fabric():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        model_mask_url = "https://replicate.delivery/pbxt/fFn9jPcxgNwyPSh3UX2QxuzU9ZNjhLYogUf1Ygvkj3U7f7slA/out.png"
+        fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
+
+        fabric_image = Image.open(io.BytesIO(requests.get(fabric_image_url).content))
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        model_mask = Image.open(io.BytesIO(requests.get(model_mask_url).content))
+
+        # Upload images to InfiniAI's OSS
+        fabric_image_url = infini_ai.upload_image_to_infiniai_oss(fabric_image)
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        model_mask_url = infini_ai.upload_image_to_infiniai_oss(model_mask)
+
+        seed = random.randint(0, 2147483647)
+
+        change_fabric_prompt_id = infini_ai.comfy_request_change_fabric(
+            model_image_url, model_mask_url, fabric_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(change_fabric_prompt_id)
         return result_urls[0]
