@@ -406,6 +406,10 @@ async def change_user_info(
         if not user:
             raise AuthenticationError("User not found")
             
+        # 检查用户状态是否正常
+        if user.status != 1:
+            raise AuthenticationError("User account is disabled or deleted")
+            
         # 检查是否有至少一个字段需要更新
         if not request.username and not request.pwd and not request.headPic:
             raise ValidationError("At least one field (username, password, or profile picture) must be provided")
