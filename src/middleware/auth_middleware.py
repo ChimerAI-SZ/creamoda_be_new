@@ -79,7 +79,7 @@ class AuthMiddleware:
                     status=user.status,
                     email_verified=user.email_verified,
                     head_pic=user.head_pic,
-                    show_pwd=bool(user.pwd)  # pwd为空则showPwd为False，否则为True
+                    has_pwd=bool(user.pwd)  # pwd为空则showPwd为False，否则为True
                 ))
                 
                 # 继续处理请求

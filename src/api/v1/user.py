@@ -268,7 +268,7 @@ async def get_user_info():
             "status": user.status,
             "emailVerified": user.email_verified,
             "headPic": user.head_pic,
-            "showPwd": user.show_pwd
+            "hasPwd": user.has_pwd
         }
     )
 
@@ -389,7 +389,7 @@ async def resend_verification_email(
         logger.error(f"Unexpected error during email resend: {str(e)}")
         raise ValidationError("Failed to resend verification email")
 
-@router.post("/change/user-info", response_model=ChangeUserInfoResponse)
+@router.post("/change/user_info", response_model=ChangeUserInfoResponse)
 async def change_user_info(
     request: ChangeUserInfoRequest,
     db: Session = Depends(get_db)
@@ -423,13 +423,13 @@ async def change_user_info(
             UserValidator.validate_username(request.username)
             
             # 检查用户名是否已存在
-            existing_username = db.query(UserInfo).filter(
-                UserInfo.username == request.username,
-                UserInfo.id != user.id
-            ).first()
+            # existing_username = db.query(UserInfo).filter(
+            #     UserInfo.username == request.username,
+            #     UserInfo.id != user.id
+            # ).first()
             
-            if existing_username:
-                raise ValidationError("Username already exists")
+            # if existing_username:
+            #     raise ValidationError("Username already exists")
                 
             user.username = request.username
             updated = True
