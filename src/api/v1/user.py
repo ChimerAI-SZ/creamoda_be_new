@@ -268,7 +268,7 @@ async def get_user_info():
             "status": user.status,
             "emailVerified": user.email_verified,
             "headPic": user.head_pic,
-            "sign": user.sign
+            "showPwd": user.show_pwd
         }
     )
 
@@ -407,7 +407,7 @@ async def change_user_info(
             raise AuthenticationError("User not found")
             
         # 检查是否有至少一个字段需要更新
-        if not request.username and not request.pwd and not request.head_pic:
+        if not request.username and not request.pwd and not request.headPic:
             raise ValidationError("At least one field (username, password, or profile picture) must be provided")
             
         # 更新标志，用于跟踪是否有字段被更新
@@ -433,12 +433,12 @@ async def change_user_info(
         
         
         # 更新头像
-        if request.head_pic:
+        if request.headPic:
             # 验证头像URL是否合法
-            if not request.head_pic.startswith(('http://', 'https://')):
+            if not request.headPic.startswith(('http://', 'https://')):
                 raise ValidationError("Invalid profile picture URL")
                 
-            user.head_pic = request.head_pic
+            user.head_pic = request.headPic
             updated = True
             logger.info(f"Profile picture updated for user: {user.email}")
         

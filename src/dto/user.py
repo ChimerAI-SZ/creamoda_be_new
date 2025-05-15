@@ -53,7 +53,7 @@ class ChangePwdResponse(CommonResponse):
 class ChangeUserInfoRequest(BaseModel):
     username: Optional[str] = None
     pwd: Optional[str] = None
-    head_pic: Optional[str] = None
+    headPic: Optional[str] = None
 
 class ChangeUserInfoResponse(CommonResponse):
     pass 
