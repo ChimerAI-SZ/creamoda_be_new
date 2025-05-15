@@ -78,7 +78,8 @@ class AuthMiddleware:
                     username=user.username,
                     status=user.status,
                     email_verified=user.email_verified,
-                    head_pic=user.head_pic
+                    head_pic=user.head_pic,
+                    has_pwd=bool(user.pwd)  # pwd为空则showPwd为False，否则为True
                 ))
                 
                 # 继续处理请求
@@ -90,7 +91,7 @@ class AuthMiddleware:
                 clear_user_context()
                 
         except ValueError as e:
-            logger.warn(f"Authentication error: {str(e)}")
+            logger.warning(f"Authentication error: {str(e)}")
             return JSONResponse(
                 status_code=200,
                 content=CommonResponse(
