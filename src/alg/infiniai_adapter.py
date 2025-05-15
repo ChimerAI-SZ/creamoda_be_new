@@ -195,7 +195,7 @@ class InfiniAIAdapter:
             raise Exception(f"面料转换失败: {str(e)}")
     
     def comfy_request_change_background(self, original_image_url: str, reference_image_url: str, background_prompt: str,
-                                        seed: int, refine_size: int = 1536, wait_for_result: bool = True) -> Union[str, List[str]]:
+                                        seed: Optional[int] = None, refine_size: int = 1536, wait_for_result: bool = True) -> Union[str, List[str]]:
         """
         将面料图案应用到服装上
         
@@ -215,11 +215,6 @@ class InfiniAIAdapter:
             # 设置随机种子
             if seed is None:
                 seed = random.randint(0, 2147483647)
-            
-            # TODO: 如果没有提供mask_url，可以考虑自动生成蒙版
-            if not model_mask_url:
-                logger.warning("未提供服装蒙版，这可能会影响结果质量")
-                # 在此可以添加自动生成蒙版的逻辑
             
             # 处理图片
             oss_image_ids = self._process_images(original_image_url, reference_image_url)

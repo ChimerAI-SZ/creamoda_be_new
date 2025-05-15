@@ -23,7 +23,7 @@ class TextToImageRequest(BaseModel):
     
 
 class ImageGenerationData(BaseModel):
-    taskId: str
+    taskId: int
     status: int = Field(..., description="任务状态：1-待生成 2-生成中 3-已生成")
     estimatedTime: int = Field(..., description="预计完成时间(秒)")
 
@@ -191,6 +191,29 @@ class RemoveBackgroundRequest(BaseModel):
 
 class RemoveBackgroundResponse(BaseModel):
     """移除背景响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class ParticialModificationRequest(BaseModel):
+    """局部修改请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    maskPicUrl: str = Field(..., description="蒙版图片URL")
+    prompt: str = Field(..., description="修改描述")
+    
+    
+class ParticialModificationResponse(BaseModel):
+    """局部修改响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class UpscaleRequest(BaseModel):
+    """高清化图片请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+
+class UpscaleResponse(BaseModel):
+    """高清化图片响应DTO"""
     code: int
     msg: str
     data: Optional[ImageGenerationData] = None 

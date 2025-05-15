@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, FabricToDesignRequest, FabricToDesignResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -551,7 +551,7 @@ async def change_background(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            reference_pic_url=request.referencePicUrl,
+            refer_pic_url=request.referencePicUrl,
             background_prompt=request.backgroundPrompt
         )
         
@@ -595,4 +595,66 @@ async def remove_background(
     
     except Exception as e:
         logger.error(f"Failed to process remove background: {str(e)}")
+        raise e
+
+@router.post("/particial_modification", response_model=ParticialModificationResponse)
+async def particial_modification(
+    request: ParticialModificationRequest,
+    db: Session = Depends(get_db)
+):
+    """局部修改接口 - 局部修改图片"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_particial_modification_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            mask_pic_url=request.maskPicUrl,
+            prompt=request.prompt
+        )
+        
+        # 返回任务信息
+        return ParticialModificationResponse(
+            code=0,
+            msg="Particial modification task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process particial modification: {str(e)}")
+        raise e
+    
+@router.post("/upscale", response_model=UpscaleResponse)
+async def upscale(
+    request: UpscaleRequest,
+    db: Session = Depends(get_db)
+):
+    """高清化图片接口 - 高清化图片"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_upscale_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl
+        )
+        
+        # 返回任务信息
+        return UpscaleResponse(
+            code=0,
+            msg="Upscale task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process upscale: {str(e)}")
         raise e
