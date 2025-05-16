@@ -75,7 +75,18 @@ async def process_image_generation_compensate():
                 await ImageService.process_copy_fabric_generation(result.id)
             elif task.type == 3:
                 await ImageService.process_virtual_try_on_generation(result.id)
+            elif task.type == 4 and task.variation_type == 1:
+                await ImageService.process_change_color(result.id)
+            elif task.type == 4 and task.variation_type == 2:
+                await ImageService.process_change_background(result.id)
+            elif task.type == 4 and task.variation_type == 3:
+                await ImageService.process_remove_background(result.id)
+            elif task.type == 4 and task.variation_type == 4:
+                await ImageService.process_particial_modification(result.id)
+            elif task.type == 4 and task.variation_type == 4:
+                await ImageService.process_upscale(result.id)
             else:
+
                 logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                 continue
 
