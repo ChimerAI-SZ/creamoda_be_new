@@ -19,8 +19,8 @@ RouterManager.register_routers(app)
 @app.on_event("startup")
 async def startup_event():
     """应用启动时的初始化操作"""
-    await TaskManager.initialize_tasks()
-    await TaskManager.start_scheduler()
+    # await TaskManager.initialize_tasks()
+    # await TaskManager.start_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_event():
