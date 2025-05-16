@@ -513,6 +513,10 @@ async def change_color(
     if not user:
         raise AuthenticationError()
     
+    # 校验clothingText不能为空
+    if not request.clothingText:
+        raise ValidationError("Clothing text cannot be empty")
+    
     try:
         # 创建改变颜色任务
         task_info = await ImageService.create_change_color_task(
