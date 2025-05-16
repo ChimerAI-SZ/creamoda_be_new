@@ -1676,10 +1676,9 @@ class ImageService:
             db.commit()
             
             # 启动异步任务处理面料转换
-            first_result_id = result_ids[0] if result_ids else None
-            if first_result_id:
+            for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_fabric_transfer(first_result_id)
+                    ImageService.process_fabric_transfer(result_id)
                 )
             
             # 返回任务信息
@@ -1754,11 +1753,10 @@ class ImageService:
             # 提交事务
             db.commit()
             
-            # 启动异步任务处理面料转换
-            first_result_id = result_ids[0] if result_ids else None
-            if first_result_id:
+            # 启动异步任务处理变更颜色
+            for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_change_color(first_result_id)
+                    ImageService.process_change_color(result_id)
                 )
             
             # 返回任务信息
@@ -2014,11 +2012,10 @@ class ImageService:
             # 提交事务
             db.commit()
             
-            # 启动异步任务处理面料转换
-            first_result_id = result_ids[0] if result_ids else None
-            if first_result_id:
+            # 启动异步任务处理改变背景
+            for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_change_background(first_result_id)
+                    ImageService.process_change_background(result_id)
                 )
             
             # 返回任务信息
@@ -2181,11 +2178,10 @@ class ImageService:
             # 提交事务
             db.commit()
             
-            # 启动异步任务处理面料转换
-            first_result_id = result_ids[0] if result_ids else None
-            if first_result_id:
+            # 启动异步任务处理移除背景
+            for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_remove_background(first_result_id)
+                    ImageService.process_remove_background(result_id)
                 )
             
             # 返回任务信息
@@ -2349,11 +2345,10 @@ class ImageService:
             # 提交事务
             db.commit()
             
-            # 启动异步任务处理面料转换
-            first_result_id = result_ids[0] if result_ids else None
-            if first_result_id:
+            # 启动异步任务处理局部修改
+            for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_particial_modification(first_result_id)
+                    ImageService.process_particial_modification(result_id)
                 )
             
             # 返回任务信息
@@ -2514,12 +2509,12 @@ class ImageService:
             # 提交事务
             db.commit()
             
-            # 启动异步任务处理面料转换
-            first_result_id = result_ids[0] if result_ids else None
-            if first_result_id:
+            # 启动异步任务处理高清化
+            for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_upscale(first_result_id)
+                    ImageService.process_upscale(result_id)
                 )
+                
             
             # 返回任务信息
             return {
