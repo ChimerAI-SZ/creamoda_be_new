@@ -1,4 +1,6 @@
+import asyncio
 from typing import Optional, List, Union, IO
+import concurrent.futures
 
 from src.config.log_config import logger
 from src.alg.ideogram import Ideogram
@@ -23,7 +25,7 @@ class IdeogramAdapter:
             cls._adapter = IdeogramAdapter()
         return cls._adapter
     
-    def edit(
+    async def edit(
             self,
             image: Union[str, IO],
             mask: Union[str, IO],
@@ -37,5 +39,21 @@ class IdeogramAdapter:
             style_reference_images: Optional[List[Union[str, IO]]] = None,
             is_white_mask: Optional[bool] = True
     ) -> str:
-        res_dict = self.ideogram.edit(image, mask, prompt, magic_prompt, num_images, seed, rendering_speed, color_palette, style_codes, style_reference_images, is_white_mask)
-        return res_dict['data'][0]['url']
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            future = executor.submit(
+                self.ideogram.edit,
+                image=image,
+                mask=mask,
+                prompt=prompt,
+                magic_prompt=magic_prompt,
+                num_images=num_images,
+                seed=seed,
+                rendering_speed=rendering_speed,
+                color_palette=color_palette,
+                style_codes=style_codes,
+                style_reference_images=style_reference_images,
+                is_white_mask=is_white_mask
+            )
+            
+            res_dict = await asyncio.wrap_future(future)
+            return res_dict['data'][0]['url']

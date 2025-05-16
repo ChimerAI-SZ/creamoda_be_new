@@ -2402,7 +2402,7 @@ class ImageService:
                 adapter = IdeogramAdapter()
                 
                 # 调用面料转换
-                result_pic = adapter.edit(
+                result_pic = await adapter.edit(
                     image=task.original_pic_url,
                     mask=task.refer_pic_url,
                     prompt=task.original_prompt
