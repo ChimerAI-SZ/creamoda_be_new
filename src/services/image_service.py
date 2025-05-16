@@ -1485,7 +1485,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.style_transfer_count if hasattr(settings.image_generation, "style_transfer_count") else 2
+            image_count = settings.image_generation.style_transfer_count if hasattr(settings.image_generation, "style_transfer_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -1656,7 +1656,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.fabric_transfer_count if hasattr(settings.image_generation, "fabric_transfer_count") else 2
+            image_count = settings.image_generation.fabric_transfer_count if hasattr(settings.image_generation, "fabric_transfer_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -1734,7 +1734,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.change_color_count if hasattr(settings.image_generation, "change_color_count") else 2
+            image_count = settings.image_generation.change_color_count if hasattr(settings.image_generation, "change_color_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -1993,7 +1993,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.change_background_count if hasattr(settings.image_generation, "change_background_count") else 2
+            image_count = settings.image_generation.change_background_count if hasattr(settings.image_generation, "change_background_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2068,7 +2068,7 @@ class ImageService:
                 adapter = InfiniAIAdapter()
                 
                 # 调用面料转换
-                generated_urls = adapter.comfy_request_change_background(
+                generated_urls = await adapter.comfy_request_change_background(
                     original_image_url=task.original_pic_url,
                     reference_image_url=task.refer_pic_url,
                     background_prompt=task.original_prompt
@@ -2159,7 +2159,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.remove_background_count if hasattr(settings.image_generation, "remove_background_count") else 2
+            image_count = settings.image_generation.remove_background_count if hasattr(settings.image_generation, "remove_background_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2326,7 +2326,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.particial_modification_count if hasattr(settings.image_generation, "particial_modification_count") else 2
+            image_count = settings.image_generation.particial_modification_count if hasattr(settings.image_generation, "particial_modification_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2490,7 +2490,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.upscale_count if hasattr(settings.image_generation, "upscale_count") else 2
+            image_count = settings.image_generation.upscale_count if hasattr(settings.image_generation, "upscale_count") else 1
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []

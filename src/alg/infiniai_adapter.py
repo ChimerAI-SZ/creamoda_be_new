@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import random
 import io
+import concurrent.futures
 import requests
 from typing import Union, List, Dict, Any, Optional, Tuple
 from PIL import Image
@@ -194,8 +195,8 @@ class InfiniAIAdapter:
             logger.error(f"面料转换失败: {e}")
             raise Exception(f"面料转换失败: {str(e)}")
     
-    def comfy_request_change_background(self, original_image_url: str, reference_image_url: str, background_prompt: str,
-                                        seed: Optional[int] = None, refine_size: int = 1536, wait_for_result: bool = True) -> Union[str, List[str]]:
+    async def comfy_request_change_background(self, original_image_url: str, reference_image_url: str, background_prompt: str,
+                                        seed: Optional[int] = None, refine_size: int = 1536) -> Union[str, List[str]]:
         """
         将面料图案应用到服装上
         
@@ -205,7 +206,6 @@ class InfiniAIAdapter:
             background_prompt: 背景描述
             seed: 随机种子，不提供则随机生成
             refine_size: 放大倍数，默认1536
-            wait_for_result: 是否等待任务完成并返回结果URL，False则只返回任务ID
             
         Returns:
             如果wait_for_result为True，返回生成的图片URL列表
@@ -215,28 +215,26 @@ class InfiniAIAdapter:
             # 设置随机种子
             if seed is None:
                 seed = random.randint(0, 2147483647)
-            
+
             # 处理图片
             oss_image_ids = self._process_images(original_image_url, reference_image_url)
-            
-            # 调用InfiniAI的背景转换接口
-            prompt_id = self.infiniai.comfy_request_change_background(
-                original_image_url=oss_image_ids[0],
-                reference_image_url=oss_image_ids[1],
-                background_prompt=background_prompt,
-                seed=seed,
-                refine_size=refine_size
-            )
-            
-            logger.info(f"面料转换任务已提交，任务ID: {prompt_id}")
-            
-            # 是否等待结果
-            if wait_for_result:
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_change_background,
+                    original_image_url=oss_image_ids[0],
+                    reference_image_url=oss_image_ids[1],
+                    background_prompt=background_prompt,
+                    seed=seed,
+                    refine_size=refine_size
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"面料转换任务已提交，任务ID: {prompt_id}")
+
                 result_urls = self.infiniai.get_task_result(prompt_id)
                 logger.info(f"背景转换任务完成，生成了 {len(result_urls)} 张图片")
                 return result_urls
-            else:
-                return prompt_id
                 
         except Exception as e:
             logger.error(f"背景转换失败: {e}")
