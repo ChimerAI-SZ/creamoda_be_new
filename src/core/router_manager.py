@@ -5,7 +5,7 @@
 from fastapi import FastAPI
 from src.config.config import settings
 from src.config.log_config import logger
-from src.api.v1 import auth, user, img, common
+from src.api.v1 import auth, user, img, common, collect
 
 class RouterManager:
     """路由管理器，处理所有API路由的注册"""
@@ -44,6 +44,14 @@ class RouterManager:
             )
             logger.info("Registered image router")
             
+            # 注册图像路由
+            app.include_router(
+                collect.router,
+                prefix=f"{settings.api.v1_str}/collect",
+                tags=["collect"]
+            )
+            logger.info("Registered collect router")
+
             # 注册通用路由
             app.include_router(
                 common.router,
