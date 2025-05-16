@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from src.alg.ideogram_adapter import IdeogramAdapter
 from src.alg.replicate_adapter import ReplicateAdapter
 
-from ..models.models import GenImgRecord, GenImgResult  # 导入两个模型
+from ..models.models import CollectImg, GenImgRecord, GenImgResult  # 导入两个模型
 from ..db.redis import redis_client
 from ..db.session import SessionLocal
 from ..config.log_config import logger
@@ -1308,6 +1308,13 @@ class ImageService:
             # 格式化时间为字符串
             create_time = result.create_time.strftime("%Y-%m-%d %H:%M:%S") if result.create_time else ""
             
+            is_collected = db.query(
+                CollectImg
+            ).filter(
+                CollectImg.user_id == uid,
+                CollectImg.gen_img_id == result.id
+            ).first()
+
             # 构建单条记录
             history_item = {
                 "genImgId": result.id,  # GenImgResult的ID
@@ -1316,6 +1323,7 @@ class ImageService:
                 "variationType": record.variation_type,  # 变化类型
                 "status": result.status,  # 状态
                 "resultPic": result.result_pic,  # 生成结果图片URL
+                "isCollected": 1 if is_collected else 0,
                 "createTime": create_time  # 创建时间
             }
             

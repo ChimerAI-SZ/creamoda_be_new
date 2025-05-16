@@ -46,17 +46,17 @@ async def collect(
             )
             db.add(collect_record)
             db.commit()
-            return CollectResponse(code=200, msg="收藏成功")
+            return CollectResponse(code=0, msg="收藏成功")
         else:
-            return CollectResponse(code=200, msg="已经收藏过了")
+            return CollectResponse(code=0, msg="已经收藏过了")
     
     elif request.action == 2:  # 取消收藏
         if collect_record:  # 如果记录存在，则删除
             db.delete(collect_record)
             db.commit()
-            return CollectResponse(code=200, msg="取消收藏成功")
+            return CollectResponse(code=0, msg="取消收藏成功")
         else:
-            return CollectResponse(code=200, msg="未收藏过该图片")
+            return CollectResponse(code=0, msg="未收藏过该图片")
     
     else:
         raise HTTPException(status_code=400, detail="无效的action参数")
@@ -114,6 +114,6 @@ async def collect_list(
         total=total
     )
     
-    return CollectListResponse(code=200, msg="success", data=data)
+    return CollectListResponse(code=0, msg="success", data=data)
     
     

@@ -178,6 +178,7 @@ async def get_image_history(
                         variationType=item["variationType"],
                         status=item["status"],
                         resultPic=item["resultPic"],
+                        isCollected=item["isCollected"],
                         createTime=item["createTime"]
                     ) for item in history_data["list"]
                 ]

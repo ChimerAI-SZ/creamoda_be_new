@@ -87,6 +87,7 @@ class ImageHistoryItem(BaseModel):
     variationType: Optional[int] = Field(None, description="变化类型：1-洗图 2-更换服装")
     status: int = Field(..., description="状态：1-待生成 2-生成中 3-已生成 4-生成失败")
     resultPic: Optional[str] = Field(..., description="生成结果图片")
+    isCollected: Optional[int] = Field(..., description="是否收藏 1-是 0-否")
     createTime: str = Field(..., description="创建时间")
 
 class ImageHistoryData(BaseModel):

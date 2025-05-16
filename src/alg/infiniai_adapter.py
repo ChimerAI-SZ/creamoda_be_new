@@ -230,7 +230,7 @@ class InfiniAIAdapter:
                 )
 
                 prompt_id = await asyncio.wrap_future(future)
-                logger.info(f"面料转换任务已提交，任务ID: {prompt_id}")
+                logger.info(f"背景转换任务已提交，任务ID: {prompt_id}")
 
                 result_urls = self.infiniai.get_task_result(prompt_id)
                 logger.info(f"背景转换任务完成，生成了 {len(result_urls)} 张图片")
