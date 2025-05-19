@@ -90,7 +90,7 @@ class InfiniAIAdapter:
         return oss_image_ids
     
     async def transfer_style(self, image_a_url: str, image_b_url: str, prompt: str, strength: float = 0.5, 
-                      seed: int = None, wait_for_result: bool = True) -> Union[str, List[str]]:
+                      seed: int = None) -> Union[str, List[str]]:
         """
         混合两个图片的风格
         
@@ -130,37 +130,32 @@ class InfiniAIAdapter:
                 
                 logger.info(f"风格混合任务已提交，任务ID: {prompt_id}")
                 
-                # 是否等待结果
-                if wait_for_result:
-                    future3 = executor.submit(
+                future3 = executor.submit(
                         self.infiniai.get_task_result,
                         prompt_id)
-                    result_urls = await asyncio.wrap_future(future3)
-                    logger.info(f"风格混合任务完成，生成了 {len(result_urls)} 张图片")
-                    original_url = result_urls[0]
+                result_urls = await asyncio.wrap_future(future3)
+                logger.info(f"风格混合任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
 
-                    # 上传到阿里云OSS
-                    oss_image_url = await download_and_upload_image(
-                            original_url
-                        )
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
 
-                    if not oss_image_url:
-                        logger.warning(f"Failed to transfer style to OSS, using original URL: {original_url}")
-                        return original_url
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer style to OSS, using original URL: {original_url}")
+                    return original_url
 
-                    # 记录成功结果
-                    logger.info(f"Successfully transfer style for task result: {oss_image_url}")
-                    return oss_image_url
-                
-                else:
-                    return prompt_id
+                # 记录成功结果
+                logger.info(f"Successfully transfer style for task result: {oss_image_url}")
+                return oss_image_url
                 
         except Exception as e:
             logger.error(f"风格混合失败: {e}")
             raise Exception(f"风格混合失败: {str(e)}")
     
-    def transfer_fabric(self, fabric_image_url: str, model_image_url: str, model_mask_url: str = None,
-                       seed: int = None, wait_for_result: bool = True) -> Union[str, List[str]]:
+    async def transfer_fabric(self, fabric_image_url: str, model_image_url: str, model_mask_url: str = None,
+                       seed: int = None) -> Union[str, List[str]]:
         """
         将面料图案应用到服装上
         
@@ -198,13 +193,21 @@ class InfiniAIAdapter:
             
             logger.info(f"面料转换任务已提交，任务ID: {prompt_id}")
             
-            # 是否等待结果
-            if wait_for_result:
-                result_urls = self.infiniai.get_task_result(prompt_id)
-                logger.info(f"面料转换任务完成，生成了 {len(result_urls)} 张图片")
-                return result_urls
-            else:
-                return prompt_id
+            result_urls = self.infiniai.get_task_result(prompt_id)
+            original_url = result_urls[0]
+
+            # 上传到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                    original_url
+                )
+
+            if not oss_image_url:
+                logger.warning(f"Failed to change background to OSS, using original URL: {original_url}")
+                return original_url
+
+            # 记录成功结果
+            logger.info(f"Successfully change background for task result: {oss_image_url}")
+            return oss_image_url
                 
         except Exception as e:
             logger.error(f"面料转换失败: {e}")
