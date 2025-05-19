@@ -4,6 +4,8 @@ import concurrent.futures
 
 from src.config.log_config import logger
 from src.alg.ideogram import Ideogram
+from src.dto.upload_file import MockUploadFile
+from src.utils.image import download_and_upload_image
 
 class IdeogramAdapter:
     """Ideogram适配器类，提供更简洁的接口来使用Ideogram的功能"""
@@ -56,4 +58,18 @@ class IdeogramAdapter:
             )
             
             res_dict = await asyncio.wrap_future(future)
-            return res_dict['data'][0]['url']
+            original_url = res_dict['data'][0]['url']
+        
+            # 上传到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                    original_url
+                )
+
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {original_url}")
+                return original_url
+
+            # 记录成功结果
+            logger.info(f"Successfully edit cloth for task result: {oss_image_url}")
+            return oss_image_url
+            
