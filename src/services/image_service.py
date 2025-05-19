@@ -1836,17 +1836,11 @@ class ImageService:
                 adapter = InfiniAIAdapter()
                 
                 # 调用面料转换
-                generated_urls = adapter.transfer_fabric(
+                result_pic = adapter.transfer_fabric(
                     fabric_image_url=task.original_pic_url,
                     model_image_url=task.model_pic_url,
                     model_mask_url=task.mask_pic_url
                 )
-                
-                if not generated_urls:
-                    raise Exception("No images generated from InfiniAI")
-                
-                # 获取第一个生成的图片URL
-                result_pic = generated_urls[0]
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
