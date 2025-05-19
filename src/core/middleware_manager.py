@@ -3,12 +3,12 @@
 """
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from src.config.config import settings
 from src.config.log_config import logger
-from src.middleware.exception_handler import exception_handler
+from src.middleware.exception_handler import exception_handler, validation_exception_handler
 from src.middleware.log_middleware import log_middleware
 from src.middleware.auth_middleware import AuthMiddleware
-from src.middleware.api_exception_middleware import api_exception_middleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
 
 class MiddlewareManager:
@@ -24,9 +24,10 @@ class MiddlewareManager:
         try:
             logger.info("Registering middlewares...")
             
-            # 添加API异常中间件
-            app.middleware("http")(api_exception_middleware)
-            logger.info("Registered API exception middleware")
+            # 添加全局异常处理器
+            app.add_exception_handler(RequestValidationError, validation_exception_handler)
+            app.add_exception_handler(Exception, exception_handler)
+            logger.info("Registered global exception handler")
             
             # 添加日志中间件
             app.middleware("http")(log_middleware)
@@ -59,9 +60,7 @@ class MiddlewareManager:
             app.middleware("http")(RateLimitMiddleware())
             logger.info("Registered rate limit middleware")
             
-            # 添加全局异常处理器
-            app.add_exception_handler(Exception, exception_handler)
-            logger.info("Registered global exception handler")
+            
             
             logger.info("All middlewares registered successfully")
         except Exception as e:

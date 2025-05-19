@@ -5,7 +5,7 @@
 from fastapi import FastAPI
 from src.config.config import settings
 from src.config.log_config import logger
-from src.api.v1 import auth, user, img, common, collect
+from src.api.v1 import auth, user, img, common, collect, pay
 
 class RouterManager:
     """路由管理器，处理所有API路由的注册"""
@@ -51,6 +51,14 @@ class RouterManager:
                 tags=["collect"]
             )
             logger.info("Registered collect router")
+
+            # 注册支付路由
+            app.include_router(
+                pay.router,
+                prefix=f"{settings.api.v1_str}/pay",
+                tags=["pay"]
+            )
+            logger.info("Registered pay router")
 
             # 注册通用路由
             app.include_router(

@@ -6,6 +6,21 @@ from sqlalchemy.orm.base import Mapped
 Base = declarative_base()
 
 
+class BillingHistory(Base):
+    __tablename__ = 'billing_history'
+    __table_args__ = (
+        Index('billing_history_uid_index', 'uid'),
+        {'comment': '账单记录表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    uid = mapped_column(BigInteger)
+    description = mapped_column(String(100), comment='描述')
+    status = mapped_column(Integer, comment='状态 1-成功 2-失败')
+    amount = mapped_column(Integer)
+    create_time = mapped_column(DateTime)
+
+
 class CollectImg(Base):
     __tablename__ = 'collect_img'
     __table_args__ = {'comment': '收藏图片表'}
@@ -44,6 +59,35 @@ class ContactRecord(Base):
     source = mapped_column(String(100), comment='联系场景')
     contact_email = mapped_column(String(100), comment='联系邮箱')
     create_time = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+
+
+class Credit(Base):
+    __tablename__ = 'credit'
+    __table_args__ = (
+        Index('credit_uid_uindex', 'uid', unique=True),
+        {'comment': '积分表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    uid = mapped_column(BigInteger, nullable=False, comment='用户id')
+    credit = mapped_column(Integer, comment='积分值')
+    lock_credit = mapped_column(Integer, comment='锁定积分值')
+    create_time = mapped_column(DateTime)
+    update_time = mapped_column(DateTime)
+
+
+class CreditHistory(Base):
+    __tablename__ = 'credit_history'
+    __table_args__ = (
+        Index('credit_history_uid_index', 'uid'),
+        {'comment': '积分历史'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    uid = mapped_column(BigInteger, nullable=False)
+    credit_change = mapped_column(Integer, comment='信用变化')
+    source = mapped_column(String(200), comment='变化来源')
+    create_time = mapped_column(DateTime)
 
 
 class GenImgRecord(Base):
@@ -93,6 +137,38 @@ class GenImgResult(Base):
     fail_count = mapped_column(Integer, server_default=text("'0'"), comment='失败次数')
     create_time = mapped_column(TIMESTAMP)
     update_time = mapped_column(TIMESTAMP)
+
+
+class Subscribe(Base):
+    __tablename__ = 'subscribe'
+    __table_args__ = (
+        Index('subscribe_uid_index', 'uid'),
+        {'comment': '订阅表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    uid = mapped_column(BigInteger, nullable=False)
+    level = mapped_column(Integer, comment='订阅等级 0-无 1-基础班 2-专业版 3-企业版')
+    sub_time = mapped_column(DateTime, comment='订阅时间')
+    renew_time = mapped_column(DateTime, comment='更新时间')
+    billing_email = mapped_column(String(200), comment='订阅邮箱')
+    cancel_time = mapped_column(DateTime, comment='取消订阅时间')
+    create_time = mapped_column(DateTime)
+    update_time = mapped_column(DateTime)
+
+
+class SubscribeHistory(Base):
+    __tablename__ = 'subscribe_history'
+    __table_args__ = (
+        Index('subscribe_history_uid_index', 'uid'),
+        {'comment': '订阅历史'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    uid = mapped_column(BigInteger, nullable=False)
+    level = mapped_column(Integer, comment='订阅等级 0-无 1-基础 2-专业 3-企业')
+    action = mapped_column(Integer, comment='动作 0-取消订阅 1-订阅')
+    create_time = mapped_column(DateTime)
 
 
 class UploadRecord(Base):
