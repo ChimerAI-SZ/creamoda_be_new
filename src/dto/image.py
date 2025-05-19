@@ -218,3 +218,12 @@ class UpscaleResponse(BaseModel):
     code: int
     msg: str
     data: Optional[ImageGenerationData] = None 
+
+class DelImageRequest(BaseModel):
+    """删除图片请求DTO"""
+    genImgId: int = Field(..., description="图片ID")
+
+class DelImageResponse(BaseModel):
+    """删除图片响应DTO"""
+    code: int
+    msg: str

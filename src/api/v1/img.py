@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
+from src.exceptions.base import CustomException
+
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, DelImageRequest, DelImageResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -296,6 +298,38 @@ async def refresh_image_status(
     except Exception as e:
         logger.error(f"Failed to refresh image status: {str(e)}")
         raise e 
+
+@router.post("/del", response_model=DelImageResponse)
+async def delete_image(
+    request: DelImageRequest,
+    db: Session = Depends(get_db)
+):
+    """删除图片接口"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    try:
+        # 删除图片
+        result = ImageService.delete_image(
+            db=db,
+            uid=user.id,
+            gen_img_id=request.genImgId
+        )
+        
+        if result != 1:
+            raise CustomException(code=400, message="Failed to delete image")
+        
+        # 返回任务信息
+        return DelImageResponse(
+            code=0,
+            msg="Delete image successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to delete image: {str(e)}")
+        raise e
 
 
 @router.post("/fabric_to_design", response_model=FabricToDesignResponse)

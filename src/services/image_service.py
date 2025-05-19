@@ -1454,6 +1454,27 @@ class ImageService:
         return result_list 
 
     @staticmethod
+    def delete_image(
+        db: Session,
+        uid: int,
+        gen_img_id: int
+    ) -> int:
+        """删除图片
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            gen_img_id: 图片ID
+
+        Returns:
+            删除的图片ID
+        """
+        # 删除图片
+        result = db.query(GenImgResult).filter(GenImgResult.id == gen_img_id, GenImgResult.uid == uid).delete()
+        db.commit()
+        return result
+
+    @staticmethod
     async def create_style_transfer_task(
         db: Session,
         uid: int,
