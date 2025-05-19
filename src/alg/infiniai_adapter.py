@@ -9,6 +9,7 @@ from PIL import Image
 
 from src.config.log_config import logger
 from src.alg.infiniai import InfiniAI
+from src.utils.image import download_and_upload_image
 
 class InfiniAIAdapter:
     """InfiniAI适配器类，提供更简洁的接口来使用InfiniAI的功能"""
@@ -136,7 +137,21 @@ class InfiniAIAdapter:
                         prompt_id)
                     result_urls = await asyncio.wrap_future(future3)
                     logger.info(f"风格混合任务完成，生成了 {len(result_urls)} 张图片")
-                    return result_urls
+                    original_url = result_urls[0]
+
+                    # 上传到阿里云OSS
+                    oss_image_url = await download_and_upload_image(
+                            original_url
+                        )
+
+                    if not oss_image_url:
+                        logger.warning(f"Failed to transfer style to OSS, using original URL: {original_url}")
+                        return original_url
+
+                    # 记录成功结果
+                    logger.info(f"Successfully transfer style for task result: {oss_image_url}")
+                    return oss_image_url
+                
                 else:
                     return prompt_id
                 
@@ -234,7 +249,20 @@ class InfiniAIAdapter:
 
                 result_urls = self.infiniai.get_task_result(prompt_id)
                 logger.info(f"背景转换任务完成，生成了 {len(result_urls)} 张图片")
-                return result_urls
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+
+                if not oss_image_url:
+                    logger.warning(f"Failed to change background to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully change background for task result: {oss_image_url}")
+                return oss_image_url
                 
         except Exception as e:
             logger.error(f"背景转换失败: {e}")

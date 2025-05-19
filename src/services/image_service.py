@@ -1570,17 +1570,14 @@ class ImageService:
                 adapter = InfiniAIAdapter()
                 
                 # 调用风格转换
-                generated_urls = adapter.transfer_style(
+                result_pic = adapter.transfer_style(
                     image_a_url=task.original_pic_url,
                     image_b_url=task.style_pic_url,
                     strength=strength or 0.5
                 )
                 
-                if not generated_urls:
+                if not result_pic:
                     raise Exception("No images generated from InfiniAI")
-                
-                # 获取第一个生成的图片URL
-                result_pic = generated_urls[0]
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -2077,17 +2074,14 @@ class ImageService:
                 adapter = InfiniAIAdapter()
                 
                 # 调用面料转换
-                generated_urls = await adapter.comfy_request_change_background(
+                result_pic = await adapter.comfy_request_change_background(
                     original_image_url=task.original_pic_url,
                     reference_image_url=task.refer_pic_url,
                     background_prompt=task.original_prompt
                 )
                 
-                if not generated_urls:
+                if not result_pic:
                     raise Exception("No images generated from InfiniAI")
-                
-                # 获取第一个生成的图片URL
-                result_pic = generated_urls[0]
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
