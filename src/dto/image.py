@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from .common import CommonResponse
+from ..constants.image_constants import SUPPORTED_IMAGE_FORMATS
+
 
 class TextToImageRequest(BaseModel):
     prompt: str = Field(..., title="提示词")
@@ -9,9 +11,19 @@ class TextToImageRequest(BaseModel):
     age: int = Field(..., title="年龄")
     country: str = Field(..., title="国家code")
     modelSize: int = Field(..., title="模特身材code")
+    format: str = Field(..., title="图片比例", description="1:1 2:3 3:2 3:4 4:3 9:16 16:9")
+
+    @validator("format")
+    def validate_format(cls, v):
+        """验证图像格式是否支持"""
+        if v not in SUPPORTED_IMAGE_FORMATS:
+            supported_formats = ", ".join(SUPPORTED_IMAGE_FORMATS)
+            raise ValueError(f"不支持的图像格式: {v}。支持的格式: {supported_formats}")
+        return v
+    
 
 class ImageGenerationData(BaseModel):
-    taskId: str
+    taskId: int
     status: int = Field(..., description="任务状态：1-待生成 2-生成中 3-已生成")
     estimatedTime: int = Field(..., description="预计完成时间(秒)")
 
@@ -20,7 +32,7 @@ class TextToImageResponse(CommonResponse[ImageGenerationData]):
 
 class CopyStyleRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="图转图 或细节修改传递")
-    fidelity: float = Field(..., description="仅洗图填写", title="保真度")
+    referLevel: float = Field(..., description="仅洗图填写", title="保真度")
     prompt: str = Field(..., title="提示词")
 
 class CopyStyleResponse(CommonResponse[ImageGenerationData]):
@@ -30,7 +42,37 @@ class ChangeClothesRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
     
+class FabricToDesignRequest(BaseModel):
+    fabricPicUrl: str = Field(..., title="面料图片链接", description="面料图片链接")
+    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+        
+class SketchToDesignRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+
+class SketchToDesignResponse(CommonResponse[ImageGenerationData]):
+    pass
+        
+class MixImageRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    referPicUrl: str = Field(..., title="参考图片链接", description="参考图片链接")
+    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+    referLevel: int = Field(..., title="保真度", description="保真度")
+
+class MixImageResponse(CommonResponse[ImageGenerationData]):
+    pass
+class VirtualTryOnRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
+    clothingPhoto: str = Field(..., title="服装图片链接", description="服装图片链接")
+    clothType: str = Field(..., title="服装类型", description="服装类型,Value can be 'tops', 'bottoms' or 'one-pieces'")
+    
 class ChangeClothesResponse(CommonResponse[ImageGenerationData]):
+    pass
+
+class FabricToDesignResponse(CommonResponse[ImageGenerationData]):
+    pass
+
+class VirtualTryOnResponse(CommonResponse[ImageGenerationData]):
     pass
 
 class GetImageHistoryRequest(BaseModel):
@@ -44,7 +86,8 @@ class ImageHistoryItem(BaseModel):
     type: int = Field(..., description="生成类型：1-文生图 2-图生图")
     variationType: Optional[int] = Field(None, description="变化类型：1-洗图 2-更换服装")
     status: int = Field(..., description="状态：1-待生成 2-生成中 3-已生成 4-生成失败")
-    resultPic: str = Field(..., description="生成结果图片")
+    resultPic: Optional[str] = Field(..., description="生成结果图片")
+    isCollected: Optional[int] = Field(..., description="是否收藏 1-是 0-否")
     createTime: str = Field(..., description="创建时间")
 
 class ImageHistoryData(BaseModel):
@@ -93,4 +136,85 @@ class RefreshImageStatusData(BaseModel):
     list: List[RefreshImageStatusDataItem] = Field(..., description="记录列表")
 
 class RefreshImageStatusResponse(CommonResponse[RefreshImageStatusData]):
-    pass 
+    pass
+
+class StyleTransferRequest(BaseModel):
+    """风格转换请求DTO"""
+    imageUrl: str = Field(..., description="内容图片URL")
+    styleUrl: str = Field(..., description="风格图片URL")
+    strength: float = Field(0.5, description="风格应用强度，0-1之间，0为完全保留原图，1为完全应用风格")
+    
+class StyleTransferResponse(BaseModel):
+    """风格转换响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None
+    
+class FabricTransferRequest(BaseModel):
+    """面料转换请求DTO"""
+    fabricUrl: str = Field(..., description="面料图片URL")
+    modelUrl: str = Field(..., description="模特图片URL")
+    maskUrl: Optional[str] = Field(None, description="模特服装区域蒙版URL，可选")
+    
+class FabricTransferResponse(BaseModel):
+    """面料转换响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class ChangeColorRequest(BaseModel):
+    """改变颜色请求DTO"""
+    imageUrl: str = Field(..., description="图片URL")
+    clothingText: str = Field(..., description="服装描述")
+    hexColor: str = Field(..., description="十六进制颜色代码")
+    
+class ChangeColorResponse(BaseModel):
+    """改变颜色响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class ChangeBackgroundRequest(BaseModel):
+    """改变背景请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    referencePicUrl: str = Field(..., description="参考图片URL")
+    backgroundPrompt: str = Field(..., description="背景描述")
+
+class ChangeBackgroundResponse(BaseModel):
+    """改变背景响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class RemoveBackgroundRequest(BaseModel):
+    """移除背景请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+
+class RemoveBackgroundResponse(BaseModel):
+    """移除背景响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class ParticialModificationRequest(BaseModel):
+    """局部修改请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    maskPicUrl: str = Field(..., description="蒙版图片URL")
+    prompt: str = Field(..., description="修改描述")
+    
+    
+class ParticialModificationResponse(BaseModel):
+    """局部修改响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 
+
+class UpscaleRequest(BaseModel):
+    """高清化图片请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+
+class UpscaleResponse(BaseModel):
+    """高清化图片响应DTO"""
+    code: int
+    msg: str
+    data: Optional[ImageGenerationData] = None 

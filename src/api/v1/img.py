@@ -2,14 +2,26 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from ...dto.image import TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
 from ...exceptions.user import AuthenticationError, ValidationError
 from ...config.log_config import logger
+from ...constants.image_constants import IMAGE_FORMAT_SIZE_MAP
+from ...constants.refer_constants import REFER_LEVEL_MAP
+from ...dto.image import SketchToDesignRequest, SketchToDesignResponse, MixImageRequest, MixImageResponse
 
 router = APIRouter()
+
+
+def get_image_size(format: str):
+    """获取对应的图像尺寸"""
+    return IMAGE_FORMAT_SIZE_MAP[format] 
+
+def get_fidelity(refer_level: int):
+    """获取对应的参考等级"""
+    return REFER_LEVEL_MAP[refer_level] 
 
 @router.post("/txt_generate", response_model=TextToImageResponse)
 async def text_to_image(
@@ -27,6 +39,11 @@ async def text_to_image(
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
     try:
+        # 从请求中获取图像尺寸
+        image_size = get_image_size(request.format)
+        width = image_size["width"]
+        height = image_size["height"]
+
         # 创建文生图任务
         task_info = await ImageService.create_text_to_image_task(
             db=db,
@@ -36,7 +53,10 @@ async def text_to_image(
             gender=request.gender,
             age=request.age,
             country=request.country,
-            model_size=request.modelSize
+            model_size=request.modelSize,
+            format=request.format,
+            width=width,
+            height=height
         )
         
         # 返回任务信息
@@ -65,12 +85,15 @@ async def copy_style_generate(
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
     try:
+        # 从请求中获取参考等级
+        fidelity = get_fidelity(request.referLevel)
+
         # 创建洗图任务
         task_info = await ImageService.create_copy_style_task(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            fidelity=request.fidelity,
+            fidelity=fidelity,
             prompt=request.prompt
         )
         
@@ -155,6 +178,7 @@ async def get_image_history(
                         variationType=item["variationType"],
                         status=item["status"],
                         resultPic=item["resultPic"],
+                        isCollected=item["isCollected"],
                         createTime=item["createTime"]
                     ) for item in history_data["list"]
                 ]
@@ -272,3 +296,370 @@ async def refresh_image_status(
     except Exception as e:
         logger.error(f"Failed to refresh image status: {str(e)}")
         raise e 
+
+
+@router.post("/fabric_to_design", response_model=FabricToDesignResponse)
+async def fabric_to_design(
+    request: FabricToDesignRequest,
+    db: Session = Depends(get_db)
+):
+    """面料转设计接口"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    try:
+        # 创建面料转设计任务
+        task_info = await ImageService.create_fabric_to_design_task(
+            db=db,
+            uid=user.id,
+            fabric_pic_url=request.fabricPicUrl,
+            prompt=request.prompt
+        )
+        
+        # 返回任务信息
+        return FabricToDesignResponse(
+            code=0,
+            msg="Fabric to design task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process fabric to design: {str(e)}")
+        raise e 
+
+
+@router.post("/virtual_try_on", response_model=VirtualTryOnResponse)
+async def virtual_try_on(
+    request: VirtualTryOnRequest,
+    db: Session = Depends(get_db)
+):
+    """虚拟试穿接口 - 虚拟试穿图片中的服装"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    try:
+        # 创建虚拟试穿任务
+        task_info = await ImageService.create_virtual_try_on_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            clothing_photo=request.clothingPhoto,
+            cloth_type=request.clothType
+        )
+        
+        # 返回任务信息
+        return VirtualTryOnResponse(
+            code=0,
+            msg="Virtual try on task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process virtual try on: {str(e)}")
+        raise e 
+
+@router.post("/sketch_to_design", response_model=SketchToDesignResponse)
+async def sketch_to_design(
+    request: SketchToDesignRequest,
+    db: Session = Depends(get_db)
+):
+    """草图转设计接口 - 草图转设计"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    try:
+
+        # 创建复制面料任务
+        task_info = await ImageService.create_sketch_to_design_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            prompt=request.prompt
+        )
+        
+        # 返回任务信息
+        return SketchToDesignResponse(
+            code=0,
+            msg="Sketch to design task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process sketch to design: {str(e)}")
+        raise e 
+
+@router.post("/mix_image", response_model=MixImageResponse)
+async def mix_image(
+    request: MixImageRequest,
+    db: Session = Depends(get_db)
+):
+    """复制面料接口 - 复制图片中的面料"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    try:
+        # 从请求中获取参考等级
+        fidelity = get_fidelity(request.referLevel)
+
+        # 创建复制面料任务
+        task_info = await ImageService.create_mix_image_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl,
+            prompt=request.prompt,
+            fidelity=fidelity
+        )
+        
+        # 返回任务信息
+        return MixImageResponse(
+            code=0,
+            msg="mix image task submitted successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process mix image: {str(e)}")
+        raise e 
+
+@router.post("/style_transfer", response_model=StyleTransferResponse)
+async def style_transfer(
+    request: StyleTransferRequest,
+    db: Session = Depends(get_db)
+):
+    """风格转换接口 - 将一张图片的风格应用到另一张图片上"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建风格转换任务
+        task_info = await ImageService.create_style_transfer_task(
+            db=db,
+            uid=user.id,
+            image_a_url=request.imageUrl,
+            image_b_url=request.styleUrl,
+            strength=request.strength
+        )
+        
+        # 返回任务信息
+        return StyleTransferResponse(
+            code=0,
+            msg="Style transfer task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process style transfer: {str(e)}")
+        raise e 
+
+@router.post("/fabric_transfer", response_model=FabricTransferResponse)
+async def fabric_transfer(
+    request: FabricTransferRequest,
+    db: Session = Depends(get_db)
+):
+    """面料转换接口 - 将面料图案应用到服装上"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建面料转换任务
+        task_info = await ImageService.create_fabric_transfer_task(
+            db=db,
+            uid=user.id,
+            fabric_image_url=request.fabricUrl,
+            model_image_url=request.modelUrl,
+            model_mask_url=request.maskUrl
+        )
+        
+        # 返回任务信息
+        return FabricTransferResponse(
+            code=0,
+            msg="Fabric transfer task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process fabric transfer: {str(e)}")
+        raise e
+
+
+@router.post("/change_color", response_model=ChangeColorResponse)
+async def change_color(
+    request: ChangeColorRequest,
+    db: Session = Depends(get_db)
+):
+    """改变颜色接口 - 改变图片中的颜色"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    # 校验clothingText不能为空
+    if not request.clothingText:
+        raise ValidationError("Clothing text cannot be empty")
+    
+    try:
+        # 创建改变颜色任务
+        task_info = await ImageService.create_change_color_task(
+            db=db,
+            uid=user.id,
+            image_url=request.imageUrl,
+            clothing_text=request.clothingText,
+            hex_color=request.hexColor
+        )
+        
+        # 返回任务信息
+        return ChangeColorResponse(
+            code=0,
+            msg="Change color task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change color: {str(e)}")
+        raise e
+    
+@router.post("/change_background", response_model=ChangeBackgroundResponse)
+async def change_background(
+    request: ChangeBackgroundRequest,
+    db: Session = Depends(get_db)
+):
+    """改变背景接口 - 改变图片中的背景"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_change_background_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referencePicUrl,
+            background_prompt=request.backgroundPrompt
+        )
+        
+        # 返回任务信息
+        return ChangeBackgroundResponse(
+            code=0,
+            msg="Change background task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change background: {str(e)}")
+        raise e
+    
+        
+@router.post("/remove_background", response_model=RemoveBackgroundResponse)
+async def remove_background(
+    request: RemoveBackgroundRequest,
+    db: Session = Depends(get_db)
+):
+    """移除背景接口 - 移除图片中的背景"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_remove_background_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl
+        )
+        
+        # 返回任务信息
+        return RemoveBackgroundResponse(
+            code=0,
+            msg="Remove background task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process remove background: {str(e)}")
+        raise e
+
+@router.post("/particial_modification", response_model=ParticialModificationResponse)
+async def particial_modification(
+    request: ParticialModificationRequest,
+    db: Session = Depends(get_db)
+):
+    """局部修改接口 - 局部修改图片"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_particial_modification_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            mask_pic_url=request.maskPicUrl,
+            prompt=request.prompt
+        )
+        
+        # 返回任务信息
+        return ParticialModificationResponse(
+            code=0,
+            msg="Particial modification task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process particial modification: {str(e)}")
+        raise e
+    
+@router.post("/upscale", response_model=UpscaleResponse)
+async def upscale(
+    request: UpscaleRequest,
+    db: Session = Depends(get_db)
+):
+    """高清化图片接口 - 高清化图片"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_upscale_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl
+        )
+        
+        # 返回任务信息
+        return UpscaleResponse(
+            code=0,
+            msg="Upscale task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process upscale: {str(e)}")
+        raise e

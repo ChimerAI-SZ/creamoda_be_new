@@ -47,6 +47,10 @@ class SMTPSettings(BaseModel):
 class AlgorithmSettings(BaseModel):
     thenewblack_email: str
     thenewblack_password: str
+    openrouter_api_key: str
+    infiniai_api_key: str
+    replicate_api_key: str
+    ideogram_api_key: str
 
 class JobDefaults(BaseModel):
     coalesce: bool = True
@@ -67,9 +71,13 @@ class OSSSettings(BaseModel):
     upload_dir: str = "uploads/"  # 上传目录
 
 class ImageGenerationSettings(BaseModel):
-    text_to_image_count: int = 2
-    copy_style_count: int = 2
-    change_clothes_count: int = 2
+    text_to_image_count: int = 1
+    copy_style_count: int = 1
+    change_clothes_count: int = 1
+    fabric_to_design_count: int = 1
+    virtual_try_on_count: int = 1
+    sketch_to_design_count: int = 1
+    mix_image_count: int = 1
     estimated_time_seconds: int = 20
 
 class Settings(BaseModel):

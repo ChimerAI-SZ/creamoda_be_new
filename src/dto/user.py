@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 from .common import CommonResponse
 
@@ -35,4 +36,24 @@ class ResendEmailRequest(BaseModel):
     email: str
 
 class ResendEmailResponse(CommonResponse):
+    pass 
+
+class ChangeUsernameRequest(BaseModel):
+    username: str
+
+class ChangeUsernameResponse(CommonResponse):
+    pass 
+
+class ChangePwdRequest(BaseModel):
+    pwd: str
+
+class ChangePwdResponse(CommonResponse):
+    pass 
+
+class ChangeUserInfoRequest(BaseModel):
+    username: Optional[str] = None
+    pwd: Optional[str] = None
+    headPic: Optional[str] = None
+
+class ChangeUserInfoResponse(CommonResponse):
     pass 
