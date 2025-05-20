@@ -1454,6 +1454,27 @@ class ImageService:
         return result_list 
 
     @staticmethod
+    def delete_image(
+        db: Session,
+        uid: int,
+        gen_img_id: int
+    ) -> int:
+        """删除图片
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            gen_img_id: 图片ID
+
+        Returns:
+            删除的图片ID
+        """
+        # 删除图片
+        result = db.query(GenImgResult).filter(GenImgResult.id == gen_img_id, GenImgResult.uid == uid).delete()
+        db.commit()
+        return result
+
+    @staticmethod
     async def create_style_transfer_task(
         db: Session,
         uid: int,
@@ -1815,17 +1836,11 @@ class ImageService:
                 adapter = InfiniAIAdapter()
                 
                 # 调用面料转换
-                generated_urls = adapter.transfer_fabric(
+                result_pic = adapter.transfer_fabric(
                     fabric_image_url=task.original_pic_url,
                     model_image_url=task.model_pic_url,
                     model_mask_url=task.mask_pic_url
                 )
-                
-                if not generated_urls:
-                    raise Exception("No images generated from InfiniAI")
-                
-                # 获取第一个生成的图片URL
-                result_pic = generated_urls[0]
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
