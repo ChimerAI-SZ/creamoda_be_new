@@ -8,7 +8,7 @@ from src.constants.order_status import OrderStatus
 from src.constants.order_type import OrderType, get_order_info, get_order_price
 from src.exceptions.base import CustomException
 from src.pay.paypal_client import PayPalClient
-
+from src.db.redis import redis_client
 
 class OrderService:
     @staticmethod
@@ -51,19 +51,32 @@ class OrderService:
         order_id: str
     ):
         """捕获订单"""
-        order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.uid == uid).first()
-        if not order:
-            raise CustomException(code=400, message="Order not found")
-        
-        if order.status != OrderStatus.PAYMENT_PENDING:
-            raise CustomException(code=400, message="Order already captured")
-        
-        # 捕获订单
-        capture_res = PayPalClient.capture_payment(order_id)
+        try:
+            # redis锁订单
+            redis_key = f"order_lock:{order_id}"
+            if not redis_client.set(redis_key, "1", ex=300):
+                raise CustomException(code=400, message=f"Redis lock order failed:{redis_key}")
 
-        if capture_res.status != "COMPLETED":
-            raise CustomException(code=400, message="Capture failed")
+            order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.uid == uid).first()
+            if not order:
+                raise CustomException(code=400, message="Order not found")
+            
+            if order.status != OrderStatus.PAYMENT_PENDING:
+                raise CustomException(code=400, message="Order already captured")
+            
+            # 捕获订单
+            capture_res = PayPalClient.capture_payment(order_id)
 
-        # 更新订单状态
-        order.status = OrderStatus.PAYMENT_CAPTURED
-        db.commit()
+            if capture_res.status != "COMPLETED":
+                raise CustomException(code=400, message="Capture failed")
+
+            # 更新订单状态
+            order.status = OrderStatus.PAYMENT_CAPTURED
+            db.commit()
+        except Exception as e:
+            logger.error(f"捕获订单失败: {e}")
+            db.rollback()
+            raise e
+        finally:
+            redis_client.delete(redis_key)
+

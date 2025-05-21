@@ -12,6 +12,7 @@ from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.models.models import BillingHistory
 from src.pay.paypal_client import PayPalClient
+from src.services.credit_service import CreditService
 from src.services.order_service import OrderService
 from src.services.subscribe_service import SubscribeService
 from src.config.log_config import logger
@@ -86,7 +87,7 @@ async def handle_payment_success(
         # redis锁订单
         redis_key = f"order_lock:{order_id}"
         if not redis_client.set(redis_key, "1", ex=300):
-            raise CustomException(code=400, message=f"Order already handled: redis lock failed:{redis_key}")
+            raise CustomException(code=400, message=f"Redis lock order failed:{redis_key}")
 
         # 获取订单
         order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
@@ -99,11 +100,11 @@ async def handle_payment_success(
             raise CustomException(code=400, message="Order not captured status")
         
         if order.type == OrderType.POINTS_40:
-            pass
+            await CreditService.launch_credit(db, order.uid, order_id, 40)
         elif order.type == OrderType.POINTS_100:
-            pass
+            await CreditService.launch_credit(db, order.uid, order_id, 100)
         elif order.type == OrderType.POINTS_200:
-            pass
+            await CreditService.launch_credit(db, order.uid, order_id, 200)
         elif order.type == OrderType.BASIC_MEMBERSHIP:
             await SubscribeService.launch_subscribe(db, order.uid, order_id, 1)
         elif order.type == OrderType.PRO_MEMBERSHIP:

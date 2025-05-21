@@ -2,11 +2,14 @@
 
 from datetime import datetime, timedelta
 from requests import Session
+from calendar import monthrange
 
 from src.constants.order_status import OrderStatus
 from src.constants.order_type import OrderType
 from src.constants.subscribe_action import SubscribeAction
+from src.core.context import get_current_user_context
 from src.exceptions.base import CustomException
+from src.exceptions.user import AuthenticationError
 from src.models.models import BillingHistory, Credit, CreditHistory, Subscribe, SubscribeHistory
 from src.services.order_service import OrderService
 from src.config.log_config import logger
@@ -17,7 +20,7 @@ class SubscribeService:
     async def create_subscribe_order(db: Session, uid: int, level: int):
         # 检查用户是否已经订阅
         subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
-        if subscribe and subscribe.level == level:
+        if subscribe and subscribe.level != 0:
             raise CustomException(code=400, message="User already subscribed")
         
         if level == 1:
@@ -37,24 +40,44 @@ class SubscribeService:
     @staticmethod
     async def launch_subscribe(db: Session, uid: int, orderId: str, level: int):
         try:
+            # 获取当前用户信息
+            user = get_current_user_context()
+            if not user:
+                raise AuthenticationError()
+            
             # 检查用户是否已经订阅
             subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
-            if subscribe and subscribe.level == level:
+            if subscribe and subscribe.level != 0:
                 logger.info(f"User {uid} already subscribed")
                 raise CustomException(code=400, message="User already subscribed")
             
             today = datetime.now()
+            today_midnight = datetime.combine(today.date(), datetime.time(0, 0, 0))
+            renew_date = SubscribeService.calculate_next_billing_date(today_midnight)
+            renew_date_last_second = datetime.combine(renew_date.date(), datetime.time(23, 59, 59))
 
             # 更新订阅状态
             if subscribe:
                 subscribe.level = level
-                subscribe.sub_time = today
-                renew_date = today + timedelta(days=31)
-                renew_date_midnight = datetime.combine(renew_date.date(), datetime.time(0, 0, 0))
-                subscribe.renew_time = renew_date_midnight
+                subscribe.is_renew = 1
+                subscribe.sub_start_time = today_midnight
+                subscribe.sub_end_time = renew_date_last_second
+                subscribe.renew_date = renew_date
                 subscribe.update_time = today
-
-            # 创建订阅历史
+            else:
+                subscribe = Subscribe(
+                    uid=uid,
+                    level=level,
+                    is_renew=1,
+                    sub_start_time=today_midnight,
+                    sub_end_time=renew_date_last_second,
+                    renew_date=renew_date,
+                    billing_email=user.email,
+                    create_time=datetime.now(),
+                    update_time=datetime.now()
+                )
+                db.add(subscribe)
+            
             subscribe_history = SubscribeHistory(
                 uid=uid,
                 level=level,
@@ -107,3 +130,49 @@ class SubscribeService:
             logger.error(f"Launch subscribe failed: {e}")
             db.rollback()
             raise CustomException(code=400, message="Launch subscribe failed")
+
+    @staticmethod
+    def calculate_next_billing_date(start_date: datetime, months: int = 1) -> datetime:
+        year = start_date.year
+        month = start_date.month + months
+        while month > 12:
+            month -= 12
+            year += 1
+
+        day = start_date.day
+
+        # 获取目标月份的最后一天
+        last_day = monthrange(year, month)[1]
+        day = min(day, last_day)
+
+        return datetime(year, month, day)
+
+    @staticmethod
+    async def cancel_subscribe(db: Session, uid: int):
+        # 检查用户是否已经订阅
+        try:
+            subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
+            if subscribe or subscribe.level == 0:
+                raise CustomException(code=400, message="User not subscribed")
+            if subscribe.is_renew == 0:
+                raise CustomException(code=400, message="User not subscribed")
+            
+            # 更新订阅状态
+            subscribe.is_renew = 0
+            subscribe.update_time = datetime.now()
+            subscribe.cancel_time = datetime.now()
+
+            subscribe_history = SubscribeHistory(
+                uid=uid,
+                level=0,
+                action=SubscribeAction.CANCEL,
+                create_time=datetime.now()
+            )
+            db.add(subscribe_history)
+
+            db.commit()
+        except Exception as e:
+            logger.error(f"Cancel subscribe failed: {e}")
+            db.rollback()
+            raise CustomException(code=400, message="Cancel subscribe failed")
+

@@ -1,6 +1,7 @@
 from typing import List
 from pydantic import BaseModel, Field, validator
 
+from src.constants.credit_point_value import PointValue
 from src.dto.common import CommonResponse
 
 
@@ -25,12 +26,13 @@ class CancelSubscribeResponse(BaseModel):
 
 class PurchaseCreditRequest(BaseModel):
     """购买积分请求DTO"""
-    value: int = Field(..., description="积分")
+    value: PointValue = Field(..., description="积分")
 
-class PurchaseCreditResponse(BaseModel):
-    """购买积分响应DTO"""
-    code: int
-    msg: str
+class PurchaseCreditResponseData(BaseModel):
+    url: str = Field(..., description="支付链接")
+
+class PurchaseCreditResponse(CommonResponse[PurchaseCreditResponseData]):
+    pass
 
 class BillingHistoryRequest(BaseModel):
     """账单历史请求DTO"""
