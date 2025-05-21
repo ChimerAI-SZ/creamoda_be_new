@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from ..models.models import GenImgRecord, GenImgResult
 from sqlalchemy import or_
+from src.db.redis import redis_client
+from redis.lock import Lock
 
 async def process_image_generation_compensate():
     """补偿处理未完成的图像生成任务"""
@@ -100,10 +102,15 @@ task_lock = asyncio.Lock()
 
 def img_generation_compensate_task():
     """图像生成补偿任务入口"""
-    if not task_lock.acquire(blocking=False):
-        logger.info("Previous task is still running, skipping this execution:img_generation_compensate_task")
+    lock = Lock(redis_client, "img_generation_compensate_task_lock", timeout=300)
+    
+    if not lock.acquire(blocking=False):
+        logger.info("Previous task is still running, skipping this execution")
         return
     
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(process_image_generation_compensate()) 
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(process_image_generation_compensate()) 
+    finally:
+        lock.release()
