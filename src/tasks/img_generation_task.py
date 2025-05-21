@@ -96,8 +96,14 @@ async def process_image_generation_compensate():
     finally:
         db.close()
 
+task_lock = asyncio.Lock()
+
 def img_generation_compensate_task():
     """图像生成补偿任务入口"""
+    if not task_lock.acquire(blocking=False):
+        logger.info("Previous task is still running, skipping this execution:img_generation_compensate_task")
+        return
+    
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(process_image_generation_compensate()) 
