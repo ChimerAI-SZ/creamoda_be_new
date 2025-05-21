@@ -8,10 +8,9 @@ class SubscribeRequest(BaseModel):
     """订阅请求DTO"""
     level: int = Field(..., description="订阅等级", ge=1, le=3)
 
-class SubscribeResponse(BaseModel):
+class SubscribeResponse(CommonResponse):
     """订阅响应DTO"""
-    code: int
-    msg: str
+    url: str = Field(..., description="支付链接")
 
 class CancelSubscribeRequest(BaseModel):
     pass

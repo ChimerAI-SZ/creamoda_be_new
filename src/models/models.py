@@ -15,8 +15,10 @@ class BillingHistory(Base):
 
     id = mapped_column(BigInteger, primary_key=True)
     uid = mapped_column(BigInteger)
+    type = mapped_column(Integer, comment='订单类型 101-普通会员订阅 102-专业会员订阅 103-企业会员订阅 201-40积分购买 202-100积分购买 203-200积分购买')
+    order_id = mapped_column(String(200), comment='订单id')
     description = mapped_column(String(100), comment='描述')
-    status = mapped_column(Integer, comment='状态 1-成功 2-失败')
+    status = mapped_column(Integer, comment='状态 1-成功 2-失败 3-待支付')
     amount = mapped_column(Integer)
     create_time = mapped_column(DateTime)
 

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
+from src.services.subscribe_service import SubscribeService
+
 from ...dto.pay import SubscribeRequest, SubscribeResponse, CancelSubscribeRequest, CancelSubscribeResponse, PurchaseCreditRequest, PurchaseCreditResponse, BillingHistoryRequest, BillingHistoryResponse
 from ...db.session import get_db
 
@@ -12,7 +14,12 @@ async def subscribe(
     request: SubscribeRequest,
     db: Session = Depends(get_db)
 ):
-    pass
+    
+    order_res = await SubscribeService.create_subscribe_order(db, request.uid, request.level)
+    
+    return SubscribeResponse(
+        url=order_res.get_approve_link()
+    )
 
 @router.post("/cancel_subscribe", response_model=CancelSubscribeResponse)
 async def cancel_subscribe(
