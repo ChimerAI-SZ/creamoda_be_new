@@ -15,6 +15,7 @@ from src.pay.paypal_client import PayPalClient
 from src.services.order_service import OrderService
 from src.services.subscribe_service import SubscribeService
 from src.config.log_config import logger
+from src.db.redis import redis_client
 
 router = APIRouter()
 
@@ -30,6 +31,10 @@ async def paypal_capture(
     
     # 捕获订单
     await OrderService.capture_order(db, user.id, request.orderId)
+
+    # 更新支付状态
+    await handle_payment_success(request.orderId, db)
+
     return PaypalCaptureResponse(
         code=0,
         msg="Capture successfully"
@@ -76,11 +81,21 @@ async def handle_payment_success(
     db: Session = Depends(get_db)
 ):
     try:
+        logger.info(f"Handle payment success: {order_id}")
+
+        # redis锁订单
+        redis_key = f"order_lock:{order_id}"
+        if not redis_client.set(redis_key, "1", ex=300):
+            raise CustomException(code=400, message=f"Order already handled: redis lock failed:{redis_key}")
+
         # 获取订单
         order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
         if not order:
             raise CustomException(code=400, message="Order not found")
-        if order.status != OrderStatus.PAYMENT_CAPTURED:
+        if order.status == OrderStatus.PAYMENT_SUCCESS:
+            logger.info(f"Order {order_id} already handled")
+            return
+        if order.status != OrderStatus.PAYMENT_CAPTURED and order.status != OrderStatus.PAYMENT_PENDING:
             raise CustomException(code=400, message="Order not captured status")
         
         if order.type == OrderType.POINTS_40:
@@ -100,3 +115,5 @@ async def handle_payment_success(
 
     except Exception as e:
         raise CustomException(code=400, message=str(e))
+    finally:
+        redis_client.delete(redis_key)

@@ -67,4 +67,3 @@ class OrderService:
         # 更新订单状态
         order.status = OrderStatus.PAYMENT_CAPTURED
         db.commit()
-        db.refresh(order)
