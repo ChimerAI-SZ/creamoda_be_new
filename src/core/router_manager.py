@@ -5,7 +5,7 @@
 from fastapi import FastAPI
 from src.config.config import settings
 from src.config.log_config import logger
-from src.api.v1 import auth, user, img, common, collect, pay
+from src.api.v1 import auth, paypal, user, img, common, collect, pay
 
 class RouterManager:
     """路由管理器，处理所有API路由的注册"""
@@ -59,6 +59,14 @@ class RouterManager:
                 tags=["pay"]
             )
             logger.info("Registered pay router")
+
+            # 注册paypal回调路由
+            app.include_router(
+                paypal.router,
+                prefix=f"{settings.api.v1_str}/paypal",
+                tags=["paypal"]
+            )
+            logger.info("Registered paypal router")
 
             # 注册通用路由
             app.include_router(

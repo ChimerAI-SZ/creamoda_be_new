@@ -1,6 +1,6 @@
 
 
-import datetime
+from datetime import datetime, timedelta
 from requests import Session
 
 from src.constants.order_status import OrderStatus
@@ -18,7 +18,7 @@ class SubscribeService:
         # 检查用户是否已经订阅
         subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
         if subscribe and subscribe.level == level:
-            raise CustomException(status_code=400, detail="User already subscribed")
+            raise CustomException(code=400, message="User already subscribed")
         
         if level == 1:
             order_type = OrderType.BASIC_MEMBERSHIP
@@ -27,7 +27,7 @@ class SubscribeService:
         elif level == 3:
             order_type = OrderType.ENTERPRISE_MEMBERSHIP
         else:
-            raise CustomException(status_code=400, detail="Invalid order type")
+            raise CustomException(code=400, message="Invalid order type")
         
         # 创建订单
         order_res = await OrderService.create_order(db, uid, order_type)
@@ -35,13 +35,13 @@ class SubscribeService:
         return order_res
 
     @staticmethod
-    async def launch_subscribe(db: Session, uid: int, order_id: int, level: int):
+    async def launch_subscribe(db: Session, uid: int, orderId: str, level: int):
         try:
             # 检查用户是否已经订阅
             subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
             if subscribe and subscribe.level == level:
                 logger.info(f"User {uid} already subscribed")
-                raise CustomException(status_code=400, detail="User already subscribed")
+                raise CustomException(code=400, message="User already subscribed")
             
             today = datetime.now()
 
@@ -49,7 +49,7 @@ class SubscribeService:
             if subscribe:
                 subscribe.level = level
                 subscribe.sub_time = today
-                renew_date = today + datetime.timedelta(days=31)
+                renew_date = today + timedelta(days=31)
                 renew_date_midnight = datetime.combine(renew_date.date(), datetime.time(0, 0, 0))
                 subscribe.renew_time = renew_date_midnight
                 subscribe.update_time = today
@@ -59,7 +59,7 @@ class SubscribeService:
                 uid=uid,
                 level=level,
                 action=SubscribeAction.LAUNCH,
-                created_time=datetime.now()
+                create_time=datetime.now()
             )
             db.add(subscribe_history)
 
@@ -82,7 +82,7 @@ class SubscribeService:
                     uid=uid,
                     credit=launch_points,
                     lock_credit=0,
-                    created_time=datetime.now(),
+                    create_time=datetime.now(),
                     update_time = datetime.now()
                     )
                 db.add(credit)
@@ -92,18 +92,18 @@ class SubscribeService:
                 uid=uid,
                 credit_change=launch_points,
                 source="subscribe",
-                created_time=datetime.now()
+                create_time=datetime.now()
             )
             db.add(credit_history)
 
             # 更新订单状态
-            billing_history = db.query(BillingHistory).filter(BillingHistory.uid == uid, BillingHistory.order_id == order_id).first()
+            billing_history = db.query(BillingHistory).filter(BillingHistory.uid == uid, BillingHistory.order_id == orderId).first()
             if not billing_history:
-                raise CustomException(status_code=400, detail="Billing history not found")
+                raise CustomException(code=400, message="Billing history not found")
             billing_history.status = OrderStatus.PAYMENT_SUCCESS
             billing_history.update_time = datetime.now()
             db.commit()
         except Exception as e:
             logger.error(f"Launch subscribe failed: {e}")
             db.rollback()
-            raise CustomException(status_code=400, detail="Launch subscribe failed")
+            raise CustomException(code=400, message="Launch subscribe failed")

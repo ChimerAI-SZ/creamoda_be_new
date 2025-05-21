@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class PaypalCaptureRequest(BaseModel):
-    order_id: str
+    orderId: str
 
 class PaypalCaptureResponse(BaseModel):
     """Paypal捕获响应"""
@@ -154,9 +154,9 @@ class PayPalCaptureOrderResponse(BaseModel):
     """PayPal捕获订单响应DTO"""
     id: str = Field(..., description="PayPal订单ID")
     links: List[PayPalLink] = Field(..., description="操作链接列表")
-    payer: PayPalPayer = Field(..., description="支付人信息")
-    payment_source: PayPalPaymentSource = Field(..., description="支付来源")
-    purchase_units: List[PayPalPurchaseUnit] = Field(..., description="购买单元列表")
+    # payer: PayPalPayer = Field(..., description="支付人信息")
+    # payment_source: PayPalPaymentSource = Field(..., description="支付来源")
+    # purchase_units: List[PayPalPurchaseUnit] = Field(..., description="购买单元列表")
     status: str = Field(..., description="订单状态")
     
     class Config:

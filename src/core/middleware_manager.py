@@ -40,6 +40,8 @@ class MiddlewareManager:
                 "/api/v1/user/change/user_info",
                 "/api/v1/img/*",  # 所有图片相关接口
                 "/api/v1/collect/*",  # 所有收藏相关接口
+                "/api/v1/pay/*",  # 所有支付相关接口
+                "/api/v1/paypal/capture",  # paypal捕获接口
                 "/api/v1/common/contact",
                 "/api/v1/common/img/upload",
                 "/api/v1/common/enum/*"  # 枚举接口公开访问

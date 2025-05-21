@@ -68,3 +68,9 @@ image_generation:
   sketch_to_design_count: 1   # 草图转设计任务生成的图片数量
   mix_image_count: 1          # 混合图片任务生成的图片数量
   estimated_time_seconds: 20  # 预计完成时间(秒)
+
+paypal:
+  paypal_client_id: "AZ_E6kAv80zt4_NTtcxzEUdQOG7whhjBUJVrVyWx_DtCc3osBjvpcRTKfBXV6vajFN4VvW1C-xy1Ajo-"
+  paypal_secret: "EIQkwJIaJtwsjnTeNux62MGZd_N5LJMKBoiV1QoeIllpDG-cown_jzH3BX0WsXviOLdaMJGJJiw8QkMq"
+  paypal_base_url: "https://api-m.sandbox.paypal.com"
+  webhook_id: "3MV48135CR7843824"

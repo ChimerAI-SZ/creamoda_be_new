@@ -7,7 +7,7 @@ from src.constants.order_status import OrderStatus
 from src.constants.order_type import OrderType
 from src.core.context import get_current_user_context
 from src.db.session import get_db
-from src.dto.paypal import PayPalWebhookEvent, PaypalCallbackRequest, PaypalCallbackResponse, PaypalCaptureRequest, PaypalCaptureResponse
+from src.dto.paypal import PayPalWebhookEvent, PaypalCallbackResponse, PaypalCaptureRequest, PaypalCaptureResponse
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.models.models import BillingHistory
@@ -29,8 +29,10 @@ async def paypal_capture(
         raise AuthenticationError()
     
     # 捕获订单
-    await OrderService.capture_order(db, user.id, request.order_id)
+    await OrderService.capture_order(db, user.id, request.orderId)
     return PaypalCaptureResponse(
+        code=0,
+        msg="Capture successfully"
     )
 
 @router.post("/callback", response_model=PaypalCallbackResponse)
@@ -41,10 +43,10 @@ async def paypal_callback(
     raw_body = await request.body()  # 返回bytes类型
     body_text = raw_body.decode("utf-8")
 
-    # 验证签名
-    verify_res = PayPalClient.verify_webhook(request.headers, body_text)
-    if not verify_res:
-        raise CustomException(status_code=400, detail="Invalid webhook")
+    # 验证签名 暂时关闭
+    # verify_res = PayPalClient.verify_webhook(request.headers, body_text)
+    # if not verify_res:
+    #     raise CustomException(code=400, message="Invalid webhook")
     
     # 解析请求体
     paypal_callback_event = PayPalWebhookEvent(**json.loads(body_text))
@@ -61,7 +63,12 @@ async def paypal_callback(
         # 处理过期事件
         pass
     else:
-        raise CustomException(status_code=400, detail="Invalid event type")
+        raise CustomException(code=400, message="Invalid event type")
+    
+    return PaypalCallbackResponse(
+        code=0,
+        msg="Callback successfully"
+    )
 
 async def handle_payment_success(
     order_id: str,
@@ -71,7 +78,9 @@ async def handle_payment_success(
         # 获取订单
         order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
         if not order:
-            raise CustomException(status_code=400, detail="Order not found")
+            raise CustomException(code=400, message="Order not found")
+        if order.status != OrderStatus.PAYMENT_CAPTURED:
+            raise CustomException(code=400, message="Order not captured status")
         
         if order.type == OrderType.POINTS_40:
             pass
@@ -80,13 +89,13 @@ async def handle_payment_success(
         elif order.type == OrderType.POINTS_200:
             pass
         elif order.type == OrderType.BASIC_MEMBERSHIP:
-            await SubscribeService.launch_subscribe(db, order.uid, order.id, 1)
+            await SubscribeService.launch_subscribe(db, order.uid, order_id, 1)
         elif order.type == OrderType.PRO_MEMBERSHIP:
-            await SubscribeService.launch_subscribe(db, order.uid, order.id, 2)
+            await SubscribeService.launch_subscribe(db, order.uid, order_id, 2)
         elif order.type == OrderType.ENTERPRISE_MEMBERSHIP:
-            await SubscribeService.launch_subscribe(db, order.uid, order.id, 3)
+            await SubscribeService.launch_subscribe(db, order.uid, order_id, 3)
         else:
-            raise CustomException(status_code=400, detail="Invalid order type")
+            raise CustomException(code=400, message="Invalid order type")
 
     except Exception as e:
-        raise CustomException(status_code=400, detail=str(e))
+        raise CustomException(code=400, message=str(e))

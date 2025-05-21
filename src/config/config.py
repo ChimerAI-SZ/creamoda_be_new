@@ -80,6 +80,12 @@ class ImageGenerationSettings(BaseModel):
     mix_image_count: int = 1
     estimated_time_seconds: int = 20
 
+class PayPalSettings(BaseModel):
+    paypal_client_id: str = ""
+    paypal_secret: str = ""
+    paypal_base_url: str = ""
+    webhook_id: str = ""
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
@@ -91,6 +97,7 @@ class Settings(BaseModel):
     scheduler: SchedulerSettings
     oss: OSSSettings = OSSSettings()
     image_generation: ImageGenerationSettings
+    paypal: PayPalSettings
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

@@ -1,13 +1,15 @@
 import os
 import requests
 
+from src.config.log_config import logger
 from src.dto.paypal import PayPalCaptureOrderResponse, PayPalOrderResponse
+from src.exceptions.pay import PayError
+from src.config.config import settings
 
-PAYPAL_CLIENT_ID = os.getenv('PAYPAL_CLIENT_ID')
-PAYPAL_SECRET = os.getenv('PAYPAL_SECRET')
-PAYPAL_BASE_URL = os.getenv('PAYPAL_BASE_URL')
-WEBHOOK_ID = os.getenv('WEBHOOK_ID')
-
+PAYPAL_CLIENT_ID = settings.paypal.paypal_client_id
+PAYPAL_SECRET = settings.paypal.paypal_secret
+PAYPAL_BASE_URL = settings.paypal.paypal_base_url
+WEBHOOK_ID = settings.paypal.webhook_id
 
 class PayPalClient:
     @staticmethod
@@ -34,41 +36,46 @@ class PayPalClient:
     @staticmethod
     def create_order(amount, currency='USD'):
         """创建 PayPal 订单"""
-        access_token = PayPalClient.get_access_token()
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {access_token}',
-            'PayPal-Request-Id': os.urandom(16).hex()  # 可选请求ID
-        }
-        
-        data = {
-            'intent': 'CAPTURE',
-            'purchase_units': [{
-                'amount': {
-                    'currency_code': currency,
-                    'value': str(amount)
-                }
-            }],
-            'application_context': {
-                'return_url': 'https://paypay.creamoda.ai/return',
-                'cancel_url': 'https://paypay.creamoda.ai/cancel',
-                'brand_name': 'Your Brand Name',
-                'user_action': 'PAY_NOW'
+        try:
+            access_token = PayPalClient.get_access_token()
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {access_token}',
+                'PayPal-Request-Id': os.urandom(16).hex()  # 可选请求ID
             }
-        }
-        
-        response = requests.post(
-            f'{PAYPAL_BASE_URL}/v2/checkout/orders',
-            headers=headers,
-            json=data
-        )
-        
-        if response.status_code != 201:
-            raise Exception(f"创建订单失败: {response.text}")
-        
-        # 将响应转换为 PayPalOrderResponse 类型
-        return PayPalOrderResponse(**response.json())
+            
+            data = {
+                'intent': 'CAPTURE',
+                'purchase_units': [{
+                    'amount': {
+                        'currency_code': currency,
+                        'value': str(amount)
+                    }
+                }],
+                'application_context': {
+                    'return_url': 'https://paypay.creamoda.ai/return',
+                    'cancel_url': 'https://paypay.creamoda.ai/cancel',
+                    'brand_name': 'Your Brand Name',
+                    'user_action': 'PAY_NOW'
+                }
+            }
+            
+            response = requests.post(
+                f'{PAYPAL_BASE_URL}/v2/checkout/orders',
+                headers=headers,
+                json=data
+            )
+            
+            if response.status_code != 201:
+                raise Exception(f"创建订单失败: {response.text}")
+            
+            # 将响应转换为 PayPalOrderResponse 类型
+            logger.info(f"创建订单成功: {response.json()}")
+            return PayPalOrderResponse(**response.json())
+        except Exception as e:
+            logger.error(f"创建订单失败: {e}")
+            raise PayError(message=f"创建订单失败: {e}")
 
     @staticmethod
     def capture_payment(order_id):
@@ -88,6 +95,7 @@ class PayPalClient:
         if response.status_code != 201:
             raise Exception(f"捕获支付失败: {response.text}")
         
+        logger.info(f"捕获支付成功: {response.json()}")
         return PayPalCaptureOrderResponse(**response.json())
 
     @staticmethod

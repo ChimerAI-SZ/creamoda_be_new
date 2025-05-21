@@ -22,32 +22,32 @@ ORDER_TYPE_MAPPING = {
     OrderType.BASIC_MEMBERSHIP: OrderInfo(
         OrderType.BASIC_MEMBERSHIP, 
         "Basic Membership", 
-        19.9, 
+        1990, 
     ),
     OrderType.PRO_MEMBERSHIP: OrderInfo(
         OrderType.PRO_MEMBERSHIP, 
         "Pro Membership", 
-        39.9, 
+        3990, 
     ),
     OrderType.ENTERPRISE_MEMBERSHIP: OrderInfo(
         OrderType.ENTERPRISE_MEMBERSHIP, 
         "Enterprise Membership", 
-        59.9, 
+        5990, 
     ),
     OrderType.POINTS_40: OrderInfo(
         OrderType.POINTS_40, 
         "40 Points Package", 
-        5, 
+        500, 
     ),
     OrderType.POINTS_100: OrderInfo(
         OrderType.POINTS_100, 
         "100 Points Package", 
-        10, 
+        1000, 
     ),
     OrderType.POINTS_200: OrderInfo(
         OrderType.POINTS_200, 
         "200 Points Package", 
-        19, 
+        1900, 
     ),
 }
 
