@@ -14,7 +14,7 @@ from src.models.models import BillingHistory
 from src.pay.paypal_client import PayPalClient
 from src.services.order_service import OrderService
 from src.services.subscribe_service import SubscribeService
-
+from src.config.log_config import logger
 
 router = APIRouter()
 
@@ -42,6 +42,7 @@ async def paypal_callback(
 ):
     raw_body = await request.body()  # 返回bytes类型
     body_text = raw_body.decode("utf-8")
+    logger.info(f"Paypal callback received:{body_text}")
 
     # 验证签名 暂时关闭
     # verify_res = PayPalClient.verify_webhook(request.headers, body_text)
