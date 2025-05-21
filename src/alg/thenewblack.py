@@ -854,8 +854,8 @@ class TheNewBlack:
                         result_pic = result
                         break
                     await asyncio.sleep(10)
-                    if time.time() - start_time > 300:
-                        logger.error(f"Virtual try on job {job_id} timed out after 300 seconds")
+                    if time.time() - start_time > 360:
+                        logger.error(f"Virtual try on job {job_id} timed out after 360 seconds")
                         raise Exception("Virtual try on job timed out")
 
                 # 将第三方图片URL转存到阿里云OSS

@@ -778,10 +778,10 @@ class ImageService:
                 
                 db.commit()
                 
-                logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
+                logger.info(f"virtual try on completed for result {result_id}, task {task.id}")
                 
             except Exception as e:
-                logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
+                logger.error(f"Failed to generate virtual try on image for result {result_id}, task {task.id}: {str(e)}")
                 
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
