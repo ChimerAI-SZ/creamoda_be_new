@@ -85,6 +85,8 @@ class PayPalSettings(BaseModel):
     paypal_secret: str = ""
     paypal_base_url: str = ""
     webhook_id: str = ""
+    return_url: str = ""
+    cancel_url: str = ""
 
 class Settings(BaseModel):
     api: APISettings

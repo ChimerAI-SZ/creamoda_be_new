@@ -54,9 +54,9 @@ class PayPalClient:
                     }
                 }],
                 'application_context': {
-                    'return_url': 'https://paypay.creamoda.ai/return',
-                    'cancel_url': 'https://paypay.creamoda.ai/cancel',
-                    'brand_name': 'Your Brand Name',
+                    'return_url': settings.paypal.return_url,
+                    'cancel_url': settings.paypal.cancel_url,
+                    'brand_name': 'Creamoda',
                     'user_action': 'PAY_NOW'
                 }
             }
