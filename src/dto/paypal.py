@@ -64,11 +64,17 @@ class PayPalSellerReceivableBreakdown(BaseModel):
     paypal_fee: PayPalAmount = Field(..., description="PayPal费用")
     net_amount: PayPalAmount = Field(..., description="净金额")
 
+class PayPalSupplementaryDataOrderId(BaseModel):
+    order_id: str = Field(..., description="订单ID")
+
+class PayPalSupplementaryData(BaseModel):
+    related_ids: PayPalSupplementaryDataOrderId = Field(..., description="相关ID")
 
 class PayPalResource(BaseModel):
     id: str = Field(..., description="捕获ID")
     status: str = Field(..., description="状态")
     amount: PayPalAmount = Field(..., description="金额")
+    supplementary_data: PayPalSupplementaryData = Field(..., description="补充数据")
     seller_protection: PayPalSellerProtection = Field(..., description="卖家保护")
     final_capture: bool = Field(..., description="是否为最终捕获")
     seller_receivable_breakdown: PayPalSellerReceivableBreakdown = Field(..., description="卖家收款明细")

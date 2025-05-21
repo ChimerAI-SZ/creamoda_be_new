@@ -55,7 +55,7 @@ async def paypal_callback(
     # 处理事件
     if paypal_callback_event.event_type == "PAYMENT.CAPTURE.COMPLETED":
         # 处理支付成功事件
-        await handle_payment_success(paypal_callback_event.resource.id, db)
+        await handle_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
         pass
     elif paypal_callback_event.event_type == "PAYMENT.CAPTURE.DENIED":
         # 处理拒绝事件
