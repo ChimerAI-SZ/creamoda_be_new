@@ -71,14 +71,14 @@ class PayPalSupplementaryData(BaseModel):
     related_ids: PayPalSupplementaryDataOrderId = Field(..., description="相关ID")
 
 class PayPalResource(BaseModel):
-    id: str = Field(..., description="捕获ID")
-    status: str = Field(..., description="状态")
-    amount: PayPalAmount = Field(..., description="金额")
-    supplementary_data: PayPalSupplementaryData = Field(..., description="补充数据")
-    seller_protection: PayPalSellerProtection = Field(..., description="卖家保护")
-    final_capture: bool = Field(..., description="是否为最终捕获")
-    seller_receivable_breakdown: PayPalSellerReceivableBreakdown = Field(..., description="卖家收款明细")
-    links: List[PayPalLink] = Field(..., description="相关链接")
+    id: Optional[str] = Field(None, description="捕获ID")
+    status: Optional[str] = Field(None, description="状态")
+    amount: Optional[PayPalAmount] = Field(None, description="金额")
+    supplementary_data: Optional[PayPalSupplementaryData] = Field(None, description="补充数据")
+    seller_protection: Optional[PayPalSellerProtection] = Field(None, description="卖家保护")
+    final_capture: Optional[bool] = Field(None, description="是否为最终捕获")
+    seller_receivable_breakdown: Optional[PayPalSellerReceivableBreakdown] = Field(None, description="卖家收款明细")
+    links: Optional[List[PayPalLink]] = Field(None, description="相关链接")
 
 
 class PayPalWebhookEvent(BaseModel):
@@ -88,8 +88,8 @@ class PayPalWebhookEvent(BaseModel):
     resource_type: str = Field(..., description="资源类型")
     event_type: str = Field(..., description="事件类型")
     summary: str = Field(..., description="事件摘要")
-    resource: PayPalResource = Field(..., description="资源对象")
-    links: List[PayPalLink] = Field(..., description="事件相关链接")
+    resource: Optional[PayPalResource] = Field(None, description="资源对象")
+    # links: List[PayPalLink] = Field(..., description="事件相关链接")
 
     class Config:
         json_encoders = {

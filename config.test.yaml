@@ -74,5 +74,5 @@ paypal:
   paypal_secret: "EIQkwJIaJtwsjnTeNux62MGZd_N5LJMKBoiV1QoeIllpDG-cown_jzH3BX0WsXviOLdaMJGJJiw8QkMq"
   paypal_base_url: "https://api-m.sandbox.paypal.com"
   webhook_id: "3MV48135CR7843824"
-  return_url: "https://test-api.chimerai.cn/paypal/return"
-  cancel_url: "https://test-api.chimerai.cn/paypal/cancel"
+  return_url: "https://test-mvp.creamoda.ai/paypal/return"
+  cancel_url: "https://test-mvp.creamoda.ai/paypal/cancel"
