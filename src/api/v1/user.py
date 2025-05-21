@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 
 import jwt
+from jose import JWTError
 from fastapi import APIRouter, Depends, Header, Response
 from sqlalchemy.orm import Session
 
@@ -237,7 +238,7 @@ async def logout(
                 redis_client.delete(f"user_session:{email}")
                 logger.info(f"User {email} logged out successfully")
                 
-        except jwt.JWTError:
+        except JWTError:
             logger.warning("Invalid token during logout")
             
         return LogoutResponse(
