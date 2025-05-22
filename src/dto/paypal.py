@@ -45,8 +45,8 @@ class PayPalOrderResponse(BaseModel):
         return None
     
 class PayPalAmount(BaseModel):
-    currency_code: str = Field(..., description="货币代码")
-    value: str = Field(..., description="金额值")
+    currency_code: Optional[str] = Field(None, description="货币代码")
+    value: Optional[str] = Field(None, description="金额值")
 
 
 class PayPalLink(BaseModel):
@@ -73,6 +73,7 @@ class PayPalSupplementaryData(BaseModel):
 
 class PayPalResource(BaseModel):
     id: Optional[str] = Field(None, description="捕获ID")
+    billing_agreement_id: Optional[str] = Field(None, description="订阅ID")
     status: Optional[str] = Field(None, description="状态")
     amount: Optional[PayPalAmount] = Field(None, description="金额")
     supplementary_data: Optional[PayPalSupplementaryData] = Field(None, description="补充数据")
