@@ -34,7 +34,7 @@ async def paypal_capture(
     # 捕获订单
     if request.subscription_id:
         await OrderService.capture_subscribe_order(db, user.id, request.subscription_id)
-        await handle_subscribe_payment_success(request.subscription_id, db)
+        await handle_subscribe_payment_success(order_id=request.subscription_id, db=db)
     else:
         await OrderService.capture_order(db, user.id, request.token)
         # 更新支付状态
@@ -134,7 +134,7 @@ async def handle_subscribe_payment_success(
             raise CustomException(code=400, message=f"Redis lock order failed:{redis_key}")
 
         # 获取订单
-        order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.sub_order_id == None).first()
+        order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.sub_order_id.is_(None)).first()
         if not order:
             order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.sub_order_id == sub_order_id).first()
             if not order:
@@ -162,7 +162,7 @@ async def handle_subscribe_payment_success(
 async def create_subscribe_order(
     order_id: str,
     sub_order_id: str,
-    db: Session = Depends(get_db)
+    db: Session
 ):
     old_order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
     if not old_order:

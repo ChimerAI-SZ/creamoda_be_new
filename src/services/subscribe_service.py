@@ -1,6 +1,6 @@
 
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from requests import Session
 from calendar import monthrange
 
@@ -54,9 +54,9 @@ class SubscribeService:
                 raise CustomException(code=400, message="User already subscribed")
             
             today = datetime.now()
-            today_midnight = datetime.combine(today.date(), datetime.time(0, 0, 0))
+            today_midnight = datetime.combine(today.date(), time(0, 0, 0))
             renew_date = SubscribeService.calculate_next_billing_date(today_midnight)
-            renew_date_last_second = datetime.combine(renew_date.date(), datetime.time(23, 59, 59))
+            renew_date_last_second = datetime.combine(renew_date.date(), time(23, 59, 59))
 
             # 更新订阅状态
             if subscribe:
@@ -65,7 +65,7 @@ class SubscribeService:
                 subscribe.is_renew = 1
                 subscribe.sub_start_time = today_midnight
                 subscribe.sub_end_time = renew_date_last_second
-                subscribe.renew_date = renew_date
+                subscribe.renew_time = renew_date
                 subscribe.update_time = today
             else:
                 subscribe = Subscribe(
@@ -75,7 +75,7 @@ class SubscribeService:
                     is_renew=1,
                     sub_start_time=today_midnight,
                     sub_end_time=renew_date_last_second,
-                    renew_date=renew_date,
+                    renew_time=renew_date,
                     billing_email=user.email,
                     create_time=datetime.now(),
                     update_time=datetime.now()
