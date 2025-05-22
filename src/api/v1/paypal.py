@@ -11,7 +11,7 @@ from src.dto.paypal import PayPalWebhookEvent, PaypalCallbackResponse, PaypalCap
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.models.models import BillingHistory
-from src.pay.paypal_client import PayPalClient
+from src.pay.paypal_client import paypal_client
 from src.services.credit_service import CreditService
 from src.services.order_service import OrderService
 from src.services.subscribe_service import SubscribeService
@@ -31,7 +31,10 @@ async def paypal_capture(
         raise AuthenticationError()
     
     # 捕获订单
-    await OrderService.capture_order(db, user.id, request.orderId)
+    if request.subscription_id:
+        await OrderService.capture_subscribe_order(db, user.id, request.subscription_id)
+    else:
+        await OrderService.capture_order(db, user.id, request.token)
 
     # 更新支付状态
     await handle_payment_success(request.orderId, db)
@@ -51,7 +54,7 @@ async def paypal_callback(
     logger.info(f"Paypal callback received:{body_text}")
 
     # 验证签名 暂时关闭
-    # verify_res = PayPalClient.verify_webhook(request.headers, body_text)
+    # verify_res = paypal_client.verify_webhook(request.headers, body_text)
     # if not verify_res:
     #     raise CustomException(code=400, message="Invalid webhook")
     
@@ -62,13 +65,15 @@ async def paypal_callback(
     if paypal_callback_event.event_type == "PAYMENT.CAPTURE.COMPLETED":
         # 处理支付成功事件
         await handle_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
-        pass
     elif paypal_callback_event.event_type == "PAYMENT.CAPTURE.DENIED":
         # 处理拒绝事件
         pass
     elif paypal_callback_event.event_type == "PAYMENT.CAPTURE.EXPIRED":
         # 处理过期事件
         pass
+    elif paypal_callback_event.event_type == "PAYMENT.SALE.COMPLETED":
+        # 处理订阅成功事件
+        await handle_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
     else:
         raise CustomException(code=400, message="Invalid event type")
     

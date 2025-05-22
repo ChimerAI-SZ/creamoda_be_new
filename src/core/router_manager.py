@@ -5,7 +5,7 @@
 from fastapi import FastAPI
 from src.config.config import settings
 from src.config.log_config import logger
-from src.api.v1 import auth, paypal, user, img, common, collect, pay
+from src.api.v1 import auth, backdoor, paypal, user, img, common, collect, pay
 
 class RouterManager:
     """路由管理器，处理所有API路由的注册"""
@@ -76,6 +76,13 @@ class RouterManager:
             )
             logger.info("Registered common router")
             
+            # 注册backdoor路由
+            app.include_router(
+                backdoor.router,
+                prefix=f"{settings.api.v1_str}/backdoor",
+                tags=["backdoor"]
+            )
+            logger.info("Registered backdoor router")
             # 这里可以注册更多路由...
             
             logger.info("All API routers registered successfully")

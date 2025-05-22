@@ -43,6 +43,7 @@ class Constant(Base):
     type = mapped_column(Integer, comment='常量类型')
     code = mapped_column(String(100), comment='常量code')
     name = mapped_column(String(100), comment='常量value')
+    description = mapped_column(String(50), comment='描述')
     create_time = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
 
 
@@ -150,6 +151,7 @@ class Subscribe(Base):
 
     id = mapped_column(BigInteger, primary_key=True)
     uid = mapped_column(BigInteger, nullable=False)
+    paypal_sub_id = mapped_column(String(100), comment='paypal订阅id')
     level = mapped_column(Integer, comment='订阅等级 0-无 1-基础班 2-专业版 3-企业版')
     is_renew = mapped_column(Integer, comment='是否续订 1-是 0-否')
     sub_start_time = mapped_column(DateTime, comment='开始订阅时间')

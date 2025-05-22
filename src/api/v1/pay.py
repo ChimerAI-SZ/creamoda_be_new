@@ -26,7 +26,7 @@ async def subscribe(
     
     return SubscribeResponse(
         data=SubscribeResponseData(
-            url=order_res.get_approve_link()
+            url=order_res['approval_url']
         )
     )
 

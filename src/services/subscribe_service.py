@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from requests import Session
 from calendar import monthrange
 
+from src.pay.paypal_client import paypal_client
 from src.constants.order_status import OrderStatus
 from src.constants.order_type import OrderType
 from src.constants.subscribe_action import SubscribeAction
@@ -33,7 +34,7 @@ class SubscribeService:
             raise CustomException(code=400, message="Invalid order type")
         
         # 创建订单
-        order_res = await OrderService.create_order(db, uid, order_type)
+        order_res = await OrderService.create_subscribe_order(db, uid, order_type)
         
         return order_res
 
@@ -59,6 +60,7 @@ class SubscribeService:
             # 更新订阅状态
             if subscribe:
                 subscribe.level = level
+                subscribe.paypal_sub_id = orderId
                 subscribe.is_renew = 1
                 subscribe.sub_start_time = today_midnight
                 subscribe.sub_end_time = renew_date_last_second
@@ -67,6 +69,7 @@ class SubscribeService:
             else:
                 subscribe = Subscribe(
                     uid=uid,
+                    paypal_sub_id = orderId,
                     level=level,
                     is_renew=1,
                     sub_start_time=today_midnight,
@@ -156,6 +159,8 @@ class SubscribeService:
                 raise CustomException(code=400, message="User not subscribed")
             if subscribe.is_renew == 0:
                 raise CustomException(code=400, message="User not subscribed")
+            if not subscribe.paypal_sub_id:
+                raise CustomException(code=400, message="Paypal subscription id not found")
             
             # 更新订阅状态
             subscribe.is_renew = 0
@@ -169,6 +174,11 @@ class SubscribeService:
                 create_time=datetime.now()
             )
             db.add(subscribe_history)
+
+            # 取消订阅
+            res = paypal_client.cancel_subscription(subscribe.paypal_sub_id)
+            if not res:
+                raise CustomException(code=400, message="Cancel subscription failed")
 
             db.commit()
         except Exception as e:
