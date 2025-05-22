@@ -157,7 +157,7 @@ class SubscribeService:
         # 检查用户是否已经订阅
         try:
             subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
-            if subscribe or subscribe.level == 0:
+            if not subscribe or subscribe.level == 0:
                 raise CustomException(code=400, message="User not subscribed")
             if subscribe.is_renew == 0:
                 raise CustomException(code=400, message="User not subscribed")

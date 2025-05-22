@@ -32,7 +32,6 @@ async def subscribe(
 
 @router.post("/cancel_subscribe", response_model=CancelSubscribeResponse)
 async def cancel_subscribe(
-    request: CancelSubscribeRequest,
     db: Session = Depends(get_db)
 ):
     # 获取当前用户信息
