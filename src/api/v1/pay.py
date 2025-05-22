@@ -43,7 +43,7 @@ async def cancel_subscribe(
 
     return CancelSubscribeResponse(
         code=0,
-        message="Cancel subscribe success"
+        msg="Cancel subscribe success"
     )
 
 @router.post("/purchase_credit", response_model=PurchaseCreditResponse)
