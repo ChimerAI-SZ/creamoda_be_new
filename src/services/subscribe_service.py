@@ -39,7 +39,7 @@ class SubscribeService:
         return order_res
 
     @staticmethod
-    async def launch_subscribe(db: Session, uid: int, orderId: str, level: int):
+    async def launch_subscribe(db: Session, uid: int, orderId: str, subOrderId: str, level: int):
         try:
             # 获取当前用户信息
             user = get_current_user_context()
@@ -127,6 +127,7 @@ class SubscribeService:
             if not billing_history:
                 raise CustomException(code=400, message="Billing history not found")
             billing_history.status = OrderStatus.PAYMENT_SUCCESS
+            billing_history.sub_order_id = subOrderId
             billing_history.update_time = datetime.now()
             db.commit()
         except Exception as e:

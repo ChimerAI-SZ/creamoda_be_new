@@ -1,5 +1,6 @@
 
 
+from datetime import datetime
 import json
 from fastapi import APIRouter, Depends, Request
 from requests import Session
@@ -33,11 +34,11 @@ async def paypal_capture(
     # 捕获订单
     if request.subscription_id:
         await OrderService.capture_subscribe_order(db, user.id, request.subscription_id)
+        await handle_subscribe_payment_success(request.subscription_id, db)
     else:
         await OrderService.capture_order(db, user.id, request.token)
-
-    # 更新支付状态
-    await handle_payment_success(request.orderId, db)
+        # 更新支付状态
+        await handle_credit_payment_success(request.orderId, db)
 
     return PaypalCaptureResponse(
         code=0,
@@ -64,7 +65,7 @@ async def paypal_callback(
     # 处理事件
     if paypal_callback_event.event_type == "PAYMENT.CAPTURE.COMPLETED":
         # 处理支付成功事件
-        await handle_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
+        await handle_credit_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
     elif paypal_callback_event.event_type == "PAYMENT.CAPTURE.DENIED":
         # 处理拒绝事件
         pass
@@ -73,7 +74,7 @@ async def paypal_callback(
         pass
     elif paypal_callback_event.event_type == "PAYMENT.SALE.COMPLETED":
         # 处理订阅成功事件
-        await handle_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
+        await handle_subscribe_payment_success(paypal_callback_event.resource.billing_agreement_id, paypal_callback_event.resource.id, db)
     else:
         raise CustomException(code=400, message="Invalid event type")
     
@@ -82,7 +83,7 @@ async def paypal_callback(
         msg="Callback successfully"
     )
 
-async def handle_payment_success(
+async def handle_credit_payment_success(
     order_id: str,
     db: Session = Depends(get_db)
 ):
@@ -110,12 +111,6 @@ async def handle_payment_success(
             await CreditService.launch_credit(db, order.uid, order_id, 100)
         elif order.type == OrderType.POINTS_200:
             await CreditService.launch_credit(db, order.uid, order_id, 200)
-        elif order.type == OrderType.BASIC_MEMBERSHIP:
-            await SubscribeService.launch_subscribe(db, order.uid, order_id, 1)
-        elif order.type == OrderType.PRO_MEMBERSHIP:
-            await SubscribeService.launch_subscribe(db, order.uid, order_id, 2)
-        elif order.type == OrderType.ENTERPRISE_MEMBERSHIP:
-            await SubscribeService.launch_subscribe(db, order.uid, order_id, 3)
         else:
             raise CustomException(code=400, message="Invalid order type")
 
@@ -123,3 +118,69 @@ async def handle_payment_success(
         raise CustomException(code=400, message=str(e))
     finally:
         redis_client.delete(redis_key)
+
+
+async def handle_subscribe_payment_success(
+    order_id: str,
+    sub_order_id: str = None,
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"Handle payment success: {order_id}")
+
+        # redis锁订单
+        redis_key = f"order_lock:{order_id}"
+        if not redis_client.set(redis_key, "1", ex=300):
+            raise CustomException(code=400, message=f"Redis lock order failed:{redis_key}")
+
+        # 获取订单
+        order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.sub_order_id == None).first()
+        if not order:
+            order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.sub_order_id == sub_order_id).first()
+            if not order:
+                order = await create_subscribe_order(order_id, sub_order_id, db)
+        if order.status == OrderStatus.PAYMENT_SUCCESS:
+            logger.info(f"Order {order_id} already handled")
+            return
+        if order.status != OrderStatus.PAYMENT_CAPTURED and order.status != OrderStatus.PAYMENT_PENDING:
+            raise CustomException(code=400, message="Order not captured status")
+        
+        if order.type == OrderType.BASIC_MEMBERSHIP:
+            await SubscribeService.launch_subscribe(db, order.uid, order_id, sub_order_id, 1)
+        elif order.type == OrderType.PRO_MEMBERSHIP:
+            await SubscribeService.launch_subscribe(db, order.uid, order_id, sub_order_id, 2)
+        elif order.type == OrderType.ENTERPRISE_MEMBERSHIP:
+            await SubscribeService.launch_subscribe(db, order.uid, order_id, sub_order_id, 3)
+        else:
+            raise CustomException(code=400, message="Invalid order type")
+
+    except Exception as e:
+        raise CustomException(code=400, message=str(e))
+    finally:
+        redis_client.delete(redis_key)
+
+async def create_subscribe_order(
+    order_id: str,
+    sub_order_id: str,
+    db: Session = Depends(get_db)
+):
+    old_order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
+    if not old_order:
+        raise CustomException(code=400, message="Order not found")
+    
+    logger.info(f"Create subscribe order: {order_id} {sub_order_id}")
+    
+    new_order = BillingHistory(
+        uid=old_order.uid,
+        type=old_order.type,
+        order_id=order_id,
+        sub_order_id=sub_order_id,
+        description=old_order.description,
+        amount=old_order.amount,
+        status=OrderStatus.PAYMENT_PENDING,
+        create_time=datetime.now()
+    )
+    db.add(new_order)
+    db.commit()
+    
+

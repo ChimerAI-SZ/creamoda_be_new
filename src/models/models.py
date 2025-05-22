@@ -17,6 +17,7 @@ class BillingHistory(Base):
     uid = mapped_column(BigInteger)
     type = mapped_column(Integer, comment='订单类型 101-普通会员订阅 102-专业会员订阅 103-企业会员订阅 201-40积分购买 202-100积分购买 203-200积分购买')
     order_id = mapped_column(String(200), comment='订单id')
+    sub_order_id = mapped_column(String(100), comment='副订单id，月度扣款存在')
     description = mapped_column(String(100), comment='描述')
     status = mapped_column(Integer, comment='状态 1-支付成功 2-支付失败 3-创建订单 4-已捕获')
     amount = mapped_column(Integer)
