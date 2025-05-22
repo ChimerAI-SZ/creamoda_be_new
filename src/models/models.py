@@ -195,8 +195,7 @@ class UserInfo(Base):
     __tablename__ = 'user_info'
     __table_args__ = (
         Index('idx_email', 'email', unique=True),
-        Index('idx_google_sub_id', 'google_sub_id'),
-        Index('idx_uid', 'uid', unique=True)
+        Index('idx_google_sub_id', 'google_sub_id')
     )
 
     id = mapped_column(BigInteger, primary_key=True)
