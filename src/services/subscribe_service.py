@@ -9,7 +9,7 @@ from src.constants.order_status import OrderStatus
 from src.constants.order_type import OrderType
 from src.constants.subscribe_action import SubscribeAction
 from src.core.context import get_current_user_context
-from src.models.models import User
+from src.models.models import UserInfo
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.models.models import BillingHistory, Credit, CreditHistory, Subscribe, SubscribeHistory
@@ -43,9 +43,9 @@ class SubscribeService:
     async def launch_subscribe(db: Session, uid: int, orderId: str, subOrderId: str, level: int):
         try:
             # 获取当前用户信息
-            user = db.query(User).filter(User.id == uid).first()
+            user = db.query(UserInfo).filter(UserInfo.uid == uid).first()
             if not user:
-                raise AuthenticationError()
+                raise CustomException(code=400, message="User not found")
             
             # 检查用户是否已经订阅
             subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
