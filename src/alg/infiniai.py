@@ -659,6 +659,254 @@ class InfiniAI:
             logger.error(f"Request error during change background request: {e}")
             return None
 
+    def comfy_request_change_fabric(self, original_image_url: str, original_mask_url: str, fabric_image_url: str,
+                                    seed: int,
+                                    fabric_size: int = 2048) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 13="Load Original Image"
+        # 64="Load Original Mask"
+        # 35="Fabric Image"
+        # 63="Fabric Size"
+        # 69="Seed"
+        payload = {
+            "workflow_id": "wf-da7vgrwa7aihyvbx",
+            "prompt": {
+                "13": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "35": {
+                    "inputs": {
+                        "image": fabric_image_url
+                    }
+                },
+                "63": {
+                    "inputs": {
+                        "int_value": fabric_size
+                    }
+                },
+                "64": {
+                    "inputs": {
+                        "image": original_mask_url
+                    }
+                },
+                "69": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Change fabric request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during change fabric request: {e}")
+            return None
+
+    def comfy_request_change_pose_redux(self, original_image_url: str, pose_reference_image_url: str, seed: int) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 633="Load Original Image"
+        # 632="Load Pose Reference Image"
+        # 641="Seed"
+        payload = {
+            "workflow_id": "wf-da7vj5jz5j6ejoug",
+            "prompt": {
+                "632": {
+                    "inputs": {
+                        "image": pose_reference_image_url
+                    }
+                },
+                "633": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "641": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Change pose redux request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during change pose redux request: {e}")
+            return None
+
+    def comfy_request_change_pose_xl(self, original_image_url: str, pose_reference_image_url: str, seed: int) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 80="Load Original Image"
+        # 146="Load Pose Reference Image"
+        # 205="Seed"
+        payload = {
+            "workflow_id": "wf-da7vnqtzrvjoaopp",
+            "prompt": {
+                "80": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "146": {
+                    "inputs": {
+                        "image": pose_reference_image_url
+                    }
+                },
+                "205": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Change pose XL request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during change pose XL: {e}")
+            return None
+
+    def comfy_request_pattern_variation(self, original_image_url: str, seed: int, batch_size: int = 1) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 36="Load Original Image"
+        # 123="Batch Size"
+        # 152="Seed"
+        payload = {
+            "workflow_id": "wf-da7vpaa5cxx57nm5",
+            "prompt": {
+                "36": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "123": {
+                    "inputs": {
+                        "int_value": batch_size
+                    }
+                },
+                "152": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Pattern variation request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during change pattern variation: {e}")
+            return None
+
+    def comfy_request_printing_variation(self, original_image_url: str, seed: int, batch_size: int = 1) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 63="Load Original Image"
+        # 189="Batch Size"
+        # 265="Seed"
+        payload = {
+            "workflow_id": "wf-da7vq6ozgru4owoi",
+            "prompt": {
+                "63": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "189": {
+                    "inputs": {
+                        "int_value": batch_size
+                    }
+                },
+                "265": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Printing variation request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during change printing variation: {e}")
+            return None
+
+    def comfy_request_style_fusion(self, original_image_url: str, reference_image_url: str, seed: int) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 260="Load Original Image"
+        # 39="Load Reference Image"
+        # 330="Seed"
+        payload = {
+            "workflow_id": "wf-da7v2dforisrcalj",
+            "prompt": {
+                "39": {
+                    "inputs": {
+                        "image": reference_image_url
+                    }
+                },
+                "260": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "330": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Style fusion request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during style fusion: {e}")
+            return None
+
 
 # Example usage
 if __name__ == "__main__":
@@ -686,7 +934,7 @@ if __name__ == "__main__":
         return result_urls[0]
 
 
-    def test_change_fabric():
+    def test_transfer_fabric():
         # Example of Changing Fabric
         fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
         model_image_url = "https://replicate.delivery/pbxt/JF3LddQgRiMM9Q4Smyfw7q7BR9Gn0PwkSWvJjKDPxyvr8Ru0/cool-dog.png"
@@ -741,4 +989,104 @@ if __name__ == "__main__":
         change_background_prompt_id = infini_ai.comfy_request_change_background(image_url, background_image_url, prompt,
                                                                                 seed)
         result_urls = infini_ai.get_task_result(change_background_prompt_id)
+        return result_urls[0]
+
+
+    def test_change_fabric():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        model_mask_url = "https://replicate.delivery/pbxt/fFn9jPcxgNwyPSh3UX2QxuzU9ZNjhLYogUf1Ygvkj3U7f7slA/out.png"
+        fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
+
+        fabric_image = Image.open(io.BytesIO(requests.get(fabric_image_url).content))
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        model_mask = Image.open(io.BytesIO(requests.get(model_mask_url).content))
+
+        # Upload images to InfiniAI's OSS
+        fabric_image_url = infini_ai.upload_image_to_infiniai_oss(fabric_image)
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        model_mask_url = infini_ai.upload_image_to_infiniai_oss(model_mask)
+
+        seed = random.randint(0, 2147483647)
+
+        change_fabric_prompt_id = infini_ai.comfy_request_change_fabric(
+            model_image_url, model_mask_url, fabric_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(change_fabric_prompt_id)
+        return result_urls[0]
+
+
+    def test_change_pose_xl():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        reference_pose_image_url = "https://replicate.delivery/pbxt/IuOHxg1Wx6ALYqC9ywUc2ReYolQXlNRfHPM4LTTnID2ULHuR/kanye-west-hollywood-bowl%20%281%29.webp"
+
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        reference_pose_image = Image.open(io.BytesIO(requests.get(reference_pose_image_url).content))
+        # Upload images to InfiniAI's OSS
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        reference_pose_image_url = infini_ai.upload_image_to_infiniai_oss(reference_pose_image)
+        seed = random.randint(0, 2147483647)
+        change_pose_prompt_id = infini_ai.comfy_request_change_pose_xl(
+            model_image_url, reference_pose_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(change_pose_prompt_id)
+        return result_urls[0]
+
+
+    def test_change_pose_redux():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        reference_pose_image_url = "https://replicate.delivery/pbxt/IuOHxg1Wx6ALYqC9ywUc2ReYolQXlNRfHPM4LTTnID2ULHuR/kanye-west-hollywood-bowl%20%281%29.webp"
+
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        reference_pose_image = Image.open(io.BytesIO(requests.get(reference_pose_image_url).content))
+        # Upload images to InfiniAI's OSS
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        reference_pose_image_url = infini_ai.upload_image_to_infiniai_oss(reference_pose_image)
+        seed = random.randint(0, 2147483647)
+        change_pose_prompt_id = infini_ai.comfy_request_change_pose_redux(
+            model_image_url, reference_pose_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(change_pose_prompt_id)
+        return result_urls[0]
+
+
+    def test_pattern_variation():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        # Upload images to InfiniAI's OSS
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        seed = random.randint(0, 2147483647)
+        pattern_variation_prompt_id = infini_ai.comfy_request_pattern_variation(
+            model_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(pattern_variation_prompt_id)
+        return result_urls[0]
+
+
+    def test_printing_variation():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        # Upload images to InfiniAI's OSS
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        seed = random.randint(0, 2147483647)
+        printing_variation_prompt_id = infini_ai.comfy_request_printing_variation(
+            model_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(printing_variation_prompt_id)
+        return result_urls[0]
+
+
+    def test_style_fusion():
+        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
+        reference_image_url = "https://replicate.delivery/pbxt/IuOHxg1Wx6ALYqC9ywUc2ReYolQXlNRfHPM4LTTnID2ULHuR/kanye-west-hollywood-bowl%20%281%29.webp"
+
+        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
+        reference_image = Image.open(io.BytesIO(requests.get(reference_image_url).content))
+        # Upload images to InfiniAI's OSS
+        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
+        reference_image_url = infini_ai.upload_image_to_infiniai_oss(reference_image)
+        seed = random.randint(0, 2147483647)
+        style_fusion_prompt_id = infini_ai.comfy_request_style_fusion(
+            model_image_url, reference_image_url, seed
+        )
+        result_urls = infini_ai.get_task_result(style_fusion_prompt_id)
         return result_urls[0]
