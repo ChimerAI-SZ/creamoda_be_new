@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class PaypalCaptureRequest(BaseModel):
-    subscription_id: str
+    subscription_id: Optional[str] = Field(None, description="订阅ID")
     token: str
 
 class PaypalCaptureResponse(BaseModel):
