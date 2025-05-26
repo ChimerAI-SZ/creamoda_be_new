@@ -185,3 +185,29 @@ class SubscribeService:
             db.rollback()
             raise CustomException(code=400, message="Cancel subscribe failed")
 
+    @staticmethod
+    async def handle_cancel_subscribe_event(db: Session, paypal_sub_id: str):
+        # 检查用户是否已经订阅
+        try:
+            subscribe = db.query(Subscribe).filter(Subscribe.paypal_sub_id == paypal_sub_id).first()
+            if not subscribe or subscribe.is_renew == 0:
+                logger.info(f"paypal_sub_id {paypal_sub_id} not subscribed")
+                return
+            
+            # 更新订阅状态
+            subscribe.is_renew = 0
+            subscribe.update_time = datetime.now()
+            subscribe.cancel_time = datetime.now()
+
+            subscribe_history = SubscribeHistory(
+                uid=subscribe.uid,
+                level=0,
+                action=SubscribeAction.CANCEL,
+                create_time=datetime.now()
+            )
+            db.add(subscribe_history)
+
+            db.commit()
+        except Exception as e:
+            logger.error(f"Handle cancel subscribe event failed: {e}")
+            raise CustomException(code=400, message="Handle cancel subscribe event failed")

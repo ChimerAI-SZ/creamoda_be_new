@@ -68,15 +68,18 @@ async def paypal_callback(
         await handle_credit_payment_success(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
     elif paypal_callback_event.event_type == "PAYMENT.CAPTURE.DENIED":
         # 处理拒绝事件
-        pass
+        await handle_credit_payment_failed(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
     elif paypal_callback_event.event_type == "PAYMENT.CAPTURE.EXPIRED":
         # 处理过期事件
-        pass
+        await handle_credit_payment_failed(paypal_callback_event.resource.supplementary_data.related_ids.order_id, db)
     elif paypal_callback_event.event_type == "PAYMENT.SALE.COMPLETED":
         # 处理订阅成功事件
         await handle_subscribe_payment_success(paypal_callback_event.resource.billing_agreement_id, paypal_callback_event.resource.id, db)
+    elif paypal_callback_event.event_type == "BILLING.SUBSCRIPTION.CANCELLED":
+        # 处理订阅取消事件
+        await SubscribeService.handle_cancel_subscribe_event(db, paypal_callback_event.resource.id)
     else:
-        raise CustomException(code=400, message="Invalid event type")
+        logger.info(f"Invalid event type: {paypal_callback_event.event_type}")
     
     return PaypalCallbackResponse(
         code=0,
@@ -112,13 +115,40 @@ async def handle_credit_payment_success(
         elif order.type == OrderType.POINTS_200:
             await CreditService.launch_credit(db, order.uid, order_id, 200)
         else:
-            logger.info(f"Invalid order type: {order.type}")
+            raise CustomException(code=400, message="Invalid order type")
 
     except Exception as e:
         raise CustomException(code=400, message=str(e))
     finally:
         redis_client.delete(redis_key)
 
+async def handle_credit_payment_failed(
+    order_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"Handle payment success: {order_id}")
+
+        # redis锁订单
+        redis_key = f"order_lock:{order_id}"
+        if not redis_client.set(redis_key, "1", ex=300):
+            raise CustomException(code=400, message=f"Redis lock order failed:{redis_key}")
+
+        # 获取订单
+        order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
+        if not order:
+            raise CustomException(code=400, message="Order not found")
+        if order.status == OrderStatus.PAYMENT_SUCCESS or order.status == OrderStatus.PAYMENT_CAPTURED or order.status == OrderStatus.PAYMENT_CAPTURED:
+            logger.info(f"Order {order_id} already handled")
+            return
+        
+        order.status = OrderStatus.PAYMENT_FAILED
+        order.update_time = datetime.now()
+        db.commit()
+    except Exception as e:
+        raise CustomException(code=400, message=str(e))
+    finally:
+        redis_client.delete(redis_key)
 
 async def handle_subscribe_payment_success(
     order_id: str,
