@@ -38,7 +38,7 @@ async def paypal_capture(
     else:
         await OrderService.capture_order(db, user.id, request.token)
         # 更新支付状态
-        await handle_credit_payment_success(request.orderId, db)
+        await handle_credit_payment_success(request.token, db)
 
     return PaypalCaptureResponse(
         code=0,
