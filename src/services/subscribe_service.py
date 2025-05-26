@@ -49,9 +49,6 @@ class SubscribeService:
             
             # 检查用户是否已经订阅
             subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
-            if subscribe and subscribe.level != 0:
-                logger.info(f"User {uid} already subscribed")
-                raise CustomException(code=400, message="User already subscribed")
             
             today = datetime.now()
             today_midnight = datetime.combine(today.date(), time(0, 0, 0))

@@ -34,7 +34,7 @@ async def paypal_capture(
     # 捕获订单
     if request.subscription_id:
         await OrderService.capture_subscribe_order(db, user.id, request.subscription_id)
-        await handle_subscribe_payment_success(order_id=request.subscription_id, db=db)
+        # await handle_subscribe_payment_success(order_id=request.subscription_id, db=db)
     else:
         await OrderService.capture_order(db, user.id, request.token)
         # 更新支付状态
@@ -139,6 +139,12 @@ async def handle_subscribe_payment_success(
             order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id, BillingHistory.sub_order_id == sub_order_id).first()
             if not order:
                 order = await create_subscribe_order(order_id, sub_order_id, db)
+        else:
+            # 更新订单subOrderId
+            order.sub_order_id = sub_order_id
+            db.commit()
+            db.refresh(order)
+
         if order.status == OrderStatus.PAYMENT_SUCCESS:
             logger.info(f"Order {order_id} already handled")
             return
