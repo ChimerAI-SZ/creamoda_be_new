@@ -112,7 +112,7 @@ async def handle_credit_payment_success(
         elif order.type == OrderType.POINTS_200:
             await CreditService.launch_credit(db, order.uid, order_id, 200)
         else:
-            raise CustomException(code=400, message="Invalid order type")
+            logger.info(f"Invalid order type: {order.type}")
 
     except Exception as e:
         raise CustomException(code=400, message=str(e))
@@ -163,7 +163,7 @@ async def create_subscribe_order(
     order_id: str,
     sub_order_id: str,
     db: Session
-):
+) -> BillingHistory:
     old_order = db.query(BillingHistory).filter(BillingHistory.order_id == order_id).first()
     if not old_order:
         raise CustomException(code=400, message="Order not found")
@@ -182,5 +182,6 @@ async def create_subscribe_order(
     )
     db.add(new_order)
     db.commit()
-    
+    db.refresh(new_order)
+    return new_order
 

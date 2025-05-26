@@ -22,7 +22,7 @@ class SubscribeService:
     async def create_subscribe_order(db: Session, uid: int, level: int):
         # 检查用户是否已经订阅
         subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
-        if subscribe and subscribe.level != 0:
+        if subscribe and subscribe.is_renew != 0:
             raise CustomException(code=400, message="User already subscribed")
         
         if level == 1:
