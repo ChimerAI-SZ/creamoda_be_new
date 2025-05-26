@@ -48,7 +48,7 @@ class SubscribeService:
                 raise CustomException(code=400, message="User not found")
             
             # 检查用户是否已经订阅
-            subscribe = db.query(Subscribe).filter(Subscribe.id == uid).first()
+            subscribe = db.query(Subscribe).filter(Subscribe.uid == uid).first()
             if subscribe and subscribe.level != 0:
                 logger.info(f"User {uid} already subscribed")
                 raise CustomException(code=400, message="User already subscribed")
