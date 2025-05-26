@@ -11,6 +11,7 @@ class SubscribeRequest(BaseModel):
 
 class SubscribeResponseData(BaseModel):
     """订阅响应DTO"""
+    id: str = Field(..., description="订单ID")
     url: str = Field(..., description="支付链接")
 
 class SubscribeResponse(CommonResponse[SubscribeResponseData]):
@@ -29,6 +30,7 @@ class PurchaseCreditRequest(BaseModel):
     value: PointValue = Field(..., description="积分")
 
 class PurchaseCreditResponseData(BaseModel):
+    id: str = Field(..., description="订单ID")
     url: str = Field(..., description="支付链接")
 
 class PurchaseCreditResponse(CommonResponse[PurchaseCreditResponseData]):

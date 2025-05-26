@@ -26,6 +26,7 @@ async def subscribe(
     
     return SubscribeResponse(
         data=SubscribeResponseData(
+            id=order_res['subscription_id'],
             url=order_res['approval_url']
         )
     )
@@ -60,6 +61,7 @@ async def purchase_credit(
     
     return PurchaseCreditResponse(
         data=PurchaseCreditResponseData(
+            id=order_res.id,
             url=order_res.get_approve_link()
         )
     )
