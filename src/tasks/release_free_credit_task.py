@@ -17,7 +17,7 @@ async def process_release_free_credit():
     try:
         # 批量更新用户积分
         # 分页大小
-        page_size = 1
+        page_size = 100
         page = 0
         
         while True:

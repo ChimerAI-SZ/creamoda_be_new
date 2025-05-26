@@ -8,6 +8,7 @@ from src.dto.backdoor import CreatePaypalPlanRequest, CreatePaypalPlanResponse, 
 from src.exceptions.user import AuthenticationError
 from src.pay.paypal_client import paypal_client
 from src.tasks.release_free_credit_task import release_free_credit_task
+from src.tasks.subscribe_status_refresh_task import subscribe_status_refresh_task
 
 router = APIRouter()
 
@@ -50,3 +51,8 @@ async def create_paypal_plan(
 async def process_release_free_credit_task(
 ):
     release_free_credit_task()
+
+@router.post("/process_subscribe_status_refresh_task")
+async def process_subscribe_status_refresh_task(
+):
+    subscribe_status_refresh_task()
