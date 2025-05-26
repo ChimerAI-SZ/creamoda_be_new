@@ -7,6 +7,7 @@ from src.db.session import get_db
 from src.dto.backdoor import CreatePaypalPlanRequest, CreatePaypalPlanResponse, CreatePaypalPlanResponseData, CreatePaypalProductRequest, CreatePaypalProductResponse, CreatePaypalProductResponseData
 from src.exceptions.user import AuthenticationError
 from src.pay.paypal_client import paypal_client
+from src.tasks.release_free_credit_task import release_free_credit_task
 
 router = APIRouter()
 
@@ -45,3 +46,7 @@ async def create_paypal_plan(
         data=CreatePaypalPlanResponseData(resp=res)
     )
 
+@router.post("/process_release_free_credit_task")
+async def process_release_free_credit_task(
+):
+    release_free_credit_task()

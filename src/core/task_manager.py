@@ -7,6 +7,7 @@ from src.core.scheduler import scheduler
 from src.config.config import settings
 from src.config.log_config import logger
 from src.tasks.img_generation_task import img_generation_compensate_task
+from src.tasks.release_free_credit_task import release_free_credit_task
 
 class TaskManager:
     """定时任务管理器，处理调度器的生命周期和任务配置"""
@@ -41,6 +42,25 @@ class TaskManager:
                 logger.info(f"Added image generation compensate task with interval {img_compensate_interval}s")
             else:
                 logger.info("Image generation compensate task is disabled in configuration")
+
+            # 新增每天凌晨任务配置
+            try:
+                release_free_credit_task_enabled = settings.scheduler.tasks.release_free_credit_task.enabled
+            except (AttributeError, KeyError):
+                release_free_credit_task_enabled = True
+                
+            if release_free_credit_task_enabled:
+                scheduler.add_job(
+                    release_free_credit_task,
+                    'cron',
+                    hour=0,
+                    minute=0,
+                    id='release_free_credit_task',
+                    replace_existing=True,
+                )
+                logger.info("Added release free credit task")
+            else:
+                logger.info("Release free credit task is disabled in configuration")
             
             # 这里可以添加更多的定时任务，根据配置文件控制是否启用
             # ...

@@ -98,8 +98,6 @@ async def process_image_generation_compensate():
     finally:
         db.close()
 
-task_lock = asyncio.Lock()
-
 def img_generation_compensate_task():
     """图像生成补偿任务入口"""
     lock = Lock(redis_client, "img_generation_compensate_task_lock", timeout=300)
