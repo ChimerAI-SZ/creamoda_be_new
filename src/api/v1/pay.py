@@ -5,9 +5,11 @@ from typing import Optional, List
 from src.core.context import get_current_user_context
 from src.exceptions.user import AuthenticationError
 from src.services.credit_service import CreditService
+from src.services.order_service import OrderService
 from src.services.subscribe_service import SubscribeService
+from src.config.log_config import logger
 
-from ...dto.pay import PurchaseCreditResponseData, SubscribeRequest, SubscribeResponse, CancelSubscribeRequest, CancelSubscribeResponse, PurchaseCreditRequest, PurchaseCreditResponse, BillingHistoryRequest, BillingHistoryResponse, SubscribeResponseData
+from ...dto.pay import BillingHistoryData, PurchaseCreditResponseData, SubscribeRequest, SubscribeResponse, CancelSubscribeRequest, CancelSubscribeResponse, PurchaseCreditRequest, PurchaseCreditResponse, BillingHistoryRequest, BillingHistoryResponse, SubscribeResponseData
 from ...db.session import get_db
 
 router = APIRouter()
@@ -68,7 +70,24 @@ async def purchase_credit(
 
 @router.get("/billing_history", response_model=BillingHistoryResponse)
 async def billing_history(
-    request: BillingHistoryRequest,
+    page: int = 1,
+    pageSize: int = 10,
     db: Session = Depends(get_db)
 ):
-    pass
+    """查询账单历史记录"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        billing_history = await OrderService.get_billing_history(db, user.id, page, pageSize)
+        return BillingHistoryResponse(
+            data=BillingHistoryData(
+                total=billing_history['total'],
+                list=billing_history['list']
+            )
+        )
+    except Exception as e:
+        logger.error(f"获取账单历史记录失败: {e}")
+        raise e

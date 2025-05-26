@@ -1,5 +1,7 @@
 
 from datetime import datetime
+from typing import Any, Dict
+from src.dto.pay import BillingHistoryItem
 from src.exceptions.pay import PayError
 from src.models.models import BillingHistory, Constant
 from requests import Session
@@ -167,3 +169,69 @@ class OrderService:
         finally:
             redis_client.delete(redis_key)
 
+    @staticmethod
+    async def get_billing_history(
+        db: Session,
+        uid: int,
+        page: int = 1,
+        page_size: int = 10
+    ) -> Dict[str, Any]:
+        """获取用户账单历史记录
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            page_num: 页码，从1开始
+            page_size: 每页记录数
+            
+        Returns:
+            包含分页数据的字典
+        """
+        # 构建JOIN查询，把GenImgResult和GenImgRecord关联起来
+        query = db.query(
+            BillingHistory
+        ).filter(
+            BillingHistory.uid == uid
+        )
+
+        
+        # 计算总记录数
+        total_count = query.count()
+        
+        # 分页并按创建时间倒序排序
+        paginated_results = query.order_by(BillingHistory.id.desc())\
+            .offset((page - 1) * page_size)\
+            .limit(page_size)\
+            .all()
+        
+        # 构建结果列表
+        result_list = []
+        for record in paginated_results:
+            # 格式化时间为字符串
+            create_time = record.create_time.strftime("%Y-%m-%d %H:%M:%S") if record.create_time else ""
+
+            status = ""
+            if record.status == OrderStatus.PAYMENT_SUCCESS:
+                status = "Success"
+            elif record.status == OrderStatus.PAYMENT_FAILED:
+                status = "Failed"
+            elif record.status == OrderStatus.PAYMENT_PENDING:
+                status = "Pending"
+            elif record.status == OrderStatus.PAYMENT_CAPTURED:
+                status = "Pending"
+
+            # 构建单条记录
+            history_item = BillingHistoryItem(
+                dueDate=create_time,
+                description=record.description,
+                status=status,
+                invoice='$'+str(record.amount/100)
+            )
+            
+            result_list.append(history_item)
+        
+        # 返回分页结果
+        return {
+            "total": total_count,
+            "list": result_list
+        } 

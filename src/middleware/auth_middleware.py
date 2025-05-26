@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from jose import jwt
+from jose import ExpiredSignatureError, jwt
 from sqlalchemy.orm import Session
 
 from src.config.log_config import logger
@@ -91,7 +91,7 @@ class AuthMiddleware:
                 db.close()
                 clear_user_context()
                 
-        except AuthenticationError as e:
+        except (AuthenticationError, ExpiredSignatureError) as e:
             logger.warning(f"Authentication error: {str(e)}")
             return JSONResponse(
                 status_code=200,

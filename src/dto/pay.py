@@ -50,7 +50,7 @@ class BillingHistoryItem(BaseModel):
 
 class BillingHistoryItem(BaseModel):
     """账单历史项DTO"""
-    dueDate: str = Field(..., description="到期时间")
+    dueDate: str = Field(..., description="发生时间")
     description: str = Field(..., description="描述")
     status: str = Field(..., description="账单状态")
     invoice: str = Field(..., description="金额")

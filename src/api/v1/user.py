@@ -16,7 +16,7 @@ from src.dto.user import (LogoutResponse, UserLoginData, UserLoginRequest,
                          ResendEmailRequest, ResendEmailResponse, ChangeUserInfoRequest,
                          ChangeUserInfoResponse)
 from src.exceptions.user import AuthenticationError, ServerError, UserInfoError, ValidationError
-from src.models.models import UserInfo
+from src.models.models import Credit, Subscribe, UserInfo
 from src.utils.email import email_sender
 from src.utils.password import generate_salt, hash_password, verify_password
 from src.utils.security import create_access_token
@@ -254,12 +254,15 @@ async def logout(
         )
 
 @router.get("/info")
-async def get_user_info():
+async def get_user_info(db: Session = Depends(get_db)):
     """获取用户信息"""
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
         
+    credit = db.query(Credit).filter(Credit.uid == user.id).first()
+    subscribe = db.query(Subscribe).filter(Subscribe.uid == user.id).first()
+
     return CommonResponse(
         code=0,
         msg="success",
@@ -269,7 +272,11 @@ async def get_user_info():
             "status": user.status,
             "emailVerified": user.email_verified,
             "headPic": user.head_pic,
-            "hasPwd": user.has_pwd
+            "hasPwd": user.has_pwd,
+            "credit": credit.credit if credit else 0,
+            "subscribeLevel": subscribe.level if subscribe else 0,
+            "billingEmail": subscribe.billing_email if subscribe else None,
+            "renewTime": subscribe.renew_time if subscribe else None,
         }
     )
 
