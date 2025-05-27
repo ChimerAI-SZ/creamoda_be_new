@@ -13,7 +13,8 @@ from ...config.log_config import logger
 from ...constants.image_constants import IMAGE_FORMAT_SIZE_MAP
 from ...constants.refer_constants import REFER_LEVEL_MAP
 from ...dto.image import SketchToDesignRequest, SketchToDesignResponse, MixImageRequest, MixImageResponse
-
+from src.services.credit_service import CreditService
+from src.config.config import settings
 router = APIRouter()
 
 
@@ -39,6 +40,9 @@ async def text_to_image(
     # 验证prompt长度
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+
+    credit_value = settings.image_generation.text_to_image.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
 
     try:
         # 从请求中获取图像尺寸
@@ -86,6 +90,9 @@ async def copy_style_generate(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
+    credit_value = settings.image_generation.copy_style.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 从请求中获取参考等级
         fidelity = get_fidelity(request.referLevel)
@@ -124,6 +131,9 @@ async def change_clothes_generate(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.change_clothes.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建更换服装任务
         task_info = await ImageService.create_change_clothes_task(
@@ -347,6 +357,9 @@ async def fabric_to_design(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.fabric_to_design.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建面料转设计任务
         task_info = await ImageService.create_fabric_to_design_task(
@@ -377,6 +390,9 @@ async def virtual_try_on(
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
+
+    credit_value = settings.image_generation.virtual_try_on.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
 
     try:
         # 创建虚拟试穿任务
@@ -413,6 +429,9 @@ async def sketch_to_design(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.sketch_to_design.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
 
         # 创建复制面料任务
@@ -448,6 +467,9 @@ async def mix_image(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.mix_image.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 从请求中获取参考等级
         fidelity = get_fidelity(request.referLevel)
@@ -483,6 +505,9 @@ async def style_transfer(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.style_transfer.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建风格转换任务
         task_info = await ImageService.create_style_transfer_task(
@@ -515,6 +540,9 @@ async def fabric_transfer(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.fabric_transfer.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建面料转换任务
         task_info = await ImageService.create_fabric_transfer_task(
@@ -552,6 +580,9 @@ async def change_color(
     if not request.clothingText:
         raise ValidationError("Clothing text cannot be empty")
     
+    credit_value = settings.image_generation.change_color.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变颜色任务
         task_info = await ImageService.create_change_color_task(
@@ -584,6 +615,9 @@ async def change_background(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.change_background.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_change_background_task(
@@ -617,6 +651,9 @@ async def remove_background(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.remove_background.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_remove_background_task(
@@ -647,6 +684,9 @@ async def particial_modification(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.particial_modification.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_particial_modification_task(
@@ -679,6 +719,9 @@ async def upscale(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.upscale.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_upscale_task(

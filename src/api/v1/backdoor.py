@@ -7,6 +7,7 @@ from src.db.session import get_db
 from src.dto.backdoor import CreatePaypalPlanRequest, CreatePaypalPlanResponse, CreatePaypalPlanResponseData, CreatePaypalProductRequest, CreatePaypalProductResponse, CreatePaypalProductResponseData
 from src.exceptions.user import AuthenticationError
 from src.pay.paypal_client import paypal_client
+from src.tasks.img_generation_task import img_generation_compensate_task
 from src.tasks.release_free_credit_task import release_free_credit_task
 from src.tasks.subscribe_status_refresh_task import subscribe_status_refresh_task
 
@@ -50,9 +51,33 @@ async def create_paypal_plan(
 @router.post("/process_release_free_credit_task")
 async def process_release_free_credit_task(
 ):
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    if user.email != "417253782@qq.com":
+        raise AuthenticationError()
+    
     release_free_credit_task()
 
 @router.post("/process_subscribe_status_refresh_task")
 async def process_subscribe_status_refresh_task(
 ):
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    if user.email != "417253782@qq.com":
+        raise AuthenticationError()
+    
     subscribe_status_refresh_task()
+
+@router.post("/process_img_generation_compensate_task")
+async def process_img_generation_compensate_task(
+):
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    if user.email != "417253782@qq.com":
+        raise AuthenticationError()
+    
+    img_generation_compensate_task()
+

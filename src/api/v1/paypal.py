@@ -91,7 +91,7 @@ async def handle_credit_payment_success(
     db: Session = Depends(get_db)
 ):
     try:
-        logger.info(f"Handle payment success: {order_id}")
+        logger.info(f"start Handle credit payment success: {order_id}")
 
         # redis锁订单
         redis_key = f"order_lock:{order_id}"
@@ -117,6 +117,7 @@ async def handle_credit_payment_success(
         else:
             raise CustomException(code=400, message="Invalid order type")
 
+        logger.info(f"finish Handle credit payment success: {order_id}")
     except Exception as e:
         raise CustomException(code=400, message=str(e))
     finally:
@@ -127,7 +128,7 @@ async def handle_credit_payment_failed(
     db: Session = Depends(get_db)
 ):
     try:
-        logger.info(f"Handle payment success: {order_id}")
+        logger.info(f"start Handle credit payment failed: {order_id}")
 
         # redis锁订单
         redis_key = f"order_lock:{order_id}"
@@ -145,6 +146,8 @@ async def handle_credit_payment_failed(
         order.status = OrderStatus.PAYMENT_FAILED
         order.update_time = datetime.now()
         db.commit()
+
+        logger.info(f"finish Handle credit payment failed: {order_id}")
     except Exception as e:
         raise CustomException(code=400, message=str(e))
     finally:
@@ -156,7 +159,7 @@ async def handle_subscribe_payment_success(
     db: Session = Depends(get_db)
 ):
     try:
-        logger.info(f"Handle payment success: {order_id}")
+        logger.info(f"start Handle subscribe payment success: {order_id}")
 
         # redis锁订单
         redis_key = f"order_lock:{order_id}"
@@ -190,6 +193,7 @@ async def handle_subscribe_payment_success(
         else:
             raise CustomException(code=400, message="Invalid order type")
 
+        logger.info(f"finishHandle subscribe payment success: {order_id}")
     except Exception as e:
         raise CustomException(code=400, message=str(e))
     finally:

@@ -70,14 +70,25 @@ class OSSSettings(BaseModel):
     url_prefix: str = ""  # OSS对象URL前缀
     upload_dir: str = "uploads/"  # 上传目录
 
+class ImageGenerationItem(BaseModel):
+    gen_count: int = 1
+    use_credit: int = 1
+
 class ImageGenerationSettings(BaseModel):
-    text_to_image_count: int = 1
-    copy_style_count: int = 1
-    change_clothes_count: int = 1
-    fabric_to_design_count: int = 1
-    virtual_try_on_count: int = 1
-    sketch_to_design_count: int = 1
-    mix_image_count: int = 1
+    text_to_image: ImageGenerationItem = ImageGenerationItem()
+    copy_style: ImageGenerationItem = ImageGenerationItem()
+    change_clothes: ImageGenerationItem = ImageGenerationItem()
+    fabric_to_design: ImageGenerationItem = ImageGenerationItem()
+    virtual_try_on: ImageGenerationItem = ImageGenerationItem()
+    sketch_to_design: ImageGenerationItem = ImageGenerationItem()
+    mix_image: ImageGenerationItem = ImageGenerationItem()
+    style_transfer: ImageGenerationItem = ImageGenerationItem()
+    fabric_transfer: ImageGenerationItem = ImageGenerationItem()
+    change_color: ImageGenerationItem = ImageGenerationItem()
+    change_background: ImageGenerationItem = ImageGenerationItem()
+    remove_background: ImageGenerationItem = ImageGenerationItem()
+    particial_modification: ImageGenerationItem = ImageGenerationItem()
+    upscale: ImageGenerationItem = ImageGenerationItem()
     estimated_time_seconds: int = 20
 
 class PayPalSettings(BaseModel):

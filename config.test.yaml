@@ -60,13 +60,48 @@ oss:
 
 # 添加图片生成任务配置
 image_generation:
-  text_to_image_count: 1      # 文生图任务生成的图片数量
-  copy_style_count: 1         # 洗图任务生成的图片数量
-  change_clothes_count: 1     # 换装任务生成的图片数量
-  copy_fabric_count: 1        # 复制面料任务生成的图片数量
-  virtual_try_on_count: 1     # 虚拟试穿任务生成的图片数量
-  sketch_to_design_count: 1   # 草图转设计任务生成的图片数量
-  mix_image_count: 1          # 混合图片任务生成的图片数量
+  text_to_image:
+    gen_count: 1      # 文生图任务生成的图片数量
+    use_credit: 1
+  copy_style:
+    gen_count: 1         # 洗图任务生成的图片数量
+    use_credit: 1
+  change_clothes: 
+    gen_count: 1         # 换装任务生成的图片数量
+    use_credit: 1
+  fabric_to_design: 
+    gen_count: 1         # 复制面料任务生成的图片数量
+    use_credit: 1
+  virtual_try_on: 
+    gen_count: 1         # 虚拟试穿任务生成的图片数量
+    use_credit: 1
+  sketch_to_design:
+    gen_count: 1   # 草图转设计任务生成的图片数量
+    use_credit: 1
+  mix_image:
+    gen_count: 1          # 混合图片任务生成的图片数量
+    use_credit: 1
+  style_transfer:
+    gen_count: 1          # 风格迁移任务生成的图片数量
+    use_credit: 1
+  fabric_transfer:
+    gen_count: 1          # 面料转换任务生成的图片数量
+    use_credit: 1
+  change_color:
+    gen_count: 1          # 换色任务生成的图片数量
+    use_credit: 1
+  change_background:
+    gen_count: 1          # 换色任务生成的图片数量
+    use_credit: 1
+  remove_background:
+    gen_count: 1          # 换色任务生成的图片数量
+    use_credit: 1
+  particial_modification:
+    gen_count: 1          # 局部修改任务生成的图片数量
+    use_credit: 1
+  upscale:
+    gen_count: 1          # 放大任务生成的图片数量
+    use_credit: 1
   estimated_time_seconds: 20  # 预计完成时间(秒)
 
 paypal:

@@ -277,6 +277,7 @@ async def get_user_info(db: Session = Depends(get_db)):
             "subscribeLevel": subscribe.level if subscribe else 0,
             "billingEmail": subscribe.billing_email if subscribe else None,
             "renewTime": subscribe.renew_time if subscribe else None,
+            "isRenew": subscribe.is_renew if subscribe else 0,
         }
     )
 

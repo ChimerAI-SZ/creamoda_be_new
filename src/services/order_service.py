@@ -191,7 +191,8 @@ class OrderService:
         query = db.query(
             BillingHistory
         ).filter(
-            BillingHistory.uid == uid
+            BillingHistory.uid == uid,
+            BillingHistory.status != OrderStatus.PAYMENT_PENDING
         )
 
         
@@ -215,10 +216,8 @@ class OrderService:
                 status = "Success"
             elif record.status == OrderStatus.PAYMENT_FAILED:
                 status = "Failed"
-            elif record.status == OrderStatus.PAYMENT_PENDING:
-                status = "Pending"
             elif record.status == OrderStatus.PAYMENT_CAPTURED:
-                status = "Pending"
+                status = "Success"
 
             # 构建单条记录
             history_item = BillingHistoryItem(

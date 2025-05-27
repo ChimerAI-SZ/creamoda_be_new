@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from src.alg.ideogram_adapter import IdeogramAdapter
 from src.alg.replicate_adapter import ReplicateAdapter
+from src.constants.gen_img_type import GenImgType
+from src.services.credit_service import CreditService
 
 from ..models.models import CollectImg, GenImgRecord, GenImgResult  # 导入两个模型
 from ..db.redis import redis_client
@@ -42,7 +44,7 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=1,  # 1-文生图
+            type=GenImgType.TEXT_TO_IMAGE.value.type,  # 1-文生图
             format=format,
             width=width,
             height=height,
@@ -64,29 +66,17 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.text_to_image_count
-            
-            # 获取所有可用风格，确保不重复
-            used_styles = set()
+            image_count = settings.image_generation.text_to_image.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
             for i in range(image_count):
-                # 选择一个未使用的风格
-                style_name, style_prompt = ImageService._get_unique_style(used_styles)
-                used_styles.add(style_name)
-
-                # 合并原始提示词和风格提示词
-                enhanced_prompt = f"{task.original_prompt}{style_prompt}"
-                logger.info(f"Enhanced prompt with style '{style_name}': {enhanced_prompt}")
-                
                 # 创建结果记录，包含风格信息
                 result = GenImgResult(
                     gen_id=task.id,
                     uid=uid,
                     status=1,  # 1-待生成
-                    style=style_name,  # 保存风格名称
-                    prompt=enhanced_prompt,
+                    prompt=prompt,
                     result_pic="",
                     create_time=now,
                     update_time=now
@@ -101,7 +91,7 @@ class ImageService:
             # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
             for result_id in result_ids:
                 asyncio.create_task(
-                    ImageService.process_image_generation(result_id)
+                    ImageService.process_text_to_image_generation(result_id)
                 )
             
             # 返回任务信息
@@ -140,8 +130,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=3, # 2-Fabric to Design
+            type=GenImgType.FABRIC_TO_DESIGN.value.type,  # 2-图生图
+            variation_type=GenImgType.FABRIC_TO_DESIGN.value.variationType, # 2-Fabric to Design
             status=1,  # 1-待生成
             original_pic_url=fabric_pic_url,
             original_prompt=prompt,
@@ -159,7 +149,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.fabric_to_design_count
+            image_count = settings.image_generation.fabric_to_design.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -214,8 +204,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图转图(洗图)
-            variation_type = 1, # 1-洗图
+            type=GenImgType.COPY_STYLE.value.type,  # 2-图转图(洗图)
+            variation_type = GenImgType.COPY_STYLE.value.variationType, # 1-洗图
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=prompt,
@@ -231,7 +221,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.copy_style_count
+            image_count = settings.image_generation.copy_style.gen_count
             
             # 获取所有可用风格，确保不重复
             used_styles = set()
@@ -298,8 +288,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=4, # Sketch to Design
+            type=GenImgType.SKETCH_TO_DESIGN.value.type,  # 2-图生图
+            variation_type=GenImgType.SKETCH_TO_DESIGN.value.variationType, # Sketch to Design
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=prompt,
@@ -314,7 +304,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.sketch_to_design_count
+            image_count = settings.image_generation.sketch_to_design.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -369,8 +359,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=5, # 5-混合图片
+            type=GenImgType.MIX_IMAGE.value.type,  # 2-图生图
+            variation_type=GenImgType.MIX_IMAGE.value.variationType, # 5-混合图片
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=prompt,
@@ -387,7 +377,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.mix_image_count
+            image_count = settings.image_generation.mix_image.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -442,7 +432,7 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=3,  # 3-虚拟试穿
+            type=GenImgType.VIRTUAL_TRY_ON.value.type,  # 3-虚拟试穿
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             clothing_photo=clothing_photo,
@@ -458,7 +448,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.virtual_try_on_count
+            image_count = settings.image_generation.virtual_try_on.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -554,7 +544,7 @@ class ImageService:
             raise e
 
     @staticmethod
-    async def process_image_generation(result_id: int):
+    async def process_text_to_image_generation(result_id: int):
         """通过结果ID处理单个图像生成任务
         
         Args:
@@ -612,6 +602,8 @@ class ImageService:
                 
                 logger.info(f"Image generation completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.text_to_image.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to generate image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -628,7 +620,13 @@ class ImageService:
                 logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
                 
                 db.commit()
-        
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.text_to_image.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing image generation for result {result_id}: {str(e)}")
             db.rollback()
@@ -697,6 +695,8 @@ class ImageService:
                 
                 logger.info(f"Image fabric to design completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.fabric_to_design.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to generate fabric to design image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -714,6 +714,12 @@ class ImageService:
                 
                 db.commit()
         
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.fabric_to_design.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing fabric to design generation for result {result_id}: {str(e)}")
             db.rollback()
@@ -780,6 +786,8 @@ class ImageService:
                 
                 logger.info(f"virtual try on completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.virtual_try_on.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to generate virtual try on image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -796,7 +804,13 @@ class ImageService:
                 logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
                 
                 db.commit()
-        
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.virtual_try_on.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing copy fabric generation for result {result_id}: {str(e)}")
             db.rollback()
@@ -862,6 +876,8 @@ class ImageService:
                 
                 logger.info(f"Image sketch to design completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.sketch_to_design.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to generate sketch to design image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -878,6 +894,13 @@ class ImageService:
                 logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
                 
                 db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.sketch_to_design.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         
         except Exception as e:
             logger.error(f"Error processing sketch to design generation for result {result_id}: {str(e)}")
@@ -948,6 +971,8 @@ class ImageService:
                 
                 logger.info(f"Image mix image completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.mix_image.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to generate mix image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -964,6 +989,13 @@ class ImageService:
                 logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
                 
                 db.commit()
+        
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.mix_image.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         
         except Exception as e:
             logger.error(f"Error processing mix image generation for result {result_id}: {str(e)}")
@@ -1058,6 +1090,8 @@ class ImageService:
                 
                 logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.copy_style.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1075,6 +1109,12 @@ class ImageService:
                 
                 db.commit()
         
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.copy_style.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing copy style generation for result {result_id}: {str(e)}")
             db.rollback()
@@ -1096,8 +1136,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图转图
-            variation_type=2,  # 2-更换服装
+            type=GenImgType.CHANGE_CLOTHES.value.type,  # 2-图转图
+            variation_type=GenImgType.CHANGE_CLOTHES.value.variationType,  # 2-更换服装
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=replace,  # 使用replace作为prompt
@@ -1112,7 +1152,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量
-            image_count = settings.image_generation.change_clothes_count
+            image_count = settings.image_generation.change_clothes.gen_count
             
             # 获取所有可用风格，确保不重复
             used_styles = set()
@@ -1235,6 +1275,8 @@ class ImageService:
                 
                 logger.info(f"Change clothes completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.change_clothes.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 logger.error(f"Failed to change clothes for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1252,6 +1294,12 @@ class ImageService:
                 
                 db.commit()
         
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = CreditService.get_credit_value_by_type(GenImgType.get_by_type_and_variation_type(task.type, task.variation_type))
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing change clothes for result {result_id}: {str(e)}")
             db.rollback()
@@ -1498,8 +1546,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=6,  # 5-风格转换
+            type=GenImgType.STYLE_TRANSFER.value.type,  # 2-图生图
+            variation_type=GenImgType.STYLE_TRANSFER.value.variationType,  # 5-风格转换
             status=1,  # 1-待生成
             original_pic_url=image_a_url,
             style_pic_url=image_b_url,
@@ -1515,7 +1563,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.style_transfer_count if hasattr(settings.image_generation, "style_transfer_count") else 1
+            image_count = settings.image_generation.style_transfer.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -1620,6 +1668,8 @@ class ImageService:
                 
                 logger.info(f"Style transfer completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.style_transfer.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -1637,6 +1687,12 @@ class ImageService:
                 
                 logger.error(f"Error in style transfer for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.style_transfer.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing style transfer for result {result_id}: {str(e)}")
             db.rollback()
@@ -1667,7 +1723,7 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=5,  # 5-面料转换
+            type=GenImgType.FABRIC_TRANSFER.value.type,  # 5-面料转换
             status=1,  # 1-待生成
             original_pic_url=fabric_image_url,
             model_pic_url=model_image_url,
@@ -1683,7 +1739,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.fabric_transfer_count if hasattr(settings.image_generation, "fabric_transfer_count") else 1
+            image_count = settings.image_generation.fabric_transfer.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -1744,8 +1800,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=4,  # 4-magic kit
-            variation_type=1,  # 1-change color
+            type=GenImgType.CHANGE_COLOR.value.type,  # 4-magic kit
+            variation_type=GenImgType.CHANGE_COLOR.value.variationType,  # 1-change color
             status=1,  # 1-待生成
             original_pic_url=image_url,
             original_prompt=clothing_text,
@@ -1761,7 +1817,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.change_color_count if hasattr(settings.image_generation, "change_color_count") else 1
+            image_count = settings.image_generation.change_color.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -1862,6 +1918,8 @@ class ImageService:
                 
                 logger.info(f"Fabric transfer completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.fabric_transfer.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -1879,6 +1937,12 @@ class ImageService:
                 
                 logger.error(f"Error in fabric transfer for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.fabric_transfer.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing fabric transfer for result {result_id}: {str(e)}")
             db.rollback()
@@ -1949,6 +2013,8 @@ class ImageService:
                 
                 logger.info(f"Change color completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.change_color.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -1966,6 +2032,12 @@ class ImageService:
                 
                 logger.error(f"Error in change color for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_color.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing change color for result {result_id}: {str(e)}")
             db.rollback()
@@ -1997,8 +2069,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=4,  # 4-magic kit
-            variation_type=2,  # 2-change background
+            type=GenImgType.CHANGE_BACKGROUND.value.type,  # 4-magic kit
+            variation_type=GenImgType.CHANGE_BACKGROUND.value.variationType,  # 2-change background
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             original_prompt=background_prompt,
@@ -2014,7 +2086,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.change_background_count if hasattr(settings.image_generation, "change_background_count") else 1
+            image_count = settings.image_generation.change_background.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2118,6 +2190,8 @@ class ImageService:
                 
                 logger.info(f"change_background completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.change_background.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2135,6 +2209,12 @@ class ImageService:
                 
                 logger.error(f"Error in change_background for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_background.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing change_background for result {result_id}: {str(e)}")
             db.rollback()
@@ -2162,8 +2242,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=4,  # 4-magic kit
-            variation_type=3,  # 3-remove background
+            type=GenImgType.REMOVE_BACKGROUND.value.type,  # 4-magic kit
+            variation_type=GenImgType.REMOVE_BACKGROUND.value.variationType,  # 3-remove background
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             create_time=now,
@@ -2177,7 +2257,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.remove_background_count if hasattr(settings.image_generation, "remove_background_count") else 1
+            image_count = settings.image_generation.remove_background.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2279,6 +2359,8 @@ class ImageService:
                 
                 logger.info(f"Remove background completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.remove_background.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2296,6 +2378,12 @@ class ImageService:
                 
                 logger.error(f"Error in remove background for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.remove_background.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing remove background for result {result_id}: {str(e)}")
             db.rollback()
@@ -2327,8 +2415,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=4,  # 4-magic kit
-            variation_type=4,  # 4-particial modification
+            type=GenImgType.PARTICIAL_MODIFICATION.value.type,  # 4-magic kit
+            variation_type=GenImgType.PARTICIAL_MODIFICATION.value.variationType,  # 4-particial modification
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             refer_pic_url=mask_pic_url,
@@ -2344,7 +2432,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.particial_modification_count if hasattr(settings.image_generation, "particial_modification_count") else 1
+            image_count = settings.image_generation.particial_modification.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2448,6 +2536,8 @@ class ImageService:
                 
                 logger.info(f"Particial modification completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.particial_modification.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2465,6 +2555,12 @@ class ImageService:
                 
                 logger.error(f"Error in particial modification for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.particial_modification.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing particial modification for result {result_id}: {str(e)}")
             db.rollback()
@@ -2493,8 +2589,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=4,  # 4-magic kit
-            variation_type=5,  # 5-upscale
+            type=GenImgType.UPSCALE.value.type,  # 4-magic kit
+            variation_type=GenImgType.UPSCALE.value.variationType,  # 5-upscale
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             create_time=now,
@@ -2508,7 +2604,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为2
-            image_count = settings.image_generation.upscale_count if hasattr(settings.image_generation, "upscale_count") else 1
+            image_count = settings.image_generation.upscale.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2611,6 +2707,8 @@ class ImageService:
                 
                 logger.info(f"Upscale completed for result {result_id}, task {task.id}")
                 
+                credit_value = settings.image_generation.upscale.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2628,6 +2726,12 @@ class ImageService:
                 
                 logger.error(f"Error in upscale for result {result_id}: {str(e)}")
                 
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.upscale.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing upscale for result {result_id}: {str(e)}")
             db.rollback()
