@@ -11,7 +11,7 @@ from src.db.session import SessionLocal
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.dto.common import CommonResponse
-from src.models.models import Subscribe
+from src.models.models import GenImgResult, Subscribe
 
 class GenImgRateLimitMiddleware:
     """基于Redis的生图API请求限流中间件"""
@@ -59,6 +59,20 @@ class GenImgRateLimitMiddleware:
                 content=CommonResponse(
                     code=429,
                     msg="Too many requests, please try again later"
+                ).model_dump()
+            )
+        
+        # 检查并发限制
+        is_concurrency_limited = await self._check_concurrency_limit(
+            db=db,
+            user_id=user_id
+        )
+        if is_concurrency_limited:
+            return JSONResponse(
+                status_code=430,
+                content=CommonResponse(
+                    code=430,
+                    msg="Concurrency limit reached, please try again later"
                 ).model_dump()
             )
         
@@ -140,3 +154,27 @@ class GenImgRateLimitMiddleware:
             logger.error(f"Error checking rate limit: {str(e)}")
             # 出错时不限流
             return False, max_requests, window_seconds 
+        
+    async def _check_concurrency_limit(
+        self, 
+        db: Session,
+        user_id: Optional[int]
+    ) -> bool:
+        """检查并发限制"""
+        max_concurrency = 1
+        sub = db.query(Subscribe).filter(Subscribe.uid == user_id).first()
+        if not sub or sub.level == 0:
+            # 未订阅用户，使用默认限流规则
+            pass
+        elif sub.level == 1:
+            max_concurrency = 2
+        elif sub.level == 2:
+            max_concurrency = 4
+        elif sub.level == 3:
+            max_concurrency = 8
+
+        gening_img_count = db.query(GenImgResult).filter(GenImgResult.uid == user_id, GenImgResult.status.in_([1, 2])).count()
+        if gening_img_count >= max_concurrency:
+            return True
+        else:
+            return False
