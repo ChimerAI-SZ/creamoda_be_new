@@ -21,22 +21,6 @@ class RateLimitConfig(BaseModel):
     
     # 按路径匹配的规则，键为路径前缀
     path_rules: Dict[str, RateLimitRule] = {
-        # 更严格限制图片生成接口
-        "/api/v1/img/txt_generate": RateLimitRule(
-            window_seconds=60,
-            max_requests=10,
-            apply_to_anonymous=True
-        ),
-        "/api/v1/img/copy_style_generate": RateLimitRule(
-            window_seconds=60,
-            max_requests=10,
-            apply_to_anonymous=True
-        ),
-        "/api/v1/img/change_clothes_generate": RateLimitRule(
-            window_seconds=60,
-            max_requests=10,
-            apply_to_anonymous=True
-        ),
         # 登陆接口限流
         "/api/v1/user/login": RateLimitRule(
             window_seconds=300,

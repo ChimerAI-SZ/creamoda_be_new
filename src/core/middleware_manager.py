@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from src.config.config import settings
 from src.config.log_config import logger
 from src.middleware.exception_handler import exception_handler, validation_exception_handler
+from src.middleware.gen_img_rate_limit_middleware import GenImgRateLimitMiddleware
 from src.middleware.log_middleware import log_middleware
 from src.middleware.auth_middleware import AuthMiddleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
@@ -20,19 +21,19 @@ class MiddlewareManager:
         
         Args:
             app: FastAPI应用实例
+            先注册后执行
         """
         try:
             logger.info("Registering middlewares...")
             
-            # 添加全局异常处理器
-            app.add_exception_handler(RequestValidationError, validation_exception_handler)
-            app.add_exception_handler(Exception, exception_handler)
-            logger.info("Registered global exception handler")
+            # 生成图片限流中间件
+            app.middleware("http")(GenImgRateLimitMiddleware())
+            logger.info("Registered gen img rate limit middleware")
             
-            # 添加日志中间件
-            app.middleware("http")(log_middleware)
-            logger.info("Registered log middleware")
-            
+            # 通用限流中间件
+            app.middleware("http")(RateLimitMiddleware())
+            logger.info("Registered rate limit middleware")
+
             # 添加认证中间件
             protected_paths = [
                 "/api/v1/user/info",
@@ -59,11 +60,17 @@ class MiddlewareManager:
             app.middleware("http")(AuthMiddleware(protected_paths).__call__)
             logger.info(f"Registered auth middleware with {len(protected_paths)} protected paths")
             
-            # 限流中间件放在认证中间件之后注册，确保先认证再限流
-            app.middleware("http")(RateLimitMiddleware())
-            logger.info("Registered rate limit middleware")
-            
-            
+            # 添加请求验证异常处理器
+            app.add_exception_handler(RequestValidationError, validation_exception_handler)
+            logger.info("Registered validation exception handler")
+
+            # 添加日志中间件
+            app.middleware("http")(log_middleware)
+            logger.info("Registered log middleware")
+
+            # 添加全局异常处理器
+            app.add_exception_handler(Exception, exception_handler)
+            logger.info("Registered global exception handler")
             
             logger.info("All middlewares registered successfully")
         except Exception as e:
