@@ -11,12 +11,12 @@ class Creator(BaseModel):
 class CommunityListItem(BaseModel):
     """账单历史项DTO"""
     genImgId: int = Field(..., description="图片id")
-    picUrl: str = Field(..., description="图片链接")
-    isCollected: str = Field(..., description="是否收藏 1-是 0-否")
-    seoImgUid: str = Field(..., description="seo图片uid")
+    picUrl: Optional[str] = Field(..., description="图片链接")
+    isCollected: Optional[int] = Field(..., description="是否收藏 1-是 0-否")
+    seoImgUid: Optional[str] = Field(..., description="seo图片uid")
     creator: Optional[Creator] = Field(..., description="创建者")
-    islike: int = Field(..., description="是否点赞 1-是 0-否")
-    likeCount: int = Field(..., description="点赞数量")
+    islike: Optional[int] = Field(..., description="是否点赞 1-是 0-否")
+    likeCount: Optional[int] = Field(..., description="点赞数量")
     
 class CommunityListData(BaseModel):
     total: int = Field(..., description="总记录数")
@@ -27,15 +27,15 @@ class CommunityListResponse(CommonResponse[CommunityListData]):
 
 class CommunityDetailResponseData(BaseModel):
     genImgId: int = Field(..., description="图片id")
-    genType: List[str] = Field(..., description="生成类型")
-    prompt: str = Field(..., description="提示词")
-    originalImgUrl: str = Field(..., description="原始图片链接")
-    materials: List[str] = Field(..., description="材质")
-    trendStyles: List[str] = Field(..., description="流行风格")
-    description: str = Field(..., description="描述")
-    isLike: int = Field(..., description="是否点赞 1-是 0-否")
-    likeCount: int = Field(..., description="点赞数量")
-    isCollected: str = Field(..., description="是否收藏 1-是 0-否")
+    genType: Optional[List[str]] = Field(..., description="生成类型")
+    prompt: Optional[str] = Field(..., description="提示词")
+    originalImgUrl: Optional[str] = Field(..., description="原始图片链接")
+    materials: Optional[List[str]] = Field(..., description="材质")
+    trendStyles: Optional[List[str]] = Field(..., description="流行风格")
+    description: Optional[str] = Field(..., description="描述")
+    isLike: Optional[int] = Field(..., description="是否点赞 1-是 0-否")
+    likeCount: Optional[int] = Field(..., description="点赞数量")
+    isCollected: Optional[int] = Field(..., description="是否收藏 1-是 0-否")
     creator: Optional[Creator] = Field(..., description="创建者")
 
 class CommunityDetailResponse(CommonResponse[CommunityDetailResponseData]):

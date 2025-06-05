@@ -1,7 +1,9 @@
 
 
 from requests import Session
+from sqlalchemy import and_
 
+from src.constants.gen_img_type import GenImgType
 from src.dto.community import CommunityDetailResponseData, CommunityListData, CommunityListItem, Creator
 from src.models.models import CollectImg, CommunityImg, GenImgRecord, GenImgResult, ImgMaterialTags, ImgStyleTags, LikeImg, Material, TrendStyle, UserInfo
 from src.services.like_img_service import LikeImgService
@@ -14,13 +16,21 @@ class CommunityService:
 
         query = db.query(CommunityImg, GenImgResult, CollectImg, LikeImg, UserInfo).join(
             GenImgResult, CommunityImg.gen_img_id == GenImgResult.id
-        ).join(
-            CollectImg, CollectImg.gen_img_id == GenImgResult.id and CollectImg.user_id == uid
-        ).join(
-            LikeImg, LikeImg.gen_img_id == GenImgResult.id and LikeImg.uid == uid
+        ).outerjoin(
+            CollectImg, 
+            and_(
+                CollectImg.gen_img_id == GenImgResult.id,
+                CollectImg.user_id == uid
+        )
+        ).outerjoin(
+            LikeImg, 
+            and_(
+                LikeImg.gen_img_id == GenImgResult.id,
+                LikeImg.uid == uid
+            )
         ).join(
             UserInfo, CommunityImg.uploader == UserInfo.id
-        ).filter(GenImgResult.id is not None, CollectImg.id is not None, LikeImg.id is not None, UserInfo.id is not None).order_by(CommunityImg.id.desc())
+        ).filter(GenImgResult.id is not None, UserInfo.id is not None).order_by(CommunityImg.id.desc())
         
         # 计算总记录数
         total_count = query.count()
@@ -35,7 +45,7 @@ class CommunityService:
             like_count = await LikeImgService.get_like_count(db, gen_img_result.id)
             item = CommunityListItem(
                 genImgId=gen_img_result.id,
-                picUrl=gen_img_result.pic_url,
+                picUrl=gen_img_result.result_pic,
                 isCollected=1 if collect_img else 0,
                 seoImgUid=gen_img_result.seo_img_uid,
                 creator=Creator(
@@ -94,13 +104,13 @@ class CommunityService:
             likeImg = False
             collectImg = None
 
-        
+        gen_type = GenImgType.get_by_type_and_variation_type(genImgRecord.type, genImgRecord.variation_type)
 
         result = CommunityDetailResponseData(
             genImgId=imgResult.id,
-            genType=genImgRecord.gen_type,
+            genType=gen_type.path.split(",") if gen_type.path else None,
             prompt=genImgRecord.original_prompt,
-            originalImgUrl=imgResult.pic_url,
+            originalImgUrl=imgResult.result_pic,
             materials=materials_list,
             trendStyles=trend_styles_list,
             description=imgResult.description,

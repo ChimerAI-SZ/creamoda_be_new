@@ -18,10 +18,8 @@ async def list(
 ):
     # 获取当前用户信息
     user = get_current_user_context()
-    if not user:
-        raise AuthenticationError()
     
-    communityListData =  await CommunityService.query_community_list(db, user.id, page, pageSize)
+    communityListData =  await CommunityService.query_community_list(db, user.id if user else None, page, pageSize)
     return CommunityListResponse(
         code=0,
         data=communityListData
