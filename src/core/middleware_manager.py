@@ -27,7 +27,21 @@ class MiddlewareManager:
             logger.info("Registering middlewares...")
             
             # 生成图片限流中间件
-            app.middleware("http")(GenImgRateLimitMiddleware())
+            gen_img_paths = ["/api/v1/img/txt_generate",
+                             "/api/v1/img/copy_style_generate",
+                             "/api/v1/img/change_clothes_generate",
+                             "/api/v1/img/fabric_to_design",
+                             "/api/v1/img/virtual_try_on",
+                             "/api/v1/img/sketch_to_design",
+                             "/api/v1/img/mix_image",
+                             "/api/v1/img/style_transfer",
+                             "/api/v1/img/fabric_transfer",
+                             "/api/v1/img/change_color",
+                             "/api/v1/img/change_background",
+                             "/api/v1/img/remove_background",
+                             "/api/v1/img/particial_modification",
+                             "/api/v1/img/upscale"]
+            app.middleware("http")(GenImgRateLimitMiddleware(gen_img_paths))
             logger.info("Registered gen img rate limit middleware")
             
             # 通用限流中间件

@@ -32,12 +32,12 @@ async def process_image_generation_compensate():
                 # 条件1：状态为待生成(1)或生成失败(4)，更新时间超过10秒，且失败次数小于3次
                 ((GenImgResult.status == 1) | (GenImgResult.status == 4)) &
                 (GenImgResult.update_time < short_timeout_threshold) &
-                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count < 3)),
+                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count <= 3)),
                 
                 # 条件2：状态为生成中(2)，更新时间超过600秒，且失败次数小于3次
                 (GenImgResult.status == 2) &
                 (GenImgResult.update_time < long_timeout_threshold) &
-                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count < 3))
+                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count <= 3))
             )
         ).all()
         

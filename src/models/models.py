@@ -34,6 +34,19 @@ class CollectImg(Base):
     create_time = mapped_column(DateTime)
 
 
+class CommunityImg(Base):
+    __tablename__ = 'community_img'
+    __table_args__ = (
+        Index('community_img_uploader_index', 'uploader'),
+        {'comment': '社区图库'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    uploader = mapped_column(BigInteger, nullable=False, comment='上传者uid')
+    gen_img_id = mapped_column(BigInteger, comment='生图结果id')
+    create_time = mapped_column(DateTime)
+
+
 class Constant(Base):
     __tablename__ = 'constant'
     __table_args__ = (
@@ -139,8 +152,57 @@ class GenImgResult(Base):
     status = mapped_column(TINYINT, comment='1-待生成 2-生成中 3-已生成')
     result_pic = mapped_column(Text, comment='生成结果图片')
     fail_count = mapped_column(Integer, server_default=text("'0'"), comment='失败次数')
+    seo_img_uid = mapped_column(String(500), comment='seo图片唯一id')
+    description = mapped_column(Text, comment='图片描述')
     create_time = mapped_column(TIMESTAMP)
     update_time = mapped_column(TIMESTAMP)
+
+
+class ImgMaterialTags(Base):
+    __tablename__ = 'img_material_tags'
+    __table_args__ = (
+        Index('img_material_tags_gen_img_id_material_id_index', 'gen_img_id', 'material_id'),
+        {'comment': '图片材质关联表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    gen_img_id = mapped_column(BigInteger, nullable=False)
+    material_id = mapped_column(BigInteger, comment='材质id')
+
+
+class ImgStyleTags(Base):
+    __tablename__ = 'img_style_tags'
+    __table_args__ = (
+        Index('img_style_tags_gen_img_id_index', 'gen_img_id'),
+        Index('img_style_tags_style_id_index', 'style_id'),
+        {'comment': '图片风格关联表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    gen_img_id = mapped_column(BigInteger, nullable=False, comment='图片结果id')
+    style_id = mapped_column(BigInteger, comment='风格id')
+
+
+class LikeImg(Base):
+    __tablename__ = 'like_img'
+    __table_args__ = (
+        Index('like_img_gen_img_id_index', 'gen_img_id'),
+        Index('like_img_uid_index', 'uid'),
+        {'comment': '图片点赞表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    gen_img_id = mapped_column(BigInteger, nullable=False, comment='图片id')
+    uid = mapped_column(BigInteger, comment='用户id')
+    create_time = mapped_column(DateTime)
+
+
+class Material(Base):
+    __tablename__ = 'material'
+    __table_args__ = {'comment': '材质表'}
+
+    id = mapped_column(BigInteger, primary_key=True)
+    name = mapped_column(String(100))
 
 
 class Subscribe(Base):
@@ -174,8 +236,16 @@ class SubscribeHistory(Base):
     id = mapped_column(BigInteger, primary_key=True)
     uid = mapped_column(BigInteger, nullable=False)
     level = mapped_column(Integer, comment='订阅等级 0-无 1-基础 2-专业 3-企业')
-    action = mapped_column(Integer, comment='动作 0-取消订阅 1-订阅')
+    action = mapped_column(Integer, comment='动作 1-订阅 2-取消订阅')
     create_time = mapped_column(DateTime)
+
+
+class TrendStyle(Base):
+    __tablename__ = 'trend_style'
+    __table_args__ = {'comment': '趋势风格'}
+
+    id = mapped_column(BigInteger, primary_key=True)
+    name = mapped_column(String(100))
 
 
 class UploadRecord(Base):
