@@ -227,3 +227,33 @@ class DelImageResponse(BaseModel):
     """删除图片响应DTO"""
     code: int
     msg: str
+    
+class ChangePatternRequest(BaseModel):
+    """改变版型请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+
+class ChangePatternResponse(BaseModel):
+    """改变版型响应DTO"""
+    code: int
+    msg: str
+
+class ChangeFabricRequest(BaseModel):
+    """改变面料请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    fabricPicUrl: str = Field(..., description="面料图片URL")
+    maskPicUrl: str = Field(..., description="蒙版图片URL")
+
+class ChangeFabricResponse(BaseModel):
+    """改变面料响应DTO"""
+    code: int
+    msg: str
+
+
+class ChangePrintingRequest(BaseModel):
+    """改变印花请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+
+class ChangePrintingResponse(BaseModel):
+    """改变印花响应DTO"""
+    code: int
+    msg: str

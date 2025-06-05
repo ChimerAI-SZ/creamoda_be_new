@@ -79,6 +79,9 @@ class ImageGenerationSettings(BaseModel):
     sketch_to_design_count: int = 1
     mix_image_count: int = 1
     estimated_time_seconds: int = 20
+    change_pattern_count: int = 1
+    change_fabric_count: int = 1
+    change_printing_count: int = 1
 
 class Settings(BaseModel):
     api: APISettings
@@ -124,7 +127,7 @@ def get_settings() -> Settings:
     
     # 加载配置文件
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config_dict = yaml.safe_load(f)
         return Settings(**config_dict)
     except Exception as e:

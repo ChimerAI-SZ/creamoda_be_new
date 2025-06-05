@@ -908,6 +908,7 @@ class InfiniAI:
             return None
 
 
+
 # Example usage
 if __name__ == "__main__":
     import requests
@@ -987,6 +988,8 @@ if __name__ == "__main__":
         prompt = "forest"
         seed = random.randint(0, 2147483647)
         change_background_prompt_id = infini_ai.comfy_request_change_background(image_url, background_image_url, prompt,
+                  
+                  
                                                                                 seed)
         result_urls = infini_ai.get_task_result(change_background_prompt_id)
         return result_urls[0]
