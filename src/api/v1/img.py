@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from src.exceptions.base import CustomException
 
-from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, DelImageRequest, DelImageResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, DelImageRequest, DelImageResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse, ChangePatternRequest, ChangePatternResponse, ChangeFabricRequest, ChangeFabricResponse, ChangePrintingRequest, ChangePrintingResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -708,6 +708,7 @@ async def particial_modification(
         logger.error(f"Failed to process particial modification: {str(e)}")
         raise e
     
+  
 @router.post("/upscale", response_model=UpscaleResponse)
 async def upscale(
     request: UpscaleRequest,
@@ -739,4 +740,96 @@ async def upscale(
     
     except Exception as e:
         logger.error(f"Failed to process upscale: {str(e)}")
+        raise e
+    
+@router.post("/change_pattern", response_model=ChangePatternResponse)
+async def change_pattern(
+    request: ChangePatternRequest,
+    db: Session = Depends(get_db)
+):
+    """改变版型接口 - 改变图片中的版型"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_change_pattern_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl
+        )
+        
+        # 返回任务信息
+        return ChangePatternResponse(
+            code=0,
+            msg="Change pattern task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change pattern: {str(e)}")
+        raise e
+
+@router.post("/change_fabric", response_model=ChangeFabricResponse)
+async def change_fabric(
+    request: ChangeFabricRequest,
+    db: Session = Depends(get_db)
+):
+    """改变面料接口 - 改变图片中的面料"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_change_fabric_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            fabric_pic_url=request.fabricPicUrl,
+            mask_pic_url=request.maskPicUrl
+        )
+        
+        # 返回任务信息
+        return ChangeFabricResponse(
+            code=0,
+            msg="Change fabric task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change fabric: {str(e)}")
+        raise e
+
+@router.post("/change_printing", response_model=ChangePrintingResponse)
+async def change_printing(
+    request: ChangePrintingRequest,
+    db: Session = Depends(get_db)
+):
+    """改变印花接口 - 改变图片中的印花"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变印花任务
+        task_info = await ImageService.create_change_printing_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+        )
+        
+        # 返回任务信息
+        return ChangePrintingResponse(
+            code=0,
+            msg="Change printing task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change printing: {str(e)}")
         raise e

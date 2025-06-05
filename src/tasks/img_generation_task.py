@@ -63,7 +63,6 @@ async def process_image_generation_compensate():
                 # 如果失败次数大于等于3，更新状态为4
                 if result.fail_count >= 3:
                     result.status = 4
-
                     db.commit()
                     db.refresh(result)
                     continue
@@ -92,8 +91,13 @@ async def process_image_generation_compensate():
                     await ImageService.process_particial_modification(result.id)
                 elif task.type == GenImgType.UPSCALE.value.type and task.variation_type == GenImgType.UPSCALE.value.variationType:
                     await ImageService.process_upscale(result.id)
+                elif task.type == 2 and task.variation_type == 6:
+                    await ImageService.process_change_pattern(result.id)
+                elif task.type == 2 and task.variation_type == 7:
+                    await ImageService.process_change_fabric(result.id)
+                elif task.type == 2 and task.variation_type == 8:
+                    await ImageService.process_change_printing(result.id)
                 else:
-
                     logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                     continue
             except Exception as e:
