@@ -40,7 +40,10 @@ class MiddlewareManager:
                              "/api/v1/img/change_background",
                              "/api/v1/img/remove_background",
                              "/api/v1/img/particial_modification",
-                             "/api/v1/img/upscale"]
+                             "/api/v1/img/upscale",
+                             "/api/v1/img/change_pattern",
+                             "/api/v1/img/change_fabric",
+                             "/api/v1/img/change_printing"]
             app.middleware("http")(GenImgRateLimitMiddleware(gen_img_paths))
             logger.info("Registered gen img rate limit middleware")
             
