@@ -2738,3 +2738,491 @@ class ImageService:
         finally:
             db.close() 
        
+    @staticmethod
+    async def create_change_pattern_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str
+    ) -> Dict[str, Any]:
+        """创建局部修改任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=2,  # 2-图生图
+            variation_type=6,  # 6-change pattern
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.change_pattern_count if hasattr(settings.image_generation, "change_pattern_count") else 1
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_change_pattern(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change pattern task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_change_pattern(result_id: int):
+        """处理改变版型任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                
+                # 调用改变版型
+                result_pic = await adapter.comfy_request_pattern_variation(
+                    original_image_url=task.original_pic_url,
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Change pattern completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Change pattern failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Change pattern failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in change pattern for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing change pattern for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
+      
+    @staticmethod
+    async def create_change_fabric_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        fabric_pic_url: str,
+        mask_pic_url: str
+    ) -> Dict[str, Any]:
+        """创建局部修改任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            fabric_pic_url: 面料图片URL
+            mask_pic_url: 蒙版图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=2,  # 2-图生图
+            variation_type=7,  # 7-change fabric
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            fabric_pic_url=fabric_pic_url,
+            mask_pic_url=mask_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.change_fabric_count if hasattr(settings.image_generation, "change_fabric_count") else 1
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_change_fabric(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change fabric task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_change_fabric(result_id: int):
+        """处理改变面料任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                
+                # 调用改变面料
+                result_pic = await adapter.comfy_request_change_fabric(
+                    model_image_url=task.original_pic_url,
+                    model_mask_url=task.mask_pic_url,
+                    fabric_image_url=task.fabric_pic_url
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Change fabric completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Change fabric failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Change fabric failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in change fabric for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing change fabric for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
+
+    @staticmethod
+    async def create_change_printing_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+    ) -> Dict[str, Any]:
+        """创建局部修改任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=2,  # 2-图生图
+            variation_type=8,  # 8-change printing
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.change_printing_count if hasattr(settings.image_generation, "change_printing_count") else 1
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_change_printing(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change fabric task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_change_printing(result_id: int):
+        """处理改变印花任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_printing_variation(
+                    model_image_url=task.original_pic_url
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Change printing completed for result {result_id}, task {task.id}")
+                
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Change printing failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Change printing failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in change printing for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing change printing for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
+       

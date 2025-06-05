@@ -110,6 +110,8 @@ class GenImgRecord(Base):
     original_prompt = mapped_column(Text)
     refer_pic_url = mapped_column(Text, comment='参考图片链接')
     clothing_photo = mapped_column(Text, comment='衣服图片链接')
+    fabric_pic_url = mapped_column(Text, comment='面料图片链接')
+    mask_pic_url = mapped_column(Text, comment='mask图片链接')
     cloth_type = mapped_column(String(50), comment='衣服类型')
     hex_color = mapped_column(String(50), comment='颜色')
     variation_type = mapped_column(Integer, comment='变化类型')
