@@ -7,7 +7,8 @@ from io import BytesIO
 from PIL import Image
 
 from src.config.config import settings  # Import settings
-from src.config.log_config import logger  # Import the logger
+from src.config.log_config import logger
+from src.exceptions.alg import AlgError  # Import the logger
 
 
 class InfiniAI:
@@ -95,7 +96,7 @@ class InfiniAI:
             logger.error(f"Request error during image upload: {e}")
             return None
 
-    def get_task_result(self, prompt_id: str, time_limit: int = 1800, check_interval: int = 2) -> list:
+    def get_task_result(self, prompt_id: str, time_limit: int = 600, check_interval: int = 2) -> list:
         """
         Get the result of a task using the prompt ID.
 
@@ -127,10 +128,14 @@ class InfiniAI:
                 response.raise_for_status()  # Check if request was successful
                 result = response.json()
                 status_code = result.get('data', {}).get('comfy_task_info', [{}])[0].get('status', None)
+                if status_code == 4:
+                    err_msg = result.get('data', {}).get('comfy_task_info', [{}])[0].get('errMsg', None)
+                    logger.error(f"Image generation failed：{err_msg}")
+                    raise AlgError(f"Image generation failed: {err_msg}")
                 time.sleep(check_interval)
                 if time.time() - start_time > time_limit:
                     logger.warning(f"Image generation exceeded time limit of {time_limit} seconds.")
-                    return f"Generate image out of time: {time_limit} seconds."
+                    raise AlgError(f"Generate image out of time: {time_limit} seconds.")
 
             final_files = result['data']['comfy_task_info'][0]['final_files']
 

@@ -29,15 +29,20 @@ async def process_image_generation_compensate():
         
         timeout_results = db.query(GenImgResult).filter(
             or_(
-                # 条件1：状态为待生成(1)或生成失败(4)，更新时间超过10秒，且失败次数小于3次
-                ((GenImgResult.status == 1) | (GenImgResult.status == 4)) &
+                # 条件1：状态为待生成(1)，更新时间超过10秒，且失败次数小于3次
+                (GenImgResult.status == 1) &
                 (GenImgResult.update_time < short_timeout_threshold) &
                 ((GenImgResult.fail_count == None) | (GenImgResult.fail_count <= 3)),
                 
                 # 条件2：状态为生成中(2)，更新时间超过600秒，且失败次数小于3次
                 (GenImgResult.status == 2) &
                 (GenImgResult.update_time < long_timeout_threshold) &
-                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count <= 3))
+                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count <= 3)),
+
+                # 条件3：状态为生成失败(4)，更新时间超过10秒，且失败次数小于3次
+                (GenImgResult.status == 4) &
+                (GenImgResult.update_time < short_timeout_threshold) &
+                ((GenImgResult.fail_count == None) | (GenImgResult.fail_count < 3))
             )
         ).all()
         
@@ -68,35 +73,31 @@ async def process_image_generation_compensate():
                     continue
 
                 if task.type == GenImgType.TEXT_TO_IMAGE.value.type:
-                    await ImageService.process_text_to_image_generation(result.id)
+                    asyncio.create_task(ImageService.process_text_to_image_generation(result.id))
                 elif task.type == GenImgType.COPY_STYLE.value.type and task.variation_type == GenImgType.COPY_STYLE.value.variationType:
-                    await ImageService.process_copy_style_generation(result.id)
+                    asyncio.create_task(ImageService.process_copy_style_generation(result.id))
                 elif task.type == GenImgType.CHANGE_CLOTHES.value.type and task.variation_type == GenImgType.CHANGE_CLOTHES.value.variationType:
-                    await ImageService.process_change_clothes_generation(
-                        result.id,
-                        replace=task.original_prompt,   # 使用原始提示词作为替换内容
-                        negative=None                   # 没有负面提示词
-                    )
+                    asyncio.create_task(ImageService.process_change_clothes_generation(result.id, replace=task.original_prompt, negative=None))
                 elif task.type == GenImgType.FABRIC_TO_DESIGN.value.type and task.variation_type == GenImgType.FABRIC_TO_DESIGN.value.variationType:
-                    await ImageService.process_fabric_to_design_generation(result.id)
+                    asyncio.create_task(ImageService.process_fabric_to_design_generation(result.id))
                 elif task.type == GenImgType.VIRTUAL_TRY_ON.value.type:
-                    await ImageService.process_virtual_try_on_generation(result.id)
+                    asyncio.create_task(ImageService.process_virtual_try_on_generation(result.id))
                 elif task.type == GenImgType.CHANGE_COLOR.value.type and task.variation_type == GenImgType.CHANGE_COLOR.value.variationType:
-                    await ImageService.process_change_color(result.id)
+                    asyncio.create_task(ImageService.process_change_color(result.id))
                 elif task.type == GenImgType.CHANGE_BACKGROUND.value.type and task.variation_type == GenImgType.CHANGE_BACKGROUND.value.variationType:
-                    await ImageService.process_change_background(result.id)
+                    asyncio.create_task(ImageService.process_change_background(result.id))
                 elif task.type == GenImgType.REMOVE_BACKGROUND.value.type and task.variation_type == GenImgType.REMOVE_BACKGROUND.value.variationType:
-                    await ImageService.process_remove_background(result.id)
+                    asyncio.create_task(ImageService.process_remove_background(result.id))
                 elif task.type == GenImgType.PARTIAL_MODIFICATION.value.type and task.variation_type == GenImgType.PARTIAL_MODIFICATION.value.variationType:
-                    await ImageService.process_particial_modification(result.id)
+                    asyncio.create_task(ImageService.process_particial_modification(result.id))
                 elif task.type == GenImgType.UPSCALE.value.type and task.variation_type == GenImgType.UPSCALE.value.variationType:
-                    await ImageService.process_upscale(result.id)
+                    asyncio.create_task(ImageService.process_upscale(result.id))
                 elif task.type == 2 and task.variation_type == 6:
-                    await ImageService.process_change_pattern(result.id)
+                    asyncio.create_task(ImageService.process_change_pattern(result.id))
                 elif task.type == 2 and task.variation_type == 7:
-                    await ImageService.process_change_fabric(result.id)
+                    asyncio.create_task(ImageService.process_change_fabric(result.id))
                 elif task.type == 2 and task.variation_type == 8:
-                    await ImageService.process_change_printing(result.id)
+                    asyncio.create_task(ImageService.process_change_printing(result.id))
                 else:
                     logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                     continue
