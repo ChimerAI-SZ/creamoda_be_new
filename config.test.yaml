@@ -102,6 +102,15 @@ image_generation:
   upscale:
     gen_count: 1          # 放大任务生成的图片数量
     use_credit: 1
+  change_pattern:
+    gen_count: 1          # 图案修改任务生成的图片数量
+    use_credit: 1
+  change_fabric:
+    gen_count: 1          # 面料修改任务生成的图片数量
+    use_credit: 1
+  change_printing:
+    gen_count: 1          # 印花修改任务生成的图片数量
+    use_credit: 1
   estimated_time_seconds: 20  # 预计完成时间(秒)
 
 paypal:

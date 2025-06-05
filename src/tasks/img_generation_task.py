@@ -92,11 +92,11 @@ async def process_image_generation_compensate():
                     asyncio.create_task(ImageService.process_particial_modification(result.id))
                 elif task.type == GenImgType.UPSCALE.value.type and task.variation_type == GenImgType.UPSCALE.value.variationType:
                     asyncio.create_task(ImageService.process_upscale(result.id))
-                elif task.type == 2 and task.variation_type == 6:
+                elif task.type == GenImgType.CHANGE_PATTERN.value.type and task.variation_type == GenImgType.CHANGE_PATTERN.value.variationType:
                     asyncio.create_task(ImageService.process_change_pattern(result.id))
-                elif task.type == 2 and task.variation_type == 7:
+                elif task.type == GenImgType.CHANGE_FABRIC.value.type and task.variation_type == GenImgType.CHANGE_FABRIC.value.variationType:
                     asyncio.create_task(ImageService.process_change_fabric(result.id))
-                elif task.type == 2 and task.variation_type == 8:
+                elif task.type == GenImgType.CHANGE_PRINTING.value.type and task.variation_type == GenImgType.CHANGE_PRINTING.value.variationType:
                     asyncio.create_task(ImageService.process_change_printing(result.id))
                 else:
                     logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")

@@ -24,7 +24,10 @@ class GenImgType(Enum):
     REMOVE_BACKGROUND = GenImgTypeConstant(4, 3, "背景去除", "design, magic kit, remove background")
     PARTIAL_MODIFICATION = GenImgTypeConstant(4, 4, "局部修改", "design, magic kit, partial modification")
     UPSCALE = GenImgTypeConstant(4, 5, "图片放大", "design, magic kit, upscale")
-    FABRIC_TRANSFER = GenImgTypeConstant(5, None, "面料风格迁移", "design, magic kit, fabric transfer")
+    CHANGE_PATTERN = GenImgTypeConstant(4, 6, "图案修改", "design, magic kit, change pattern")
+    CHANGE_FABRIC = GenImgTypeConstant(4, 7, "面料修改", "design, magic kit, change fabric")
+    CHANGE_PRINTING = GenImgTypeConstant(4, 8, "印花修改", "design, magic kit, change printing")
+    FABRIC_TRANSFER = GenImgTypeConstant(5, None, "面料风格迁移", "design, fabric transfer")
 
     @classmethod
     def get_by_type_and_variation_type(cls, type: int, variation_type: int) -> GenImgTypeConstant:

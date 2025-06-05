@@ -147,7 +147,7 @@ def get_settings() -> Settings:
     
     # 加载配置文件
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
+        with open(config_file, 'r') as f:
             config_dict = yaml.safe_load(f)
         return Settings(**config_dict)
     except Exception as e:
