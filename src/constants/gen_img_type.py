@@ -24,6 +24,10 @@ class GenImgType(Enum):
     PARTIAL_MODIFICATION = GenImgTypeConstant(4, 4, "局部修改")
     UPSCALE = GenImgTypeConstant(4, 5, "图片放大")
     FABRIC_TRANSFER = GenImgTypeConstant(5, None, "面料风格迁移")
+    CHANGE_PATTERN = GenImgTypeConstant(2, 6, "图案修改")
+    CHANGE_FABRIC = GenImgTypeConstant(2, 7, "面料修改")
+    CHANGE_PRINTING = GenImgTypeConstant(2, 8, "印花修改")
+
 
     @classmethod
     def get_by_type_and_variation_type(cls, type: int, variation_type: int) -> GenImgTypeConstant:
