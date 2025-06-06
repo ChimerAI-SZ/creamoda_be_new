@@ -41,3 +41,20 @@ class CommunityDetailResponseData(BaseModel):
 class CommunityDetailResponse(CommonResponse[CommunityDetailResponseData]):
     pass
 
+class LikeRequest(BaseModel):
+    genImgId: int = Field(..., description="图片id")
+
+class LikeResponse(CommonResponse[None]):
+    pass
+
+class CancelLikeRequest(BaseModel):
+    genImgId: int = Field(..., description="图片id")
+
+class CancelLikeResponse(CommonResponse[None]):
+    pass
+
+class ShareRequest(BaseModel):
+    genImgId: int = Field(..., description="图片id")
+
+class ShareResponse(CommonResponse[None]):
+    pass

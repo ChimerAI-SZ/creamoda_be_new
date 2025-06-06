@@ -1,8 +1,7 @@
-
-import datetime
+from datetime import datetime
 from sqlalchemy.orm import Session
 
-from src.models.models import LikeImg
+from src.models.models import CommunityImg, LikeImg
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -75,6 +74,13 @@ class LikeImgService:
             if existing_like:
                 logger.info(f"User {user_id} already liked img {img_id}")
                 return
+            
+            community_img = db.query(CommunityImg).filter(
+                CommunityImg.gen_img_id == img_id
+            ).first()
+
+            if not community_img:
+                raise CustomException(code=400, message=f"picture not found")
             
             # 2. 新增点赞记录
             new_like = LikeImg(

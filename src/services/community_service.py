@@ -1,10 +1,11 @@
 
-
+from datetime import datetime
 from requests import Session
 from sqlalchemy import and_
 
 from src.constants.gen_img_type import GenImgType
 from src.dto.community import CommunityDetailResponseData, CommunityListData, CommunityListItem, Creator
+from src.exceptions.base import CustomException
 from src.models.models import CollectImg, CommunityImg, GenImgRecord, GenImgResult, ImgMaterialTags, ImgStyleTags, LikeImg, Material, TrendStyle, UserInfo
 from src.services.like_img_service import LikeImgService
 
@@ -125,3 +126,32 @@ class CommunityService:
         )
 
         return result
+    
+    @staticmethod
+    async def share_image(db: Session, genImgId: int, uid: int):
+        # 1. 查询图片
+        imgResult = db.query(GenImgResult).filter(GenImgResult.id == genImgId).first()
+        if not imgResult:
+            raise CustomException(code=400, message="picture not found")
+        if imgResult.uid != uid:
+            raise CustomException(code=400, message="picture not belong to current user")
+        if not imgResult.seo_img_uid:
+            raise CustomException(code=400, message="picture cant share")
+        
+        # 2. 查询社区是否已存在
+        communityImg = db.query(CommunityImg).filter(CommunityImg.gen_img_id == genImgId).first()
+        if communityImg:
+            raise CustomException(code=400, message="picture already shared")
+        
+        # 3. 创建社区图片
+        communityImg = CommunityImg(
+            gen_img_id=genImgId,
+            uploader=uid,
+            create_time=datetime.now(),
+        )
+
+        db.add(communityImg)
+        db.commit()
+        db.refresh(communityImg)
+
+        return communityImg

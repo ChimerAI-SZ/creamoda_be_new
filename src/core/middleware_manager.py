@@ -62,6 +62,9 @@ class MiddlewareManager:
                 "/api/v1/paypal/capture",  # paypal捕获接口
                 "/api/v1/common/contact",
                 "/api/v1/common/img/upload",
+                "/api/v1/community/like",
+                "/api/v1/community/cancel_like",
+                "/api/v1/community/share",
                 "/api/v1/common/enum/*",  # 枚举接口公开访问
                 "/api/v1/backdoor/*"  # 后门接口公开访问
             ]
