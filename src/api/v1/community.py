@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from fastapi import Request
 from fastapi import APIRouter, Depends, Query
 
 from src.core.context import get_current_user_context
@@ -15,13 +16,14 @@ router = APIRouter()
 
 @router.get("/list", response_model=CommunityListResponse)
 async def list(
+    request: Request,
     page: int = 1,
     pageSize: int = 10,
     db: Session = Depends(get_db)
 ):
     # 获取当前用户信息
     try:
-        user = get_user_info_from_request()
+        user = get_user_info_from_request(request)
     except Exception as e:
         user = None
     
@@ -33,12 +35,13 @@ async def list(
 
 @router.get("/detail", response_model=CommunityDetailResponse)
 async def detail(
+    request: Request,
     seoImgUid: str,
     db: Session = Depends(get_db)
 ):
     # 获取当前用户信息
     try:
-        user = get_user_info_from_request()
+        user = get_user_info_from_request(request)
     except Exception as e:
         user = None
     
