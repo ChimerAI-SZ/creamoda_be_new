@@ -117,6 +117,13 @@ class TaskManager:
     async def shutdown_scheduler():
         """关闭调度器，停止所有定时任务"""
         try:
+            # 关闭 RabbitMQ 服务
+            try:
+                await rabbitmq_service.shutdown()
+                logger.info("RabbitMQ service shutdown completed")
+            except Exception as e:
+                logger.error(f"Error shutting down RabbitMQ service: {str(e)}")
+            
             if scheduler.running:
                 scheduler.shutdown()
                 logger.info("APScheduler shutdown completed")

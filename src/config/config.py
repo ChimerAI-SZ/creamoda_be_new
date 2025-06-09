@@ -102,6 +102,29 @@ class PayPalSettings(BaseModel):
     return_url: str = ""
     cancel_url: str = ""
 
+class RabbitMQSettings(BaseModel):
+    """RabbitMQ 配置"""
+    enabled: bool = True
+    host: str = "localhost"
+    port: int = 5672
+    username: str = "guest"
+    password: str = "guest"
+    virtual_host: str = "/"
+    exchange_name: str = "creamoda_exchange"
+    heartbeat: int = 600
+    blocked_connection_timeout: int = 300
+    prefetch_count: int = 10
+    
+    # 队列配置
+    queues: dict = {
+        "image_generation": {
+            "name": "img_gen",
+            "routing_key": "img.gen.finish",
+            "durable": True,
+            "max_priority": 10
+        }
+    }
+
 class Settings(BaseModel):
     api: APISettings
     google_oauth2: GoogleOAuth2Settings
@@ -114,6 +137,7 @@ class Settings(BaseModel):
     oss: OSSSettings = OSSSettings()
     image_generation: ImageGenerationSettings
     paypal: PayPalSettings
+    rabbitmq: RabbitMQSettings = RabbitMQSettings()
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

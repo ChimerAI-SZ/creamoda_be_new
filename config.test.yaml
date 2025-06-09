@@ -120,3 +120,22 @@ paypal:
   webhook_id: "3MV48135CR7843824"
   return_url: "https://test-mvp.creamoda.ai/paypal/return"
   cancel_url: "https://test-mvp.creamoda.ai/paypal/cancel"
+
+# RabbitMQ 配置
+rabbitmq:
+  enabled: true
+  host: "rabbitmq-cn-kf74am6dx0b.cn-hangzhou.amqp-31.net.mq.amqp.aliyuncs.com"
+  port: 5672
+  username: "MjpyYWJiaXRtcS1jbi1rZjc0YW02ZHgwYjpMVEFJNXRTOVdBbVd3amJWc3VLdjZZQmY="
+  password: "OTI3Q0Q5OEZCRjkzOEY0NjFFNDlCNDQ2RjEwNDIyMjI1MzQxNTYyQToxNzQ5NDM2NzMyMjIw"
+  virtual_host: "chimer_test"
+  exchange_name: "amq.topic"
+  heartbeat: 600
+  blocked_connection_timeout: 300
+  prefetch_count: 10
+  queues:
+    image_generation:
+      name: "image_generation_queue"
+      routing_key: "img.gen.finish"
+      durable: true
+      max_priority: 10

@@ -10,9 +10,9 @@ engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # 事件监听器，记录SQL查询
-@event.listens_for(Engine, "before_cursor_execute")
-def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    logger.info(f"Executing SQL: {statement} | Parameters: {parameters}")
+# @event.listens_for(Engine, "before_cursor_execute")
+# def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+#     logger.info(f"Executing SQL: {statement} | Parameters: {parameters}")
 
 class Base(DeclarativeBase):
     pass

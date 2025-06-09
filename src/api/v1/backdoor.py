@@ -1,15 +1,22 @@
 
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from requests import Session
+from typing import Dict, Any
 
 from src.core.context import get_current_user_context
+from src.core.rabbitmq_manager import MessagePriority
 from src.db.session import get_db
 from src.dto.backdoor import CreatePaypalPlanRequest, CreatePaypalPlanResponse, CreatePaypalPlanResponseData, CreatePaypalProductRequest, CreatePaypalProductResponse, CreatePaypalProductResponseData
+from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.pay.paypal_client import paypal_client
+from src.services.rabbitmq_service import rabbitmq_service
 from src.tasks.img_generation_task import img_generation_compensate_task
 from src.tasks.release_free_credit_task import release_free_credit_task
 from src.tasks.subscribe_status_refresh_task import subscribe_status_refresh_task
+from src.dto.common import CommonResponse
+from src.config.log_config import logger
 
 router = APIRouter()
 
@@ -81,3 +88,26 @@ async def process_img_generation_compensate_task(
     
     img_generation_compensate_task()
 
+@router.post("/test_send_mq")
+async def test_send_mq(
+):
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    if user.email != "417253782@qq.com":
+        raise AuthenticationError()
+    
+    task_data = {
+        "task_id": f"img_task_{int(datetime.now().timestamp())}",
+        "user_id": 12345,
+        "type": "text_to_image",
+        "parameters": {
+            "prompt": "A beautiful dress design with floral patterns",
+            "style": "modern",
+            "color_scheme": "pastel",
+            "resolution": "1024x1024"
+        }
+    }
+    
+    success = await rabbitmq_service.send_image_generation_message(task_data)
+    

@@ -66,3 +66,22 @@ image_generation:
   copy_fabric_count: 2        # 复制面料任务生成的图片数量
   virtual_try_on_count: 2     # 虚拟试穿任务生成的图片数量
   estimated_time_seconds: 20  # 预计完成时间(秒)
+
+# RabbitMQ 配置
+rabbitmq:
+  enabled: true
+  host: "localhost"  # 生产环境中应该使用实际的RabbitMQ服务器地址
+  port: 5672
+  username: "creamoda_user"  # 生产环境中应该使用专用用户
+  password: "your_secure_password"  # 生产环境中应该使用安全密码
+  virtual_host: "/creamoda"
+  exchange_name: "creamoda_exchange"
+  heartbeat: 600
+  blocked_connection_timeout: 300
+  prefetch_count: 10
+  queues:
+    image_generation:
+      name: "image_generation_queue"
+      routing_key: "img.gen.finish"
+      durable: true
+      max_priority: 10
