@@ -7,12 +7,16 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
+from src.alg.caption import FashionProductDescription
 from src.alg.ideogram_adapter import IdeogramAdapter
 from src.alg.replicate_adapter import ReplicateAdapter
 from src.constants.gen_img_type import GenImgType
+from src.exceptions.base import CustomException
+from src.services.rabbitmq_service import rabbitmq_service
 from src.services.credit_service import CreditService
+from src.utils.uid import generate_uid
 
-from ..models.models import CollectImg, GenImgRecord, GenImgResult  # 导入两个模型
+from ..models.models import CollectImg, GenImgRecord, GenImgResult, ImgMaterialTags, ImgStyleTags, Material, TrendStyle  # 导入两个模型
 from ..db.redis import redis_client
 from ..db.session import SessionLocal
 from ..config.log_config import logger
@@ -604,6 +608,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.text_to_image.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to generate image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -697,6 +704,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.fabric_to_design.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to generate fabric to design image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -788,6 +798,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.virtual_try_on.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to generate virtual try on image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -878,6 +891,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.sketch_to_design.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to generate sketch to design image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -973,6 +989,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.mix_image.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to generate mix image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1092,6 +1111,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.copy_style.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1277,6 +1299,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.change_clothes.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 logger.error(f"Failed to change clothes for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1670,6 +1695,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.style_transfer.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -1920,6 +1948,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.fabric_transfer.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2015,6 +2046,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.change_color.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2192,6 +2226,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.change_background.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2361,6 +2398,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.remove_background.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2538,6 +2578,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.particial_modification.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2709,6 +2752,9 @@ class ImageService:
                 
                 credit_value = settings.image_generation.upscale.use_credit
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -2874,7 +2920,11 @@ class ImageService:
                 db.commit()
                 
                 logger.info(f"Change pattern completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_pattern.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
                 
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -3042,7 +3092,11 @@ class ImageService:
                 db.commit()
                 
                 logger.info(f"Change fabric completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_fabric.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
                 
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -3202,7 +3256,11 @@ class ImageService:
                 db.commit()
                 
                 logger.info(f"Change printing completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_printing.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
                 
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
                 # 更新失败计数
                 result.fail_count = (result.fail_count or 0) + 1
@@ -3226,3 +3284,105 @@ class ImageService:
         finally:
             db.close() 
        
+    @staticmethod
+    async def process_caption(result_id: int):
+        """处理改变印花任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"process_caption, Result record {result_id} not found")
+                raise CustomException(f"process_caption, Result record {result_id} not found")
+            
+            if result.result_pic is None:
+                logger.error(f"process_caption, Result record {result_id} has no result_pic")
+                raise CustomException(f"process_caption, Result record {result_id} has no result_pic")
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"process_caption, Task {result.gen_id} not found for result {result_id}")
+                raise CustomException(f"process_caption, Task {result.gen_id} not found for result {result_id}")
+            
+            try:
+                # 调用改变印花
+                result = FashionProductDescription.caption(result.result_pic)
+                
+                if not result:
+                    raise Exception("No images caption from FashionProductDescription")
+                
+                await ImageService.deal_image_caption(db, result_id, result.trend_style, result.material, result.ai_design_description)
+                
+                db.commit()
+                
+                logger.info(f"process caption completed for result {result_id}, task {task.id}")
+            except Exception as e:
+                logger.error(f"Error in process caption for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing process caption for result {result_id}: {str(e)}")
+            raise e
+        finally:
+            db.close()
+
+    @staticmethod
+    async def deal_image_caption(db: Session, result_id: int, styles: List[str], materials: List[str], description: str):
+        """处理图片描述
+        
+        Args:
+            result_id: 结果记录ID
+            style: 风格
+            material: 面料
+            description: 描述"""
+        # 获取结果记录
+        result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+        
+        if not result:
+            logger.error(f"process_caption, Result record {result_id} not found")
+            raise CustomException(f"process_caption, Result record {result_id} not found")
+        
+        if result.result_pic is None:
+            logger.error(f"process_caption, Result record {result_id} has no result_pic")
+            raise CustomException(f"process_caption, Result record {result_id} has no result_pic")
+        
+        result.description = description
+
+        seo_img_uid = ""
+        for style in styles:
+            trend_style = db.query(TrendStyle).filter(TrendStyle.name == style).first()
+            if not trend_style:
+                trend_style = TrendStyle(name=style)
+                db.add(trend_style)
+                db.flush()
+            style_id = trend_style.id
+
+            img_style_tags = ImgStyleTags(
+                gen_img_id=result_id,
+                style_id=style_id
+            )
+            db.add(img_style_tags)
+            seo_img_uid += f"{style}-"
+
+        seo_img_uid += generate_uid()
+        result.seo_img_uid = seo_img_uid
+
+        for material in materials:
+            cloth_material = db.query(Material).filter(Material.name == material).first()
+            if not cloth_material:
+                cloth_material = Material(name=material)
+                db.add(cloth_material)
+                db.flush()
+            material_id = cloth_material.id
+
+            img_material_tags = ImgMaterialTags(
+                gen_img_id=result_id,
+                material_id=material_id
+            )
+            db.add(img_material_tags)

@@ -8,6 +8,7 @@ from src.core.context import get_current_user_context
 from src.core.rabbitmq_manager import MessagePriority
 from src.db.session import get_db
 from src.dto.backdoor import CreatePaypalPlanRequest, CreatePaypalPlanResponse, CreatePaypalPlanResponseData, CreatePaypalProductRequest, CreatePaypalProductResponse, CreatePaypalProductResponseData
+from src.dto.mq import ImageGenerationDto
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.pay.paypal_client import paypal_client
@@ -97,17 +98,7 @@ async def test_send_mq(
     if user.email != "417253782@qq.com":
         raise AuthenticationError()
     
-    task_data = {
-        "task_id": f"img_task_{int(datetime.now().timestamp())}",
-        "user_id": 12345,
-        "type": "text_to_image",
-        "parameters": {
-            "prompt": "A beautiful dress design with floral patterns",
-            "style": "modern",
-            "color_scheme": "pastel",
-            "resolution": "1024x1024"
-        }
-    }
+    task_data = {"genImgId":11}
     
     success = await rabbitmq_service.send_image_generation_message(task_data)
     

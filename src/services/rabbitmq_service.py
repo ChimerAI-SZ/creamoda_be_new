@@ -9,13 +9,14 @@ from datetime import datetime
 
 from src.core.rabbitmq_manager import rabbitmq_manager,MessageType, MessagePriority
 from src.config.log_config import logger
+from src.dto.mq import ImageGenerationDto
 
 
 class RabbitMQService:
     """RabbitMQ 服务类"""
     
     async def send_image_generation_message(self, 
-                                          task_data: Dict[str, Any],
+                                          task_data: ImageGenerationDto,
                                           priority: MessagePriority = MessagePriority.NORMAL) -> bool:
         """发送图像生成消息"""
         return await rabbitmq_manager.send_message(

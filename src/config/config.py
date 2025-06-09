@@ -89,6 +89,9 @@ class ImageGenerationSettings(BaseModel):
     remove_background: ImageGenerationItem = ImageGenerationItem()
     particial_modification: ImageGenerationItem = ImageGenerationItem()
     upscale: ImageGenerationItem = ImageGenerationItem()
+    change_pattern: ImageGenerationItem = ImageGenerationItem()
+    change_fabric: ImageGenerationItem = ImageGenerationItem()
+    change_printing: ImageGenerationItem = ImageGenerationItem()
     estimated_time_seconds: int = 20
     change_pattern_count: int = 1
     change_fabric_count: int = 1

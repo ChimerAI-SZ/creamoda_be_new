@@ -88,7 +88,7 @@ async def process_image_generation_compensate():
                     asyncio.create_task(ImageService.process_change_background(result.id))
                 elif task.type == GenImgType.REMOVE_BACKGROUND.value.type and task.variation_type == GenImgType.REMOVE_BACKGROUND.value.variationType:
                     asyncio.create_task(ImageService.process_remove_background(result.id))
-                elif task.type == GenImgType.PARTIAL_MODIFICATION.value.type and task.variation_type == GenImgType.PARTIAL_MODIFICATION.value.variationType:
+                elif task.type == GenImgType.PARTICIAL_MODIFICATION.value.type and task.variation_type == GenImgType.PARTICIAL_MODIFICATION.value.variationType:
                     asyncio.create_task(ImageService.process_particial_modification(result.id))
                 elif task.type == GenImgType.UPSCALE.value.type and task.variation_type == GenImgType.UPSCALE.value.variationType:
                     asyncio.create_task(ImageService.process_upscale(result.id))

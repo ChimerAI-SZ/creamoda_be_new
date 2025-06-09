@@ -22,7 +22,7 @@ class GenImgType(Enum):
     CHANGE_COLOR = GenImgTypeConstant(4, 1, "改变颜色", "design, magic kit, change color")
     CHANGE_BACKGROUND = GenImgTypeConstant(4, 2, "背景替换", "design, magic kit, change background")
     REMOVE_BACKGROUND = GenImgTypeConstant(4, 3, "背景去除", "design, magic kit, remove background")
-    PARTIAL_MODIFICATION = GenImgTypeConstant(4, 4, "局部修改", "design, magic kit, partial modification")
+    PARTICIAL_MODIFICATION = GenImgTypeConstant(4, 4, "局部修改", "design, magic kit, partial modification")
     UPSCALE = GenImgTypeConstant(4, 5, "图片放大", "design, magic kit, upscale")
     CHANGE_PATTERN = GenImgTypeConstant(4, 6, "图案修改", "design, magic kit, change pattern")
     CHANGE_FABRIC = GenImgTypeConstant(4, 7, "面料修改", "design, magic kit, change fabric")
