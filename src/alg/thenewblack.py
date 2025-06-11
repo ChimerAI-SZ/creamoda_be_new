@@ -28,6 +28,28 @@ class ClothingType(Enum):
     BOTTOMS = 'bottoms'
     ONE_PIECES = 'one-pieces'
 
+# 创建全局线程池，避免频繁创建销毁
+_global_thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=50, thread_name_prefix="tnb_api")
+
+# 在全局线程池定义后添加监控函数
+def get_thread_pool_status():
+    """获取线程池状态信息"""
+    if hasattr(_global_thread_pool, '_threads'):
+        active_threads = len(_global_thread_pool._threads)
+    else:
+        active_threads = 'unknown'
+    
+    if hasattr(_global_thread_pool, '_work_queue'):
+        queue_size = _global_thread_pool._work_queue.qsize()
+    else:
+        queue_size = 'unknown'
+    
+    return {
+        'active_threads': active_threads,
+        'queue_size': queue_size,
+        'max_workers': _global_thread_pool._max_workers,
+        'shutdown': _global_thread_pool._shutdown
+    }
 
 class TheNewBlackAPI:
     def __init__(self, email: str = None, password: str = None, timeout: int = 300):
@@ -94,7 +116,7 @@ class TheNewBlackAPI:
         except requests.exceptions.Timeout:
             logger.error(f"Request to TheNewBlack API timed out after {self.timeout} seconds")
             raise TimeoutError(f"Request timed out after {self.timeout} seconds")
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logger.error(f"Error calling TheNewBlack API: {str(e)}")
             raise
         finally:
@@ -589,35 +611,64 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            # 使用concurrent.futures直接调用，不依赖于事件循环获取
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.create_clothing,
-                    width=width if width != None else self.default_width,
-                    height=height if height != None else self.default_height,
-                    outfit=outfit_prompt,
-                    gender=gender_enum,
-                    country=country,
-                    age=age,
-                    body_type=body_type
+            # 记录线程池状态
+            pool_status = get_thread_pool_status()
+            logger.info(f"Thread pool status before submit: {pool_status}")
+            
+            # 检查线程池是否可用
+            if _global_thread_pool._shutdown:
+                logger.error("Thread pool is shutdown!")
+                raise Exception("Thread pool is not available")
+            
+            future = _global_thread_pool.submit(
+                self.api.create_clothing,
+                width=width if width != None else self.default_width,
+                height=height if height != None else self.default_height,
+                outfit=outfit_prompt,
+                gender=gender_enum,
+                country=country,
+                age=age,
+                body_type=body_type
+            )
+
+            logger.info(f"Future created: {future}")
+            logger.info(f"Future running: {future.running()}")
+            logger.info(f"Future done: {future.done()}")
+            logger.info(f"Future cancelled: {future.cancelled()}")
+            
+            # 等待一小段时间再检查
+            await asyncio.sleep(0.1)
+            logger.info(f"After 0.1s - Future running: {future.running()}, done: {future.done()}")
+            
+            # 检查线程池状态
+            pool_status_after = get_thread_pool_status()
+            logger.info(f"Thread pool status after submit: {pool_status_after}")
+
+            try:
+                image_url = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                raise e
 
-                # 添加超时处理，避免无限等待
-                image_url = await asyncio.wrap_future(future)
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                image_url,
+                f"tnb_clothing_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    image_url,
-                    f"tnb_clothing_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                return image_url
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
-                    return image_url
-
-                # 记录成功结果
-                logger.info(f"Successfully generated image for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully generated image for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常
@@ -654,30 +705,40 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.create_variation,
-                    image_url=image_url,
-                    prompt=prompt,
-                    deviation=deviation
+            future = _global_thread_pool.submit(
+                self.api.create_variation,
+                image_url=image_url,
+                prompt=prompt,
+                deviation=deviation
+            )
+
+            try:
+                image_url = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                future.cancel()
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                future.cancel()
+                raise e
 
-                # 添加超时处理，避免无限等待
-                image_url = await asyncio.wrap_future(future)
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                image_url,
+                f"tnb_variation_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    image_url,
-                    f"tnb_variation_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                return image_url
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
-                    return image_url
-
-                # 记录成功结果
-                logger.info(f"Successfully generated image variation for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully generated image variation for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常
@@ -712,31 +773,41 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.change_clothes,
-                    image_url=image_url,
-                    remove=remove,
-                    replace=replace,
-                    negative=negative
+            future = _global_thread_pool.submit(
+                self.api.change_clothes,
+                image_url=image_url,
+                remove=remove,
+                replace=replace,
+                negative=negative
+            )
+
+            try:
+                image_url = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                future.cancel()
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                future.cancel()
+                raise e
 
-                # 添加超时处理，避免无限等待
-                image_url = await asyncio.wrap_future(future)
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                image_url,
+                f"tnb_clothes_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    image_url,
-                    f"tnb_clothes_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                return image_url
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
-                    return image_url
-
-                # 记录成功结果
-                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常
@@ -774,32 +845,42 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.create_clothing_with_fabric,
-                    fabric_image_url=fabric_image_url,
-                    clothing_prompt=prompt,
-                    gender=gender_enum,
-                    country=country,
-                    age=age
+            future = _global_thread_pool.submit(
+                self.api.create_clothing_with_fabric,
+                fabric_image_url=fabric_image_url,
+                clothing_prompt=prompt,
+                gender=gender_enum,
+                country=country,
+                age=age
+            )
+
+            try:
+                image_url = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                future.cancel()
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                future.cancel()
+                raise e
 
-                # 添加超时处理，避免无限等待
-                image_url = await asyncio.wrap_future(future)
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                image_url,
+                f"tnb_clothes_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    image_url,
-                    f"tnb_clothes_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
+                return image_url
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {image_url}")
-                    return image_url
-
-                # 记录成功结果
-                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常
@@ -834,43 +915,53 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.start_virtual_try_on,
-                    model_image_url=model_image_url,
-                    clothing_image_url=clothing_image_url,
-                    clothing_type=clothing_type_enum
+            future = _global_thread_pool.submit(
+                self.api.start_virtual_try_on,
+                model_image_url=model_image_url,
+                clothing_image_url=clothing_image_url,
+                clothing_type=clothing_type_enum
+            )
+
+            try:
+                job_id = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                future.cancel()
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                future.cancel()
+                raise e
 
-                # 添加超时处理，避免无限等待
-                job_id = await asyncio.wrap_future(future)
+            # 获取虚拟试穿结果，每十秒获取一次，最多尝试300秒
+            start_time = time.time()
+            result_pic = None
+            while True:
+                result = self.api.get_results(job_id)
+                if result:
+                    result_pic = result
+                    break
+                await asyncio.sleep(10)
+                if time.time() - start_time > 360:
+                    logger.error(f"Virtual try on job {job_id} timed out after 360 seconds")
+                    raise Exception("Virtual try on job timed out")
 
-                # 获取虚拟试穿结果，每十秒获取一次，最多尝试300秒
-                start_time = time.time()
-                result_pic = None
-                while True:
-                    result = self.api.get_results(job_id)
-                    if result:
-                        result_pic = result
-                        break
-                    await asyncio.sleep(10)
-                    if time.time() - start_time > 360:
-                        logger.error(f"Virtual try on job {job_id} timed out after 360 seconds")
-                        raise Exception("Virtual try on job timed out")
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                result_pic,
+                f"tnb_clothes_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    result_pic,
-                    f"tnb_clothes_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
+                return result_pic
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
-                    return result_pic
-
-                # 记录成功结果
-                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常
@@ -902,29 +993,39 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.sketch_to_design,
-                    sketch_url=original_pic_url,
-                    prompt=prompt
+            future = _global_thread_pool.submit(
+                self.api.sketch_to_design,
+                sketch_url=original_pic_url,
+                prompt=prompt
+            )
+
+            try:
+                result_pic = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                future.cancel()
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                future.cancel()
+                raise e
 
-                # 添加超时处理，避免无限等待
-                result_pic = await asyncio.wrap_future(future)
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                result_pic,
+                f"tnb_clothes_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    result_pic,
-                    f"tnb_clothes_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
+                return result_pic
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
-                    return result_pic
-
-                # 记录成功结果
-                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常
@@ -957,30 +1058,40 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                future = executor.submit(
-                    self.api.change_color,
-                    image_url=image_url,
-                    clothing_text=clothing_text,
-                    hex_color=hex_color
+            future = _global_thread_pool.submit(
+                self.api.change_color,
+                image_url=image_url,
+                clothing_text=clothing_text,
+                hex_color=hex_color
+            )
+
+            try:
+                result_pic = await asyncio.wait_for(
+                    asyncio.wrap_future(future), 
+                    timeout=620  
                 )
+            except asyncio.TimeoutError:
+                logger.error(f"Thread execution timeout for task result {result_id}")
+                future.cancel()
+                raise Exception("Image generation thread execution timeout")
+            except Exception as e:
+                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
+                future.cancel()
+                raise e
 
-                # 添加超时处理，避免无限等待
-                result_pic = await asyncio.wrap_future(future)
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                result_pic,
+                f"tnb_clothes_{result_id}"
+            )
 
-                # 将第三方图片URL转存到阿里云OSS
-                oss_image_url = await download_and_upload_image(
-                    result_pic,
-                    f"tnb_clothes_{result_id}"
-                )
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
+                return result_pic
 
-                if not oss_image_url:
-                    logger.warning(f"Failed to transfer image to OSS, using original URL: {result_pic}")
-                    return result_pic
-
-                # 记录成功结果
-                logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
-                return oss_image_url
+            # 记录成功结果
+            logger.info(f"Successfully changed clothes for task result {result_id}: {oss_image_url}")
+            return oss_image_url
 
         except Exception as e:
             # 详细记录异常

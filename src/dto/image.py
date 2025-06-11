@@ -257,3 +257,23 @@ class ChangePrintingResponse(BaseModel):
     """改变印花响应DTO"""
     code: int
     msg: str
+
+class ChangePoseRequest(BaseModel):
+    """改变姿势请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    referPicUrl: str = Field(..., description="参考图片URL")
+
+class ChangePoseResponse(BaseModel):
+    """改变姿势响应DTO"""
+    code: int
+    msg: str
+
+class StyleFusionRequest(BaseModel):
+    """风格融合请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    referPicUrl: str = Field(..., description="参考图片URL")
+
+class StyleFusionResponse(BaseModel):
+    """风格融合响应DTO"""
+    code: int
+    msg: str

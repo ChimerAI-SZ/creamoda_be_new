@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from src.exceptions.base import CustomException
 
-from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, DelImageRequest, DelImageResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse, ChangePatternRequest, ChangePatternResponse, ChangeFabricRequest, ChangeFabricResponse, ChangePrintingRequest, ChangePrintingResponse
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, ChangePoseRequest, ChangePoseResponse, DelImageRequest, DelImageResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, StyleFusionRequest, StyleFusionResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse, ChangePatternRequest, ChangePatternResponse, ChangeFabricRequest, ChangeFabricResponse, ChangePrintingRequest, ChangePrintingResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -832,4 +832,66 @@ async def change_printing(
     
     except Exception as e:
         logger.error(f"Failed to process change printing: {str(e)}")
+        raise e
+    
+@router.post("/change_pose", response_model=ChangePoseResponse)
+async def change_pose(
+    request: ChangePoseRequest,
+    db: Session = Depends(get_db)
+):
+    """改变姿势接口 - 改变图片中的姿势"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建改变姿势任务
+        task_info = await ImageService.create_change_pose_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl
+        )
+        
+        # 返回任务信息
+        return ChangePoseResponse(
+            code=0,
+            msg="Change pose task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change pose: {str(e)}")
+        raise e
+    
+@router.post("/style_fusion", response_model=StyleFusionResponse)
+async def style_fusion(
+    request: StyleFusionRequest,
+    db: Session = Depends(get_db)
+):
+    """风格融合接口 - 风格融合图片"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    try:
+        # 创建风格融合任务
+        task_info = await ImageService.create_style_fusion_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl
+        )
+        
+        # 返回任务信息
+        return StyleFusionResponse(
+            code=0,
+            msg="Style fusion task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process style fusion: {str(e)}")
         raise e

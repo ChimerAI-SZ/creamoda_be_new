@@ -437,6 +437,7 @@ class ImageService:
         task = GenImgRecord(
             uid=uid,
             type=GenImgType.VIRTUAL_TRY_ON.value.type,  # 3-虚拟试穿
+            variation_type=GenImgType.VIRTUAL_TRY_ON.value.variationType, # 1-虚拟试穿
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             clothing_photo=clothing_photo,
@@ -2803,8 +2804,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=6,  # 6-change pattern
+            type=GenImgType.CHANGE_PATTERN.value.type,  # 2-图生图
+            variation_type=GenImgType.CHANGE_PATTERN.value.variationType,  # 6-change pattern
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             create_time=now,
@@ -2971,8 +2972,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=7,  # 7-change fabric
+            type=GenImgType.CHANGE_FABRIC.value.type,
+            variation_type=GenImgType.CHANGE_FABRIC.value.variationType,
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             fabric_pic_url=fabric_pic_url,
@@ -3139,8 +3140,8 @@ class ImageService:
         now = datetime.utcnow()
         task = GenImgRecord(
             uid=uid,
-            type=2,  # 2-图生图
-            variation_type=8,  # 8-change printing
+            type=GenImgType.CHANGE_PRINTING.value.type,
+            variation_type=GenImgType.CHANGE_PRINTING.value.variationType,
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             create_time=now,
@@ -3386,3 +3387,338 @@ class ImageService:
                 material_id=material_id
             )
             db.add(img_material_tags)
+
+    @staticmethod
+    async def create_change_pose_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        refer_pic_url: str
+    ) -> Dict[str, Any]:
+        """创建局部修改任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            refer_pic_url: 参考图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.CHANGE_POSE.value.type,
+            variation_type=GenImgType.CHANGE_POSE.value.variationType,
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            refer_pic_url=refer_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.change_pose_count if hasattr(settings.image_generation, "change_pose_count") else 1
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_change_pose(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change pose task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_change_pose(result_id: int):
+        """处理改变姿态任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_change_pose_redux(
+                    original_image_url=task.original_pic_url,
+                    pose_reference_image_url=task.refer_pic_url
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Change pose completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_pose.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Change pose failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Change pose failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in change pose for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing change pose for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    
+    @staticmethod
+    async def create_style_fusion_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        refer_pic_url: str
+    ) -> Dict[str, Any]:
+        """创建风格融合任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            refer_pic_url: 参考图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.STYLE_FUSION.value.type,
+            variation_type=GenImgType.STYLE_FUSION.value.variationType,
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            refer_pic_url=refer_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.style_fusion_count if hasattr(settings.image_generation, "style_fusion_count") else 1
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_style_fusion(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create change fabric task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_style_fusion(result_id: int):
+        """处理风格融合任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_style_fusion(
+                    original_image_url=task.original_pic_url,
+                    reference_image_url=task.refer_pic_url
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Style fusion completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.style_fusion.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except Exception as e:
+                # 更新失败计数
+                result.fail_count = (result.fail_count or 0) + 1
+                
+                # 如果失败次数超过3次，标记为失败
+                if result.fail_count > 3:
+                    result.status = 4  # 生成失败
+                    logger.error(f"Style fusion failed after 3 attempts for result {result_id}")
+                else:
+                    result.status = 1  # 重置为待生成，等待补偿任务重试
+                    logger.warning(f"Style fusion failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
+                
+                result.update_time = datetime.utcnow()
+                db.commit()
+                
+                logger.error(f"Error in style fusion for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing style fusion for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()

@@ -98,6 +98,10 @@ async def process_image_generation_compensate():
                     asyncio.create_task(ImageService.process_change_fabric(result.id))
                 elif task.type == GenImgType.CHANGE_PRINTING.value.type and task.variation_type == GenImgType.CHANGE_PRINTING.value.variationType:
                     asyncio.create_task(ImageService.process_change_printing(result.id))
+                elif task.type == GenImgType.CHANGE_POSE.value.type and task.variation_type == GenImgType.CHANGE_POSE.value.variationType:
+                    asyncio.create_task(ImageService.process_change_pose(result.id))
+                elif task.type == GenImgType.STYLE_FUSION.value.type and task.variation_type == GenImgType.STYLE_FUSION.value.variationType:
+                    asyncio.create_task(ImageService.process_style_fusion(result.id))
                 else:
                     logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                     continue

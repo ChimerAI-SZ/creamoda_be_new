@@ -92,6 +92,9 @@ class ImageGenerationSettings(BaseModel):
     change_pattern: ImageGenerationItem = ImageGenerationItem()
     change_fabric: ImageGenerationItem = ImageGenerationItem()
     change_printing: ImageGenerationItem = ImageGenerationItem()
+    change_pose: ImageGenerationItem = ImageGenerationItem()
+    style_fusion: ImageGenerationItem = ImageGenerationItem()
+
     estimated_time_seconds: int = 20
     change_pattern_count: int = 1
     change_fabric_count: int = 1

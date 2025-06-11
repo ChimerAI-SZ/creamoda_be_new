@@ -111,6 +111,12 @@ image_generation:
   change_printing:
     gen_count: 1          # 印花修改任务生成的图片数量
     use_credit: 1
+  change_pose:
+    gen_count: 1          # 改变姿势任务生成的图片数量
+    use_credit: 1
+  style_fusion:
+    gen_count: 1          # 风格融合任务生成的图片数量
+    use_credit: 1
   estimated_time_seconds: 20  # 预计完成时间(秒)
 
 paypal:
