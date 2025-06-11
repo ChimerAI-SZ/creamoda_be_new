@@ -5,8 +5,63 @@ from io import BytesIO
 
 from PIL import Image
 
-from src.config.config import settings  # Import settings
-from src.config.log_config import logger  # Import the logger
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+from src.config.config import settings
+from src.config.log_config import logger
+
+
+def extend_prompt(original_image_url, positive_prompt):
+    """
+    Takes an image URL and a simple text prompt, and returns an enhanced, detailed prompt
+    for Stable Diffusion image generation by analyzing the image and extending the prompt in one step.
+
+    Args:
+        original_image_url (str): URL of the reference image
+        positive_prompt (str): Simple initial prompt to be enhanced
+
+    Returns:
+        str: Enhanced detailed prompt (140-220 words)
+    """
+    logger.info(f"Extending prompt: '{positive_prompt}' with image reference")
+
+    try:
+        # Single LLM call to analyze image and generate enhanced prompt together
+        llm = ChatOpenAI(model="openai/gpt-4o-mini", base_url="https://openrouter.ai/api/v1",
+                         api_key=settings.algorithm.openrouter_api_key)
+
+        combined_message = [
+            HumanMessage([
+                {
+                    "type": "text",
+                    "text": f"""You are creating a prompt for Stable Diffusion to generate an image.
+
+First analyze this reference image focusing on its style, colors, composition, and artistic elements.
+Then use "{positive_prompt}" as the basic content and main subject, but enhance it by incorporating 
+visual elements and stylistic features from the reference image.
+
+Create a detailed, evocative prompt between 140-220 words that will help Stable Diffusion generate 
+an image that maintains the content of the original prompt but with the visual aesthetics of the 
+reference image. Be specific about colors, lighting, composition, mood, and artistic style.
+
+Only output the enhanced prompt itself with no additional explanations or metadata."""
+                },
+                {
+                    "type": "image_url",
+                    "image_url": original_image_url
+                }
+            ])
+        ]
+
+        enhanced_prompt = llm.invoke(combined_message).content
+        logger.info(f"Extended prompt: {enhanced_prompt[:100]}...")
+
+        return enhanced_prompt
+
+    except Exception as e:
+        logger.error(f"Error extending prompt: {e}")
+        # Fall back to the original prompt if there's any error
+        return positive_prompt
 
 
 class InfiniAI:
@@ -1395,6 +1450,10 @@ if __name__ == "__main__":
         """Test generating printing based on a prompt and an original image"""
         # Example image URL
         original_image_url = "https://shoplineimg.com/634e78ab81b55a0045499eb5/64058fa144430a00239eed3f/750x.jpg"
+        positive_prompt = "vibrant floral pattern with tropical leaves, bright colors"
+
+        # 这里注意要手动扩充一下prompt
+        positive_prompt = extend_prompt(original_image_url, positive_prompt)
 
         # Load image
         original_image = Image.open(io.BytesIO(requests.get(original_image_url).content))
@@ -1403,8 +1462,8 @@ if __name__ == "__main__":
         original_image_url = infini_ai.upload_image_to_infiniai_oss(original_image)
 
         # Parameters
-        positive_prompt = "vibrant floral pattern with tropical leaves, bright colors"
-        scale = 0.8
+
+        scale = 25
         seed = random.randint(0, 2147483647)
 
         # Make the request
@@ -1435,10 +1494,10 @@ if __name__ == "__main__":
         printing_image_url = infini_ai.upload_image_to_infiniai_oss(printing_image)
 
         # Parameters
-        x = 50  # X coordinate for placement
-        y = 50  # Y coordinate for placement
-        scale = 0.5  # Scale of the printing
-        rotate = 15.0  # Rotation in degrees
+        x = 1389  # X coordinate for placement
+        y = 1300  # Y coordinate for placement
+        scale = 0.553  # Scale of the printing
+        rotate = -14.5  # Rotation in degrees
         remove_printing_background = False  # Remove background from printing
 
         # Make the request
