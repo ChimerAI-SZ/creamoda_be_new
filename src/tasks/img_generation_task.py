@@ -72,39 +72,50 @@ async def process_image_generation_compensate():
                     db.refresh(result)
                     continue
 
+                tasks = []
                 if task.type == GenImgType.TEXT_TO_IMAGE.value.type:
-                    asyncio.create_task(ImageService.process_text_to_image_generation(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_text_to_image_generation(result.id)))
                 elif task.type == GenImgType.COPY_STYLE.value.type and task.variation_type == GenImgType.COPY_STYLE.value.variationType:
-                    asyncio.create_task(ImageService.process_copy_style_generation(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_copy_style_generation(result.id)))
                 elif task.type == GenImgType.CHANGE_CLOTHES.value.type and task.variation_type == GenImgType.CHANGE_CLOTHES.value.variationType:
-                    asyncio.create_task(ImageService.process_change_clothes_generation(result.id, replace=task.original_prompt, negative=None))
+                    tasks.append(asyncio.create_task(ImageService.process_change_clothes_generation(result.id, replace=task.original_prompt, negative=None)))
                 elif task.type == GenImgType.FABRIC_TO_DESIGN.value.type and task.variation_type == GenImgType.FABRIC_TO_DESIGN.value.variationType:
-                    asyncio.create_task(ImageService.process_fabric_to_design_generation(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_fabric_to_design_generation(result.id)))
                 elif task.type == GenImgType.VIRTUAL_TRY_ON.value.type:
-                    asyncio.create_task(ImageService.process_virtual_try_on_generation(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_virtual_try_on_generation(result.id)))
                 elif task.type == GenImgType.CHANGE_COLOR.value.type and task.variation_type == GenImgType.CHANGE_COLOR.value.variationType:
-                    asyncio.create_task(ImageService.process_change_color(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_change_color(result.id)))
                 elif task.type == GenImgType.CHANGE_BACKGROUND.value.type and task.variation_type == GenImgType.CHANGE_BACKGROUND.value.variationType:
-                    asyncio.create_task(ImageService.process_change_background(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_change_background(result.id)))
                 elif task.type == GenImgType.REMOVE_BACKGROUND.value.type and task.variation_type == GenImgType.REMOVE_BACKGROUND.value.variationType:
-                    asyncio.create_task(ImageService.process_remove_background(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_remove_background(result.id)))
                 elif task.type == GenImgType.PARTICIAL_MODIFICATION.value.type and task.variation_type == GenImgType.PARTICIAL_MODIFICATION.value.variationType:
-                    asyncio.create_task(ImageService.process_particial_modification(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_particial_modification(result.id)))
                 elif task.type == GenImgType.UPSCALE.value.type and task.variation_type == GenImgType.UPSCALE.value.variationType:
-                    asyncio.create_task(ImageService.process_upscale(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_upscale(result.id)))
                 elif task.type == GenImgType.CHANGE_PATTERN.value.type and task.variation_type == GenImgType.CHANGE_PATTERN.value.variationType:
-                    asyncio.create_task(ImageService.process_change_pattern(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_change_pattern(result.id)))
                 elif task.type == GenImgType.CHANGE_FABRIC.value.type and task.variation_type == GenImgType.CHANGE_FABRIC.value.variationType:
-                    asyncio.create_task(ImageService.process_change_fabric(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_change_fabric(result.id)))
                 elif task.type == GenImgType.CHANGE_PRINTING.value.type and task.variation_type == GenImgType.CHANGE_PRINTING.value.variationType:
-                    asyncio.create_task(ImageService.process_change_printing(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_change_printing(result.id)))
                 elif task.type == GenImgType.CHANGE_POSE.value.type and task.variation_type == GenImgType.CHANGE_POSE.value.variationType:
-                    asyncio.create_task(ImageService.process_change_pose(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_change_pose(result.id)))
                 elif task.type == GenImgType.STYLE_FUSION.value.type and task.variation_type == GenImgType.STYLE_FUSION.value.variationType:
-                    asyncio.create_task(ImageService.process_style_fusion(result.id))
+                    tasks.append(asyncio.create_task(ImageService.process_style_fusion(result.id)))
                 else:
                     logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                     continue
+
+                # 等待所有任务完成
+                if tasks:
+                    logger.info(f"等待 {len(tasks)} 个子任务完成...")
+                    try:
+                        await asyncio.gather(*tasks, return_exceptions=True)
+                        logger.info(f"所有子任务已完成")
+                    except Exception as e:
+                        logger.error(f"等待子任务时发生错误: {str(e)}")
+                        
             except Exception as e:
                 logger.error(f"Error during compensation processing: {str(e)}")
     except Exception as e:

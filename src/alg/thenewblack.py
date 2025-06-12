@@ -4,6 +4,7 @@ import time
 from enum import Enum
 from typing import Optional
 
+import aiohttp
 import requests
 
 from src.config.config import settings
@@ -50,6 +51,23 @@ def get_thread_pool_status():
         'max_workers': _global_thread_pool._max_workers,
         'shutdown': _global_thread_pool._shutdown
     }
+
+async def wait_for_future_with_manual_polling(future, timeout, result_id):
+    """统一的Future等待函数"""
+    start_time = time.time()
+    
+    while not future.done():
+        elapsed = time.time() - start_time
+        
+        if elapsed > timeout:
+            logger.error(f"Timeout for {result_id} after {elapsed:.1f}s")
+            future.cancel()
+            raise asyncio.TimeoutError(f"Operation timeout after {timeout}s")
+        
+        await asyncio.sleep(0.5)
+    
+    # 获取结果，这会抛出线程中的异常
+    return future.result()
 
 class TheNewBlackAPI:
     def __init__(self, email: str = None, password: str = None, timeout: int = 300):
@@ -120,8 +138,8 @@ class TheNewBlackAPI:
             logger.error(f"Error calling TheNewBlack API: {str(e)}")
             raise
         finally:
-            elapsed_time = time.time() - start_time  # 计算请求用时
-            logger.info(f"TheNewBlack create_clothing API request took {elapsed_time:.2f} seconds")
+            elapsed_time = time.time() - start_time
+            logger.info(f"TheNewBlack async create_clothing API request took {elapsed_time:.2f} seconds")
 
     def get_credit_balance(self) -> float:
         """
@@ -611,15 +629,6 @@ class TheNewBlack:
 
         # 使用线程池执行同步请求，避免阻塞事件循环
         try:
-            # 记录线程池状态
-            pool_status = get_thread_pool_status()
-            logger.info(f"Thread pool status before submit: {pool_status}")
-            
-            # 检查线程池是否可用
-            if _global_thread_pool._shutdown:
-                logger.error("Thread pool is shutdown!")
-                raise Exception("Thread pool is not available")
-            
             future = _global_thread_pool.submit(
                 self.api.create_clothing,
                 width=width if width != None else self.default_width,
@@ -631,31 +640,13 @@ class TheNewBlack:
                 body_type=body_type
             )
 
-            logger.info(f"Future created: {future}")
-            logger.info(f"Future running: {future.running()}")
-            logger.info(f"Future done: {future.done()}")
-            logger.info(f"Future cancelled: {future.cancelled()}")
-            
-            # 等待一小段时间再检查
-            await asyncio.sleep(0.1)
-            logger.info(f"After 0.1s - Future running: {future.running()}, done: {future.done()}")
-            
-            # 检查线程池状态
-            pool_status_after = get_thread_pool_status()
-            logger.info(f"Thread pool status after submit: {pool_status_after}")
+            image_url = await asyncio.wait_for(
+                asyncio.wrap_future(future), 
+                timeout=620  
+            )
 
-            try:
-                image_url = await asyncio.wait_for(
-                    asyncio.wrap_future(future), 
-                    timeout=620  
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                raise e
-
+            logger.info(f"Async API call completed for {result_id}")
+            
             # 将第三方图片URL转存到阿里云OSS
             oss_image_url = await download_and_upload_image(
                 image_url,
@@ -712,19 +703,10 @@ class TheNewBlack:
                 deviation=deviation
             )
 
-            try:
-                image_url = await asyncio.wait_for(
+            image_url = await asyncio.wait_for(
                     asyncio.wrap_future(future), 
                     timeout=620  
                 )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                future.cancel()
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                future.cancel()
-                raise e
 
             # 将第三方图片URL转存到阿里云OSS
             oss_image_url = await download_and_upload_image(
@@ -781,19 +763,10 @@ class TheNewBlack:
                 negative=negative
             )
 
-            try:
-                image_url = await asyncio.wait_for(
-                    asyncio.wrap_future(future), 
-                    timeout=620  
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                future.cancel()
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                future.cancel()
-                raise e
+            image_url = await asyncio.wait_for(
+                asyncio.wrap_future(future), 
+                timeout=620  
+            )
 
             # 将第三方图片URL转存到阿里云OSS
             oss_image_url = await download_and_upload_image(
@@ -854,19 +827,10 @@ class TheNewBlack:
                 age=age
             )
 
-            try:
-                image_url = await asyncio.wait_for(
-                    asyncio.wrap_future(future), 
-                    timeout=620  
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                future.cancel()
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                future.cancel()
-                raise e
+            image_url = await asyncio.wait_for(
+                asyncio.wrap_future(future), 
+                timeout=620  
+            )
 
             # 将第三方图片URL转存到阿里云OSS
             oss_image_url = await download_and_upload_image(
@@ -922,19 +886,10 @@ class TheNewBlack:
                 clothing_type=clothing_type_enum
             )
 
-            try:
-                job_id = await asyncio.wait_for(
-                    asyncio.wrap_future(future), 
-                    timeout=620  
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                future.cancel()
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                future.cancel()
-                raise e
+            job_id = await asyncio.wait_for(
+                asyncio.wrap_future(future), 
+                timeout=620  
+            )
 
             # 获取虚拟试穿结果，每十秒获取一次，最多尝试300秒
             start_time = time.time()
@@ -999,19 +954,10 @@ class TheNewBlack:
                 prompt=prompt
             )
 
-            try:
-                result_pic = await asyncio.wait_for(
-                    asyncio.wrap_future(future), 
-                    timeout=620  
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                future.cancel()
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                future.cancel()
-                raise e
+            result_pic = await asyncio.wait_for(
+                asyncio.wrap_future(future), 
+                timeout=620  
+            )
 
             # 将第三方图片URL转存到阿里云OSS
             oss_image_url = await download_and_upload_image(
@@ -1065,19 +1011,10 @@ class TheNewBlack:
                 hex_color=hex_color
             )
 
-            try:
-                result_pic = await asyncio.wait_for(
-                    asyncio.wrap_future(future), 
-                    timeout=620  
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Thread execution timeout for task result {result_id}")
-                future.cancel()
-                raise Exception("Image generation thread execution timeout")
-            except Exception as e:
-                logger.error(f"Thread execution failed for task result {result_id}: {str(e)}")
-                future.cancel()
-                raise e
+            result_pic = await asyncio.wait_for(
+                asyncio.wrap_future(future), 
+                timeout=620  
+            )
 
             # 将第三方图片URL转存到阿里云OSS
             oss_image_url = await download_and_upload_image(
