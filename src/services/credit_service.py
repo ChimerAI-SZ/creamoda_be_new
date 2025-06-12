@@ -129,27 +129,26 @@ class CreditService:
     async def real_spend_credit(db: Session, uid: int, amount: int):
         """实际消费积分"""
         try:
-            credit = db.query(Credit).filter(Credit.uid == uid).with_for_update(nowait=True).first()
-            if not credit or credit.lock_credit < amount:
-                raise CustomException(code=400, message="Insufficient lock credit")
+            with db.begin_nested():
+                credit = db.query(Credit).filter(Credit.uid == uid).with_for_update(nowait=True).first()
+                if not credit or credit.lock_credit < amount:
+                    raise CustomException(code=400, message="Insufficient lock credit")
 
-            credit.lock_credit -= amount
-            credit.update_time = datetime.now()
+                credit.lock_credit -= amount
+                credit.update_time = datetime.now()
 
-            credit_history = CreditHistory(
-                uid=uid,
-                credit_change=-amount,
-                source="real spend credit",
-                create_time=datetime.now()
-            )
-            db.add(credit_history)
-            db.commit()
+                credit_history = CreditHistory(
+                    uid=uid,
+                    credit_change=-amount,
+                    source="real spend credit",
+                    create_time=datetime.now()
+                )
+                db.add(credit_history)
         except OperationalError as e:
             logger.warning(f"Failed to acquire lock for user {uid}: {str(e)}")
             raise CustomException(code=409, message="Resource is locked, please try again later")
         except Exception as e:
             logger.error(f"Real spend credit failed: {e}")
-            db.rollback()
             raise CustomException(code=400, message="Real spend credit failed")
         
     @staticmethod

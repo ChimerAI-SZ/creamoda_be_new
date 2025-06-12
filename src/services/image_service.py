@@ -769,7 +769,6 @@ class ImageService:
                 # 调用TheNewBlack API创建变体
                 thenewblack = TheNewBlack()
                 
-                # 使用create_variation方法
                 result_pic = await thenewblack.create_virtual_try_on(
                     model_image_url=task.original_pic_url,
                     clothing_image_url=task.clothing_photo,
@@ -826,7 +825,7 @@ class ImageService:
                     except:
                         logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
-            logger.error(f"Error processing copy fabric generation for result {result_id}: {str(e)}")
+            logger.error(f"Error processing vitual try on generation for result {result_id}: {str(e)}")
             db.rollback()
         finally:
             db.close()
@@ -1700,22 +1699,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Style transfer failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Style transfer failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in style transfer for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.style_transfer.use_credit
@@ -1953,22 +1950,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Fabric transfer failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Fabric transfer failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in fabric transfer for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.fabric_transfer.use_credit
@@ -2051,22 +2046,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Change color failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Change color failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in change color for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.change_color.use_credit
@@ -2231,22 +2224,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"change_background failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"change_background failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in change_background for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.change_background.use_credit
@@ -2403,22 +2394,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Remove background failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Remove background failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in remove background for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.remove_background.use_credit
@@ -2583,22 +2572,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Particial modification failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Particial modification failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in particial modification for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.particial_modification.use_credit
@@ -2757,22 +2744,20 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Upscale failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Upscale failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in upscale for result {result_id}: {str(e)}")
-                
+
                 if result.fail_count >= 3:
                     try:
                         credit_value = settings.image_generation.upscale.use_credit
@@ -2927,22 +2912,26 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Change pattern failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Change pattern failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in change pattern for result {result_id}: {str(e)}")
-                
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_pattern.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing change pattern for result {result_id}: {str(e)}")
             db.rollback()
@@ -3099,22 +3088,26 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Change fabric failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Change fabric failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in change fabric for result {result_id}: {str(e)}")
-                
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_fabric.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing change fabric for result {result_id}: {str(e)}")
             db.rollback()
@@ -3263,22 +3256,26 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Change printing failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Change printing failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
                 db.commit()
-                
-                logger.error(f"Error in change printing for result {result_id}: {str(e)}")
-                
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_printing.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
         except Exception as e:
             logger.error(f"Error processing change printing for result {result_id}: {str(e)}")
             db.rollback()
@@ -3533,21 +3530,26 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Change pose failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Change pose failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
-                db.commit()
                 
-                logger.error(f"Error in change pose for result {result_id}: {str(e)}")
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_pose.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
                 
         except Exception as e:
             logger.error(f"Error processing change pose for result {result_id}: {str(e)}")
@@ -3701,21 +3703,26 @@ class ImageService:
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
             except Exception as e:
-                # 更新失败计数
-                result.fail_count = (result.fail_count or 0) + 1
-                
-                # 如果失败次数超过3次，标记为失败
-                if result.fail_count > 3:
-                    result.status = 4  # 生成失败
-                    logger.error(f"Style fusion failed after 3 attempts for result {result_id}")
-                else:
-                    result.status = 1  # 重置为待生成，等待补偿任务重试
-                    logger.warning(f"Style fusion failed for result {result_id}, will retry later. Fail count: {result.fail_count}")
-                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
-                db.commit()
                 
-                logger.error(f"Error in style fusion for result {result_id}: {str(e)}")
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.style_fusion.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
                 
         except Exception as e:
             logger.error(f"Error processing style fusion for result {result_id}: {str(e)}")

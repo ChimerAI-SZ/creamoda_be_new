@@ -895,7 +895,14 @@ class TheNewBlack:
             start_time = time.time()
             result_pic = None
             while True:
-                result = self.api.get_results(job_id)
+                res_future = _global_thread_pool.submit(
+                    self.api.get_results,
+                    job_id=job_id
+                )
+                result = await asyncio.wait_for(
+                    asyncio.wrap_future(res_future), 
+                    timeout=620  
+                )
                 if result:
                     result_pic = result
                     break
