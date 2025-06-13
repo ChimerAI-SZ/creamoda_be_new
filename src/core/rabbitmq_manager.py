@@ -78,7 +78,7 @@ class RabbitMQManager:
         """设置默认的队列"""
         try:
             # 图像生成队列
-            self.declare_exchange_and_queue(
+            await self.declare_exchange_and_queue(
                 exchange_name=self.default_exchange,
                 queue_name="image_generation_queue",
                 routing_key="image.generation"

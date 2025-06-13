@@ -277,3 +277,39 @@ class StyleFusionResponse(BaseModel):
     """风格融合响应DTO"""
     code: int
     msg: str
+
+class ExtractPatternRequest(BaseModel):
+    """印花提取请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    originalMaskUrl: str = Field(..., description="原始蒙版图片URL")
+
+class ExtractPatternResponse(BaseModel):
+    """印花提取响应DTO"""
+    code: int
+    msg: str
+
+class DressPrintingTryOnRequest(BaseModel):
+    """印花上身请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    printingPicUrl: str = Field(..., description="印花图片URL")
+    fabricPicUrl: str = Field(..., description="面料图片URL")
+
+class DressPrintingTryOnResponse(BaseModel):
+    """印花上身响应DTO"""
+    code: int
+    msg: str
+
+class PrintingReplacementRequest(BaseModel):
+    """印花摆放请求DTO"""
+    originalPicUrl: str = Field(..., description="原始图片URL")
+    printingPicUrl: str = Field(..., description="印花图片URL")
+    x: int = Field(..., description="印花摆放位置X坐标")
+    y: int = Field(..., description="印花摆放位置Y坐标")
+    scale: float = Field(..., description="印花摆放缩放比例")
+    rotate: float = Field(..., description="印花摆放旋转角度")
+    removePrintingBackground: bool = Field(..., description="是否移除印花背景")
+
+class PrintingReplacementResponse(BaseModel):
+    """印花摆放响应DTO"""
+    code: int
+    msg: str

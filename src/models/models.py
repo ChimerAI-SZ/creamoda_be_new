@@ -1,5 +1,5 @@
-from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, TIMESTAMP, Text, text
-from sqlalchemy.dialects.mysql import TINYINT
+from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, JSON, String, TIMESTAMP, Text, text
+from sqlalchemy.dialects.mysql import TEXT, TINYINT
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 from sqlalchemy.orm.base import Mapped
 
@@ -123,10 +123,11 @@ class GenImgRecord(Base):
     original_prompt = mapped_column(Text)
     refer_pic_url = mapped_column(Text, comment='参考图片链接')
     clothing_photo = mapped_column(Text, comment='衣服图片链接')
-    fabric_pic_url = mapped_column(Text, comment='面料图片链接')
-    mask_pic_url = mapped_column(Text, comment='mask图片链接')
+    fabric_pic_url = mapped_column(TEXT, comment='面料图片链接')
+    mask_pic_url = mapped_column(TEXT, comment='mask图片链接')
     cloth_type = mapped_column(String(50), comment='衣服类型')
     hex_color = mapped_column(String(50), comment='颜色')
+    input_param_json = mapped_column(JSON, comment='输入参数')
     variation_type = mapped_column(Integer, comment='变化类型')
     status = mapped_column(TINYINT, comment='1-待生成 2-生成中 3-已生成 4-失败')
     with_human_model = mapped_column(TINYINT)
@@ -142,6 +143,7 @@ class GenImgRecord(Base):
 class GenImgResult(Base):
     __tablename__ = 'gen_img_result'
     __table_args__ = (
+        Index('gen_img_result_seo_img_uid_index', 'seo_img_uid'),
         Index('idx_gen_id', 'gen_id'),
         Index('idx_uid', 'uid')
     )
@@ -201,7 +203,10 @@ class LikeImg(Base):
 
 class Material(Base):
     __tablename__ = 'material'
-    __table_args__ = {'comment': '材质表'}
+    __table_args__ = (
+        Index('material_name_index', 'name'),
+        {'comment': '材质表'}
+    )
 
     id = mapped_column(BigInteger, primary_key=True)
     name = mapped_column(String(100))
@@ -244,7 +249,10 @@ class SubscribeHistory(Base):
 
 class TrendStyle(Base):
     __tablename__ = 'trend_style'
-    __table_args__ = {'comment': '趋势风格'}
+    __table_args__ = (
+        Index('trend_style_name_index', 'name'),
+        {'comment': '趋势风格'}
+    )
 
     id = mapped_column(BigInteger, primary_key=True)
     name = mapped_column(String(100))

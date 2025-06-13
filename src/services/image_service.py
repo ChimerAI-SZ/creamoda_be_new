@@ -2804,7 +2804,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为1
-            image_count = settings.image_generation.change_pattern_count if hasattr(settings.image_generation, "change_pattern_count") else 1
+            image_count = settings.image_generation.change_pattern.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -2978,7 +2978,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为1
-            image_count = settings.image_generation.change_fabric_count if hasattr(settings.image_generation, "change_fabric_count") else 1
+            image_count = settings.image_generation.change_fabric.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -3148,7 +3148,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为1
-            image_count = settings.image_generation.change_printing_count if hasattr(settings.image_generation, "change_printing_count") else 1
+            image_count = settings.image_generation.change_printing.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -3422,7 +3422,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为1
-            image_count = settings.image_generation.change_pose_count if hasattr(settings.image_generation, "change_pose_count") else 1
+            image_count = settings.image_generation.change_pose.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -3595,7 +3595,7 @@ class ImageService:
             db.refresh(task)
             
             # 从配置中获取要创建的结果记录数量，默认为1
-            image_count = settings.image_generation.style_fusion_count if hasattr(settings.image_generation, "style_fusion_count") else 1
+            image_count = settings.image_generation.style_fusion.gen_count
             
             # 创建指定数量的结果记录并存储它们的ID
             result_ids = []
@@ -3726,6 +3726,542 @@ class ImageService:
                 
         except Exception as e:
             logger.error(f"Error processing style fusion for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def create_extract_pattern_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        original_mask_url: str
+    ) -> Dict[str, Any]:
+        """创建印花提取任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            mask_pic_url: mask图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.EXTRACT_PATTERN.value.type,
+            variation_type=GenImgType.EXTRACT_PATTERN.value.variationType,
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            mask_pic_url=original_mask_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.extract_pattern.gen_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_extract_pattern(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create extract pattern task: {str(e)}")
+            raise e
+        
+    @staticmethod
+    async def process_extract_pattern(result_id: int):
+        """处理印花提取任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_extract_pattern(
+                    original_image_url=task.original_pic_url,
+                    original_mask_url=task.mask_pic_url
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Extract pattern completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.extract_pattern.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except Exception as e:
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.extract_pattern.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing extract pattern for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def create_dress_printing_tryon_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        printing_pic_url: str,
+        fabric_pic_url: str
+    ) -> Dict[str, Any]:
+        """创建印花上身任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            printing_pic_url: 印花图片URL
+            fabric_pic_url: 面料图片URL
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.DRESS_PRINTING_TRYON.value.type,
+            variation_type=GenImgType.DRESS_PRINTING_TRYON.value.variationType,
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            refer_pic_url=printing_pic_url,
+            fabric_pic_url=fabric_pic_url,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.dress_printing_tryon.gen_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_dress_printing_tryon(result_id)
+                )
+                
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create dress printing tryon task: {str(e)}")
+            raise e
+
+    @staticmethod
+    async def process_dress_printing_tryon(result_id: int):
+        """处理印花上身任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_dress_printing_tryon(
+                    original_image_url=task.original_pic_url,
+                    printing_image_url=task.refer_pic_url,
+                    fabric_image_url=task.fabric_pic_url
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Dress printing tryon completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.dress_printing_tryon.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except Exception as e:
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.dress_printing_tryon.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing dress printing tryon for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def create_printing_replacement_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str, 
+        printing_pic_url: str,
+        x: int, 
+        y: int, 
+        scale: float, 
+        rotate: float,
+        remove_printing_background: bool
+    ) -> Dict[str, Any]:
+        """创建印花摆放任务
+        
+        Args:
+            db: 数据库会话
+            uid: 用户ID
+            original_pic_url: 图片URL
+            printing_pic_url: 印花图片URL
+            x: 印花摆放位置x坐标
+            y: 印花摆放位置y坐标
+            scale: 印花摆放位置缩放比例
+            rotate: 印花摆放位置旋转角度
+            remove_printing_background: 是否去除印花背景
+        Returns:
+            任务信息
+        """
+        # 创建任务记录
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.PRINTING_REPLACEMENT.value.type,
+            variation_type=GenImgType.PRINTING_REPLACEMENT.value.variationType,
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            refer_pic_url=printing_pic_url,
+            input_param_json={"printing_pic_url": printing_pic_url, "x": x, "y": y, "scale": scale, "rotate": rotate, "remove_printing_background": remove_printing_background},
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量，默认为1
+            image_count = settings.image_generation.printing_replacement.gen_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动异步任务处理改变版型
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_printing_replacement(result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create printing replacement task: {str(e)}")
+            raise e
+
+
+    @staticmethod
+    async def process_printing_replacement(result_id: int):
+        """处理印花摆放任务
+        
+        Args:
+            result_id: 结果记录ID
+        """
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
+                
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_printing_replacement(
+                    original_image_url=task.original_pic_url,
+                    printing_image_url=task.refer_pic_url,
+                    x=int(task.input_param_json['x']),
+                    y=int(task.input_param_json['y']),
+                    scale=float(task.input_param_json['scale']),
+                    rotate=float(task.input_param_json['rotate']),
+                    remove_printing_background=bool(task.input_param_json['remove_printing_background'])
+                )
+                
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Printing replacement completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.printing_replacement.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except Exception as e:
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.printing_replacement.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing printing replacement for result {result_id}: {str(e)}")
             db.rollback()
         finally:
             db.close()

@@ -117,6 +117,15 @@ image_generation:
   style_fusion:
     gen_count: 1          # 风格融合任务生成的图片数量
     use_credit: 1
+  extract_pattern:
+    gen_count: 1          # 印花提取任务生成的图片数量
+    use_credit: 1
+  dress_printing_tryon:
+    gen_count: 1          # 印花上身任务生成的图片数量
+    use_credit: 1
+  printing_replacement:
+    gen_count: 1          # 印花替换任务生成的图片数量
+    use_credit: 1
   estimated_time_seconds: 20  # 预计完成时间(秒)
 
 paypal:

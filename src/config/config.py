@@ -94,11 +94,10 @@ class ImageGenerationSettings(BaseModel):
     change_printing: ImageGenerationItem = ImageGenerationItem()
     change_pose: ImageGenerationItem = ImageGenerationItem()
     style_fusion: ImageGenerationItem = ImageGenerationItem()
-
+    extract_pattern: ImageGenerationItem = ImageGenerationItem()
+    dress_printing_tryon: ImageGenerationItem = ImageGenerationItem()
+    printing_replacement: ImageGenerationItem = ImageGenerationItem()
     estimated_time_seconds: int = 20
-    change_pattern_count: int = 1
-    change_fabric_count: int = 1
-    change_printing_count: int = 1
 
 class PayPalSettings(BaseModel):
     paypal_client_id: str = ""
