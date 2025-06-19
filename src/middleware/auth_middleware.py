@@ -8,7 +8,7 @@ from src.config.log_config import logger
 from src.config.config import settings
 from src.core.context import UserContext, set_user_context, clear_user_context
 from src.db.redis import redis_client
-from src.db.session import SessionLocal
+from src.db.session import SessionLocal, get_db
 from src.dto.common import CommonResponse
 from src.exceptions.user import AuthenticationError
 from src.models.models import UserInfo
@@ -62,7 +62,7 @@ class AuthMiddleware:
             #     raise AuthenticationError(message="Invalid or expired session")
             
             # 获取用户信息
-            db = SessionLocal()
+            db = get_db()
             try:
                 user = db.query(UserInfo).filter(UserInfo.email == email).first()
                 if not user:

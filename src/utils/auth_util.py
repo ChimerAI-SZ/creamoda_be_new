@@ -2,7 +2,7 @@ from fastapi import Request
 from jose import ExpiredSignatureError, jwt
 
 from src.config.log_config import logger
-from src.db.session import SessionLocal
+from src.db.session import SessionLocal, get_db
 from src.exceptions.user import AuthenticationError
 from src.core.context import UserContext
 from src.config.config import settings
@@ -27,7 +27,7 @@ def get_user_info_from_request(request: Request) -> UserContext:
     if not email:
         raise AuthenticationError(message="Invalid token payload")
     
-    db = SessionLocal()
+    db = get_db()
     try:
         user = db.query(UserInfo).filter(UserInfo.email == email).first()
         if not user:
