@@ -7,7 +7,7 @@ from src.db.redis import redis_client
 
 from src.core.context import get_current_user_context
 from src.config.log_config import logger
-from src.db.session import SessionLocal
+from src.db.session import SessionLocal, get_db
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
 from src.dto.common import CommonResponse
@@ -40,7 +40,7 @@ class GenImgRateLimitMiddleware:
         else:
             raise AuthenticationError(message="User not login")
         
-        db = SessionLocal()
+        db = get_db()
         
         # 检查是否超过限流
         is_limited, remaining, reset_time = await self._check_rate_limit(

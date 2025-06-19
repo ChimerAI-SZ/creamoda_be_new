@@ -19,7 +19,7 @@ from src.utils.uid import generate_uid
 
 from ..models.models import CollectImg, GenImgRecord, GenImgResult, ImgMaterialTags, ImgStyleTags, Material, TrendStyle  # 导入两个模型
 from ..db.redis import redis_client
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, get_db
 from ..config.log_config import logger
 from ..config.config import settings
 from ..alg.thenewblack import TheNewBlack  # 导入TheNewBlack服务
@@ -556,7 +556,7 @@ class ImageService:
         Args:
             result_id: GenImgResult的ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -647,7 +647,7 @@ class ImageService:
     @staticmethod
     async def process_fabric_to_design_generation(result_id: int):
         """处理面料转设计任务"""
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -745,7 +745,7 @@ class ImageService:
     @staticmethod
     async def process_virtual_try_on_generation(result_id: int):
         """处理洗图任务"""
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -840,7 +840,7 @@ class ImageService:
     @staticmethod
     async def process_sketch_to_design_generation(result_id: int):
         """处理草图转设计任务"""
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -936,7 +936,7 @@ class ImageService:
     @staticmethod
     async def process_mix_image_generation(result_id: int):
         """处理混合图片任务"""
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -1057,7 +1057,7 @@ class ImageService:
     @staticmethod
     async def process_copy_style_generation(result_id: int):
         """处理洗图任务"""
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -1252,7 +1252,7 @@ class ImageService:
         negative: Optional[str] = None
     ):
         """处理更换服装任务"""
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -1649,7 +1649,7 @@ class ImageService:
             result_id: 结果记录ID
             strength: 风格应用强度，0-1之间
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -1905,7 +1905,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -2002,7 +2002,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -2180,7 +2180,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -2354,7 +2354,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -2532,7 +2532,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -2708,7 +2708,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -2878,7 +2878,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -3054,7 +3054,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -3226,7 +3226,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -3324,7 +3324,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -3502,7 +3502,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -3677,7 +3677,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -3851,7 +3851,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -4028,7 +4028,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
@@ -4214,7 +4214,7 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        db = SessionLocal()
+        db = get_db()
         try:
             # 获取结果记录
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()

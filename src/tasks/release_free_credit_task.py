@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pymysql import OperationalError
 from src.constants.order_status import OrderStatus
-from src.db.session import SessionLocal
+from src.db.session import SessionLocal, get_db
 from sqlalchemy.orm import Session
 from src.config.log_config import logger
 from src.db.redis import redis_client
@@ -13,7 +13,7 @@ from src.models.models import BillingHistory, Credit, CreditHistory, UserInfo
 
 async def process_release_free_credit():
     """释放免费积分任务"""
-    db = SessionLocal()
+    db = get_db()
     try:
         # 批量更新用户积分
         # 分页大小
