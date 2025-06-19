@@ -36,7 +36,7 @@ smtp:
 algorithm:
   thenewblack_email: "no-reply@chimerai.tech"
   thenewblack_password: "!W5gwscU6duZ3DE"
-  openrouter_api_key: "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"
+  openrouter_api_key: "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"
   infiniai_api_key: "sk-br2so27makyp242a"
   replicate_api_key: "r8_7fkn9hNYZIEh0DXvnYhx5JayXfX8BJ72PryG7"
   ideogram_api_key: "Dmtw8y7Z3EE9faqNmjk0gd8wAQ0W25VFSMJ-rH5_j1F3UVa1dFkv8jaj21bog_b4JnHSxo9WrKAXuOfdnvgv_w"
@@ -60,9 +60,97 @@ oss:
 
 # 添加图片生成任务配置
 image_generation:
-  text_to_image_count: 5      # 文生图任务生成的图片数量
-  copy_style_count: 5         # 洗图任务生成的图片数量
-  change_clothes_count: 5     # 换装任务生成的图片数量
-  copy_fabric_count: 2        # 复制面料任务生成的图片数量
-  virtual_try_on_count: 2     # 虚拟试穿任务生成的图片数量
+  text_to_image:
+    gen_count: 1      # 文生图任务生成的图片数量
+    use_credit: 1
+  copy_style:
+    gen_count: 1         # 洗图任务生成的图片数量
+    use_credit: 1
+  change_clothes: 
+    gen_count: 1         # 换装任务生成的图片数量
+    use_credit: 1
+  fabric_to_design: 
+    gen_count: 1         # 复制面料任务生成的图片数量
+    use_credit: 1
+  virtual_try_on: 
+    gen_count: 1         # 虚拟试穿任务生成的图片数量
+    use_credit: 1
+  sketch_to_design:
+    gen_count: 1   # 草图转设计任务生成的图片数量
+    use_credit: 1
+  mix_image:
+    gen_count: 1          # 混合图片任务生成的图片数量
+    use_credit: 1
+  style_transfer:
+    gen_count: 1          # 风格迁移任务生成的图片数量
+    use_credit: 1
+  fabric_transfer:
+    gen_count: 1          # 面料转换任务生成的图片数量
+    use_credit: 1
+  change_color:
+    gen_count: 1          # 换色任务生成的图片数量
+    use_credit: 1
+  change_background:
+    gen_count: 1          # 换色任务生成的图片数量
+    use_credit: 1
+  remove_background:
+    gen_count: 1          # 换色任务生成的图片数量
+    use_credit: 1
+  particial_modification:
+    gen_count: 1          # 局部修改任务生成的图片数量
+    use_credit: 1
+  upscale:
+    gen_count: 1          # 放大任务生成的图片数量
+    use_credit: 1
+  change_pattern:
+    gen_count: 1          # 图案修改任务生成的图片数量
+    use_credit: 1
+  change_fabric:
+    gen_count: 1          # 面料修改任务生成的图片数量
+    use_credit: 1
+  change_printing:
+    gen_count: 1          # 印花修改任务生成的图片数量
+    use_credit: 1
+  change_pose:
+    gen_count: 1          # 改变姿势任务生成的图片数量
+    use_credit: 1
+  style_fusion:
+    gen_count: 1          # 风格融合任务生成的图片数量
+    use_credit: 1
+  extract_pattern:
+    gen_count: 1          # 印花提取任务生成的图片数量
+    use_credit: 1
+  dress_printing_tryon:
+    gen_count: 1          # 印花上身任务生成的图片数量
+    use_credit: 1
+  printing_replacement:
+    gen_count: 1          # 印花替换任务生成的图片数量
+    use_credit: 1
   estimated_time_seconds: 20  # 预计完成时间(秒)
+
+paypal:
+  paypal_client_id: "AelM9EeKLpOske6b4n6WhVpZCl--iGAoRAPOtvCnir3v-gFuw85vsQskUYfbsvyPmX1OdW2DJpE4vc9R"
+  paypal_secret: "EOsgJT8hDRh36GdyA1iZvxMefHGTNi0HjhlJgYTgGB54k-8ddLIVfR_9T69Gb1KxVRRX0a_YapCD4VtI"
+  paypal_base_url: "https://api-m.paypal.com"
+  webhook_id: "5PD429285Y100231E"
+  return_url: "https://create.creamoda.ai//paypal/return"
+  cancel_url: "https://create.creamoda.ai/paypal/cancel"
+
+# RabbitMQ 配置
+rabbitmq:
+  enabled: true
+  host: "rabbitmq-sg-acm4b8b9601.us-west-1.amqp-0.vpc.mq.amqp.aliyuncs.com"
+  port: 5672
+  username: "MjpyYWJiaXRtcS1zZy1hY200YjhiOTYwMTpMVEFJNXRGSkRCbktVWVpKMXNWQ0IxSlA="
+  password: "RDNCNTA4NUJFMUU5QUZEQUQyRUJFNTQ3OUQwOENBOEI1MDc3MTg0NDoxNzUwMjM2MTQzNzU1"
+  virtual_host: "chimer_prod"
+  exchange_name: "amq.topic"
+  heartbeat: 600
+  blocked_connection_timeout: 300
+  prefetch_count: 10
+  queues:
+    image_generation:
+      name: "image_generation_queue"
+      routing_key: "img.gen.finish"
+      durable: true
+      max_priority: 10

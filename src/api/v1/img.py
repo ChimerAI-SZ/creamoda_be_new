@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from src.exceptions.base import CustomException
 
-from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, DelImageRequest, DelImageResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse
+from ...dto.image import ChangeBackgroundRequest, ChangeBackgroundResponse, ChangeColorRequest, ChangeColorResponse, ChangePoseRequest, ChangePoseResponse, DelImageRequest, DelImageResponse, DressPrintingTryOnRequest, DressPrintingTryOnResponse, ExtractPatternRequest, ExtractPatternResponse, FabricToDesignRequest, FabricToDesignResponse, ParticialModificationRequest, ParticialModificationResponse, PrintingReplacementRequest, PrintingReplacementResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, StyleFusionRequest, StyleFusionResponse, TextToImageRequest, TextToImageResponse, ImageGenerationData, CopyStyleRequest, CopyStyleResponse, ChangeClothesRequest, ChangeClothesResponse, GetImageHistoryRequest, GetImageHistoryResponse, ImageHistoryItem, ImageHistoryData, GetImageDetailRequest, GetImageDetailResponse, ImageDetailData, RefreshImageStatusRequest, RefreshImageStatusData, RefreshImageStatusDataItem, RefreshImageStatusResponse, UpscaleRequest, UpscaleResponse, VirtualTryOnRequest, VirtualTryOnResponse, StyleTransferRequest, StyleTransferResponse, FabricTransferRequest, FabricTransferResponse, ChangePatternRequest, ChangePatternResponse, ChangeFabricRequest, ChangeFabricResponse, ChangePrintingRequest, ChangePrintingResponse
 from ...db.session import get_db
 from ...services.image_service import ImageService
 from ...core.context import get_current_user_context
@@ -13,7 +13,8 @@ from ...config.log_config import logger
 from ...constants.image_constants import IMAGE_FORMAT_SIZE_MAP
 from ...constants.refer_constants import REFER_LEVEL_MAP
 from ...dto.image import SketchToDesignRequest, SketchToDesignResponse, MixImageRequest, MixImageResponse
-
+from src.services.credit_service import CreditService
+from src.config.config import settings
 router = APIRouter()
 
 
@@ -37,8 +38,11 @@ async def text_to_image(
         raise AuthenticationError()
     
     # 验证prompt长度
-    if len(request.prompt) > 10000:
-        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    if len(request.prompt) > 166:
+        raise ValidationError("Prompt text is too long. Maximum 166 characters allowed.")
+
+    credit_value = settings.image_generation.text_to_image.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
 
     try:
         # 从请求中获取图像尺寸
@@ -86,6 +90,9 @@ async def copy_style_generate(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
 
+    credit_value = settings.image_generation.copy_style.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 从请求中获取参考等级
         fidelity = get_fidelity(request.referLevel)
@@ -124,6 +131,9 @@ async def change_clothes_generate(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.change_clothes.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建更换服装任务
         task_info = await ImageService.create_change_clothes_task(
@@ -347,6 +357,9 @@ async def fabric_to_design(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.fabric_to_design.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建面料转设计任务
         task_info = await ImageService.create_fabric_to_design_task(
@@ -377,6 +390,9 @@ async def virtual_try_on(
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
+
+    credit_value = settings.image_generation.virtual_try_on.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
 
     try:
         # 创建虚拟试穿任务
@@ -413,6 +429,9 @@ async def sketch_to_design(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.sketch_to_design.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
 
         # 创建复制面料任务
@@ -448,6 +467,9 @@ async def mix_image(
     if len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
+    credit_value = settings.image_generation.mix_image.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 从请求中获取参考等级
         fidelity = get_fidelity(request.referLevel)
@@ -483,6 +505,9 @@ async def style_transfer(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.style_transfer.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建风格转换任务
         task_info = await ImageService.create_style_transfer_task(
@@ -515,6 +540,9 @@ async def fabric_transfer(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.fabric_transfer.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建面料转换任务
         task_info = await ImageService.create_fabric_transfer_task(
@@ -552,6 +580,9 @@ async def change_color(
     if not request.clothingText:
         raise ValidationError("Clothing text cannot be empty")
     
+    credit_value = settings.image_generation.change_color.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变颜色任务
         task_info = await ImageService.create_change_color_task(
@@ -584,6 +615,9 @@ async def change_background(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.change_background.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_change_background_task(
@@ -617,6 +651,9 @@ async def remove_background(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.remove_background.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_remove_background_task(
@@ -647,6 +684,9 @@ async def particial_modification(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.particial_modification.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_particial_modification_task(
@@ -668,6 +708,7 @@ async def particial_modification(
         logger.error(f"Failed to process particial modification: {str(e)}")
         raise e
     
+  
 @router.post("/upscale", response_model=UpscaleResponse)
 async def upscale(
     request: UpscaleRequest,
@@ -679,6 +720,9 @@ async def upscale(
     if not user:
         raise AuthenticationError()
     
+    credit_value = settings.image_generation.upscale.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
     try:
         # 创建改变背景任务
         task_info = await ImageService.create_upscale_task(
@@ -696,4 +740,281 @@ async def upscale(
     
     except Exception as e:
         logger.error(f"Failed to process upscale: {str(e)}")
+        raise e
+    
+@router.post("/change_pattern", response_model=ChangePatternResponse)
+async def change_pattern(
+    request: ChangePatternRequest,
+    db: Session = Depends(get_db)
+):
+    """改变版型接口 - 改变图片中的版型"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.change_pattern.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+    
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_change_pattern_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl
+        )
+        
+        # 返回任务信息
+        return ChangePatternResponse(
+            code=0,
+            msg="Change pattern task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change pattern: {str(e)}")
+        raise e
+
+@router.post("/change_fabric", response_model=ChangeFabricResponse)
+async def change_fabric(
+    request: ChangeFabricRequest,
+    db: Session = Depends(get_db)
+):
+    """改变面料接口 - 改变图片中的面料"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.change_fabric.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建改变背景任务
+        task_info = await ImageService.create_change_fabric_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            fabric_pic_url=request.fabricPicUrl,
+            mask_pic_url=request.maskPicUrl
+        )
+        
+        # 返回任务信息
+        return ChangeFabricResponse(
+            code=0,
+            msg="Change fabric task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change fabric: {str(e)}")
+        raise e
+
+@router.post("/change_printing", response_model=ChangePrintingResponse)
+async def change_printing(
+    request: ChangePrintingRequest,
+    db: Session = Depends(get_db)
+):
+    """改变印花接口 - 改变图片中的印花"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.change_printing.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建改变印花任务
+        task_info = await ImageService.create_change_printing_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+        )
+        
+        # 返回任务信息
+        return ChangePrintingResponse(
+            code=0,
+            msg="Change printing task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change printing: {str(e)}")
+        raise e
+    
+@router.post("/change_pose", response_model=ChangePoseResponse)
+async def change_pose(
+    request: ChangePoseRequest,
+    db: Session = Depends(get_db)
+):
+    """改变姿势接口 - 改变图片中的姿势"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.change_pose.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建改变姿势任务
+        task_info = await ImageService.create_change_pose_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl
+        )
+        
+        # 返回任务信息
+        return ChangePoseResponse(
+            code=0,
+            msg="Change pose task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process change pose: {str(e)}")
+        raise e
+    
+@router.post("/style_fusion", response_model=StyleFusionResponse)
+async def style_fusion(
+    request: StyleFusionRequest,
+    db: Session = Depends(get_db)
+):
+    """风格融合接口 - 风格融合图片"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.style_fusion.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建风格融合任务
+        task_info = await ImageService.create_style_fusion_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl
+        )
+        
+        # 返回任务信息
+        return StyleFusionResponse(
+            code=0,
+            msg="Style fusion task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process style fusion: {str(e)}")
+        raise e
+
+@router.post("/extract_pattern", response_model=ExtractPatternResponse)
+async def extract_pattern(
+    request: ExtractPatternRequest,
+    db: Session = Depends(get_db)
+):
+    """印花提取接口 - 提取图片中的印花"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.extract_pattern.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建印花提取任务
+        task_info = await ImageService.create_extract_pattern_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            original_mask_url=request.originalMaskUrl
+            )
+        
+        # 返回任务信息
+        return ExtractPatternResponse(
+            code=0,
+            msg="Extract pattern task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process extract pattern: {str(e)}")
+        raise e
+    
+@router.post("/dress_printing_try_on", response_model=DressPrintingTryOnResponse)
+async def dress_printing_try_on(
+    request: DressPrintingTryOnRequest,
+    db: Session = Depends(get_db)
+):
+    """印花上身接口 - 印花上身"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.dress_printing_tryon.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建印花提取任务
+        task_info = await ImageService.create_dress_printing_tryon_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            printing_pic_url=request.printingPicUrl,
+            fabric_pic_url=request.fabricPicUrl
+            )
+        
+        # 返回任务信息
+        return DressPrintingTryOnResponse(
+            code=0,
+            msg="Dress printing tryon task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process dress printing tryon: {str(e)}")
+        raise e
+
+@router.post("/printing_replacement", response_model=PrintingReplacementResponse)
+async def printing_replacement(
+    request: PrintingReplacementRequest,
+    db: Session = Depends(get_db)
+):
+    """印花摆放接口 - 印花摆放"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    
+    credit_value = settings.image_generation.printing_replacement.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建印花提取任务
+        task_info = await ImageService.create_printing_replacement_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl, 
+            printing_pic_url=request.printingPicUrl,
+            x=request.x, 
+            y=request.y, 
+            scale=request.scale, 
+            rotate=request.rotate,
+            remove_printing_background=request.removePrintingBackground
+            )
+        
+        # 返回任务信息
+        return PrintingReplacementResponse(
+            code=0,
+            msg="Printing replacement task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process printing replacement: {str(e)}")
         raise e

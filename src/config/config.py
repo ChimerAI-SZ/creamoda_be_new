@@ -70,15 +70,65 @@ class OSSSettings(BaseModel):
     url_prefix: str = ""  # OSS对象URL前缀
     upload_dir: str = "uploads/"  # 上传目录
 
+class ImageGenerationItem(BaseModel):
+    gen_count: int = 1
+    use_credit: int = 1
+
 class ImageGenerationSettings(BaseModel):
-    text_to_image_count: int = 1
-    copy_style_count: int = 1
-    change_clothes_count: int = 1
-    fabric_to_design_count: int = 1
-    virtual_try_on_count: int = 1
-    sketch_to_design_count: int = 1
-    mix_image_count: int = 1
+    text_to_image: ImageGenerationItem = ImageGenerationItem()
+    copy_style: ImageGenerationItem = ImageGenerationItem()
+    change_clothes: ImageGenerationItem = ImageGenerationItem()
+    fabric_to_design: ImageGenerationItem = ImageGenerationItem()
+    virtual_try_on: ImageGenerationItem = ImageGenerationItem()
+    sketch_to_design: ImageGenerationItem = ImageGenerationItem()
+    mix_image: ImageGenerationItem = ImageGenerationItem()
+    style_transfer: ImageGenerationItem = ImageGenerationItem()
+    fabric_transfer: ImageGenerationItem = ImageGenerationItem()
+    change_color: ImageGenerationItem = ImageGenerationItem()
+    change_background: ImageGenerationItem = ImageGenerationItem()
+    remove_background: ImageGenerationItem = ImageGenerationItem()
+    particial_modification: ImageGenerationItem = ImageGenerationItem()
+    upscale: ImageGenerationItem = ImageGenerationItem()
+    change_pattern: ImageGenerationItem = ImageGenerationItem()
+    change_fabric: ImageGenerationItem = ImageGenerationItem()
+    change_printing: ImageGenerationItem = ImageGenerationItem()
+    change_pose: ImageGenerationItem = ImageGenerationItem()
+    style_fusion: ImageGenerationItem = ImageGenerationItem()
+    extract_pattern: ImageGenerationItem = ImageGenerationItem()
+    dress_printing_tryon: ImageGenerationItem = ImageGenerationItem()
+    printing_replacement: ImageGenerationItem = ImageGenerationItem()
     estimated_time_seconds: int = 20
+
+class PayPalSettings(BaseModel):
+    paypal_client_id: str = ""
+    paypal_secret: str = ""
+    paypal_base_url: str = ""
+    webhook_id: str = ""
+    return_url: str = ""
+    cancel_url: str = ""
+
+class RabbitMQSettings(BaseModel):
+    """RabbitMQ 配置"""
+    enabled: bool = True
+    host: str = "localhost"
+    port: int = 5672
+    username: str = "guest"
+    password: str = "guest"
+    virtual_host: str = "/"
+    exchange_name: str = "creamoda_exchange"
+    heartbeat: int = 600
+    blocked_connection_timeout: int = 300
+    prefetch_count: int = 10
+    
+    # 队列配置
+    queues: dict = {
+        "image_generation": {
+            "name": "img_gen",
+            "routing_key": "img.gen.finish",
+            "durable": True,
+            "max_priority": 10
+        }
+    }
 
 class Settings(BaseModel):
     api: APISettings
@@ -91,6 +141,8 @@ class Settings(BaseModel):
     scheduler: SchedulerSettings
     oss: OSSSettings = OSSSettings()
     image_generation: ImageGenerationSettings
+    paypal: PayPalSettings
+    rabbitmq: RabbitMQSettings = RabbitMQSettings()
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

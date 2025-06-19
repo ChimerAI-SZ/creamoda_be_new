@@ -271,6 +271,391 @@ class InfiniAIAdapter:
             logger.error(f"背景转换失败: {e}")
             raise Exception(f"背景转换失败: {str(e)}")
 
+    async def comfy_request_pattern_variation(self, original_image_url: str, seed: Optional[int] = None):
+        """
+        改变图片中的版型
+        
+        Args:
+            original_image_url: 原始图片的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_pattern_variation,
+                    original_image_url=oss_image_ids[0],
+                    seed=seed
+                )
+
+                pattern_variation_prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"版型变化任务已提交，任务ID: {pattern_variation_prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(pattern_variation_prompt_id)
+                logger.info(f"版型变化任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to change pattern variation to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully change pattern variation for task result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"改变图片中的版型失败: {e}")
+            raise Exception(f"改变图片中的版型失败: {str(e)}")
+    
+    async def comfy_request_change_fabric(self, model_image_url: str, model_mask_url: str, fabric_image_url: str, seed: Optional[int] = None):
+        """
+        将面料图案应用到服装上
+        
+        Args:
+            model_image_url: 模特图片的URL
+            model_mask_url: 模特服装区域蒙版的URL
+            fabric_image_url: 面料图案的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(model_image_url, model_mask_url, fabric_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_change_fabric,
+                    original_image_url=oss_image_ids[0],
+                    original_mask_url=oss_image_ids[1],
+                    fabric_image_url=oss_image_ids[2],
+                    seed=seed
+                )
+
+                change_fabric_prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"面料转换任务已提交，任务ID: {change_fabric_prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(change_fabric_prompt_id)
+                logger.info(f"面料转换任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to change fabric to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully change fabric for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"面料转换失败: {e}")
+            raise Exception(f"面料转换失败: {str(e)}")
+
+    async def comfy_request_change_pose_redux(self, original_image_url: str, pose_reference_image_url: str, seed: Optional[int] = None):
+        """
+        将面料图案应用到服装上
+        
+        Args:
+            original_image_url: 原始图片的URL
+            pose_reference_image_url: 参考图片的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, pose_reference_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_change_pose_redux,
+                    original_image_url=oss_image_ids[0],
+                    pose_reference_image_url=oss_image_ids[1],
+                    seed=seed
+                )
+
+                change_pose_prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"模特换姿态任务已提交，任务ID: {change_pose_prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(change_pose_prompt_id)
+                logger.info(f"模特换姿态任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to change pose to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully change pose for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"模特换姿态失败: {e}")
+            raise Exception(f"模特换姿态失败: {str(e)}")
+    
+    async def comfy_request_style_fusion(self, original_image_url: str, reference_image_url: str, seed: Optional[int] = None):
+        """
+        将风格融合到服装上
+        
+        Args:
+            original_image_url: 原始图片的URL
+            reference_image_url: 参考图 片的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, reference_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_style_fusion,
+                    original_image_url=oss_image_ids[0],
+                    reference_image_url=oss_image_ids[1],
+                    seed=seed
+                )
+
+                style_fusion_prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"风格融合任务已提交，任务ID: {style_fusion_prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(style_fusion_prompt_id)
+                logger.info(f"风格融合任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to change style fusion to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully change style fusion for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"风格融合失败: {e}")
+            raise Exception(f"风格融合失败: {str(e)}")
+    
+    async def comfy_request_printing_variation(self, model_image_url: str, seed: Optional[int] = None):
+        """
+        改变图片中的印花
+        
+        Args:
+            model_image_url: 模特图片的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(model_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_printing_variation,
+                    original_image_url=oss_image_ids[0],
+                    seed=seed
+                    )
+
+                printing_variation_prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"印花变化任务已提交，任务ID: {printing_variation_prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(printing_variation_prompt_id)
+                logger.info(f"印花变化任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to change printing variation to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully change printing variation for task result: {oss_image_url}")
+                return oss_image_url
+
+
+        except Exception as e:
+            logger.error(f"改变图片中的印花失败: {e}")
+            raise Exception(f"改变图片中的印花失败: {str(e)}")
+    
+    async def comfy_request_extract_pattern(self, original_image_url: str, original_mask_url: str, seed: Optional[int] = None):
+        """
+        印花提取
+        
+        Args:
+            original_image_url: 原始图片的URL
+            original_mask_url: mask的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, original_mask_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_extract_pattern,
+                    original_image_url=oss_image_ids[0],
+                    original_mask_url=oss_image_ids[1],
+                    seed=seed
+                )
+
+                style_fusion_prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"印花提取任务已提交，任务ID: {style_fusion_prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(style_fusion_prompt_id)
+                logger.info(f"印花提取任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to extract pattern to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully extract pattern for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"印花提取失败: {e}")
+            raise Exception(f"印花提取失败: {str(e)}")
+        
+    
+    async def comfy_request_dress_printing_tryon(self, original_image_url: str, printing_image_url: str, fabric_image_url: str, seed: Optional[int] = None):
+        """
+        印花上身
+        
+        Args:
+            original_image_url: 原始图片的URL
+            printing_image_url: 印花图片的URL
+            fabric_image_url: 面料图片的URL
+            seed: 随机种子，不提供则随机生成
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, printing_image_url, fabric_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_dress_printing_tryon,
+                    original_image_url=oss_image_ids[0],
+                    printing_image_url=oss_image_ids[1],
+                    fabric_image_url=oss_image_ids[2],
+                    seed=seed
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"印花上身任务已提交，任务ID: {prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(prompt_id)
+                logger.info(f"印花上身任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to dress printing tryon to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully dress printing tryon for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"印花上身失败: {e}")
+            raise Exception(f"印花上身失败: {str(e)}")
+
+    async def comfy_request_printing_replacement(self, original_image_url: str, printing_image_url: str,
+                                           x: int, y: int, scale: float, rotate: float,
+                                           remove_printing_background: bool):
+        """
+        印花摆放
+        
+        Args:
+            original_image_url: 原始图片的URL
+            printing_image_url: 印花图片的URL
+            x: - 印花图片的中心点相对于衣服图片的x坐标
+            y: - 印花图片的中心点相对于衣服图片的y坐标
+            scale: - 印花图片的缩放比例
+            rotate: - 印花图片的旋转角度
+            remove_printing_background: - 是否去除印花图片的背景
+        """
+        try:
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, printing_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_printing_replacement,
+                    original_image_url=oss_image_ids[0],
+                    printing_image_url=oss_image_ids[1],
+                    x=x,
+                    y=y,
+                    scale=scale,
+                    rotate=rotate,
+                    remove_printing_background=remove_printing_background
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"印花摆放任务已提交，任务ID: {prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(prompt_id)
+                logger.info(f"印花摆放任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(
+                        original_url
+                    )
+                if not oss_image_url:
+                    logger.warning(f"Failed to printing replacement to OSS, using original URL: {original_url}")
+                    return original_url
+
+                # 记录成功结果
+                logger.info(f"Successfully printing replacement for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"印花摆放失败: {e}")
+            raise Exception(f"印花摆放失败: {str(e)}")
+
+
     def get_result(self, prompt_id: str) -> List[str]:
         """
         获取任务结果
@@ -288,6 +673,8 @@ class InfiniAIAdapter:
         except Exception as e:
             logger.error(f"获取任务结果失败: {e}")
             raise Exception(f"获取任务结果失败: {str(e)}")
+    
+    
 
 
 # 示例用法

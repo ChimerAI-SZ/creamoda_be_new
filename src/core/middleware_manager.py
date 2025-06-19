@@ -3,12 +3,13 @@
 """
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from src.config.config import settings
 from src.config.log_config import logger
-from src.middleware.exception_handler import exception_handler
+from src.middleware.exception_handler import exception_handler, validation_exception_handler
+from src.middleware.gen_img_rate_limit_middleware import GenImgRateLimitMiddleware
 from src.middleware.log_middleware import log_middleware
 from src.middleware.auth_middleware import AuthMiddleware
-from src.middleware.api_exception_middleware import api_exception_middleware
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
 
 class MiddlewareManager:
@@ -20,18 +21,36 @@ class MiddlewareManager:
         
         Args:
             app: FastAPI应用实例
+            先注册后执行
         """
         try:
             logger.info("Registering middlewares...")
             
-            # 添加API异常中间件
-            app.middleware("http")(api_exception_middleware)
-            logger.info("Registered API exception middleware")
+            # 生成图片限流中间件
+            gen_img_paths = ["/api/v1/img/txt_generate",
+                             "/api/v1/img/copy_style_generate",
+                             "/api/v1/img/change_clothes_generate",
+                             "/api/v1/img/fabric_to_design",
+                             "/api/v1/img/virtual_try_on",
+                             "/api/v1/img/sketch_to_design",
+                             "/api/v1/img/mix_image",
+                             "/api/v1/img/style_transfer",
+                             "/api/v1/img/fabric_transfer",
+                             "/api/v1/img/change_color",
+                             "/api/v1/img/change_background",
+                             "/api/v1/img/remove_background",
+                             "/api/v1/img/particial_modification",
+                             "/api/v1/img/upscale",
+                             "/api/v1/img/change_pattern",
+                             "/api/v1/img/change_fabric",
+                             "/api/v1/img/change_printing"]
+            app.middleware("http")(GenImgRateLimitMiddleware(gen_img_paths))
+            logger.info("Registered gen img rate limit middleware")
             
-            # 添加日志中间件
-            app.middleware("http")(log_middleware)
-            logger.info("Registered log middleware")
-            
+            # 通用限流中间件
+            app.middleware("http")(RateLimitMiddleware())
+            logger.info("Registered rate limit middleware")
+
             # 添加认证中间件
             protected_paths = [
                 "/api/v1/user/info",
@@ -39,9 +58,15 @@ class MiddlewareManager:
                 "/api/v1/user/change/user_info",
                 "/api/v1/img/*",  # 所有图片相关接口
                 "/api/v1/collect/*",  # 所有收藏相关接口
+                "/api/v1/pay/*",  # 所有支付相关接口
+                "/api/v1/paypal/capture",  # paypal捕获接口
                 "/api/v1/common/contact",
                 "/api/v1/common/img/upload",
-                "/api/v1/common/enum/*"  # 枚举接口公开访问
+                "/api/v1/community/like",
+                "/api/v1/community/cancel_like",
+                "/api/v1/community/share",
+                "/api/v1/common/enum/*",  # 枚举接口公开访问
+                "/api/v1/backdoor/*"  # 后门接口公开访问
             ]
             
             # 从配置中获取额外的受保护路径
@@ -55,10 +80,14 @@ class MiddlewareManager:
             app.middleware("http")(AuthMiddleware(protected_paths).__call__)
             logger.info(f"Registered auth middleware with {len(protected_paths)} protected paths")
             
-            # 限流中间件放在认证中间件之后注册，确保先认证再限流
-            app.middleware("http")(RateLimitMiddleware())
-            logger.info("Registered rate limit middleware")
-            
+            # 添加请求验证异常处理器
+            app.add_exception_handler(RequestValidationError, validation_exception_handler)
+            logger.info("Registered validation exception handler")
+
+            # 添加日志中间件
+            app.middleware("http")(log_middleware)
+            logger.info("Registered log middleware")
+
             # 添加全局异常处理器
             app.add_exception_handler(Exception, exception_handler)
             logger.info("Registered global exception handler")

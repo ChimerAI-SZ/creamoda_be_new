@@ -7,6 +7,8 @@ from src.core.scheduler import scheduler
 from src.config.config import settings
 from src.config.log_config import logger
 from src.tasks.img_generation_task import img_generation_compensate_task
+from src.tasks.release_free_credit_task import release_free_credit_task
+from src.tasks.subscribe_status_refresh_task import subscribe_status_refresh_task
 
 class TaskManager:
     """定时任务管理器，处理调度器的生命周期和任务配置"""
@@ -41,7 +43,45 @@ class TaskManager:
                 logger.info(f"Added image generation compensate task with interval {img_compensate_interval}s")
             else:
                 logger.info("Image generation compensate task is disabled in configuration")
+
+            # 新每天凌晨免费积分发放任务配置
+            try:
+                release_free_credit_task_enabled = settings.scheduler.tasks.release_free_credit_task.enabled
+            except (AttributeError, KeyError):
+                release_free_credit_task_enabled = True
+                
+            if release_free_credit_task_enabled:
+                scheduler.add_job(
+                    release_free_credit_task,
+                    'cron',
+                    hour=0,
+                    minute=0,
+                    id='release_free_credit_task',
+                    replace_existing=True,
+                )
+                logger.info("Added release free credit task")
+            else:
+                logger.info("Release free credit task is disabled in configuration")
             
+            # 新每天凌晨订阅状态刷新任务配置
+            try:
+                subscribe_status_refresh_task_enabled = settings.scheduler.tasks.subscribe_status_refresh_task.enabled
+            except (AttributeError, KeyError):
+                subscribe_status_refresh_task_enabled = True
+                
+            if subscribe_status_refresh_task_enabled:
+                scheduler.add_job(
+                    subscribe_status_refresh_task,
+                    'cron',
+                    hour=0,
+                    minute=0,
+                    id='subscribe_status_refresh_task',
+                    replace_existing=True,
+                )
+                logger.info("Added subscribe status refresh task")
+            else:
+                logger.info("Subscribe status refresh task is disabled in configuration")
+
             # 这里可以添加更多的定时任务，根据配置文件控制是否启用
             # ...
             
@@ -77,6 +117,13 @@ class TaskManager:
     async def shutdown_scheduler():
         """关闭调度器，停止所有定时任务"""
         try:
+            # 关闭 RabbitMQ 服务
+            try:
+                await rabbitmq_service.shutdown()
+                logger.info("RabbitMQ service shutdown completed")
+            except Exception as e:
+                logger.error(f"Error shutting down RabbitMQ service: {str(e)}")
+            
             if scheduler.running:
                 scheduler.shutdown()
                 logger.info("APScheduler shutdown completed")

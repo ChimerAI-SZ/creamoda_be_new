@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from jose import jwt
+from jose import ExpiredSignatureError, jwt
 from sqlalchemy.orm import Session
 
 from src.config.log_config import logger
@@ -10,6 +10,7 @@ from src.core.context import UserContext, set_user_context, clear_user_context
 from src.db.redis import redis_client
 from src.db.session import SessionLocal
 from src.dto.common import CommonResponse
+from src.exceptions.user import AuthenticationError
 from src.models.models import UserInfo
 
 class AuthMiddleware:
@@ -42,7 +43,7 @@ class AuthMiddleware:
             # 解析token
             scheme, token = auth_header.split()
             if scheme.lower() != 'bearer':
-                raise ValueError("Invalid authentication scheme")
+                raise AuthenticationError(message="Invalid authentication scheme")
             
             # 验证token
             payload = jwt.decode(
@@ -53,22 +54,22 @@ class AuthMiddleware:
             email = payload.get("sub")
             
             if not email:
-                raise ValueError("Invalid token payload")
+                raise AuthenticationError(message="Invalid token payload")
                 
             # 检查Redis中的会话
             # stored_token = redis_client.get(f"user_session:{email}")
             # if not stored_token or stored_token != token:
-            #     raise ValueError("Invalid or expired session")
+            #     raise AuthenticationError(message="Invalid or expired session")
             
             # 获取用户信息
             db = SessionLocal()
             try:
                 user = db.query(UserInfo).filter(UserInfo.email == email).first()
                 if not user:
-                    raise ValueError("User not found")
+                    raise AuthenticationError(message="User not found")
                 
                 if user.status != 1:
-                    raise ValueError("User account disabled")
+                    raise AuthenticationError(message="User account disabled")
                 
                 # 设置用户上下文
                 set_user_context(UserContext(
@@ -90,17 +91,8 @@ class AuthMiddleware:
                 db.close()
                 clear_user_context()
                 
-        except ValueError as e:
+        except (AuthenticationError, ExpiredSignatureError) as e:
             logger.warning(f"Authentication error: {str(e)}")
-            return JSONResponse(
-                status_code=200,
-                content=CommonResponse(
-                    code=401,
-                    msg="Invalid or expired token"
-                ).model_dump()
-            )
-        except Exception as e:
-            logger.error(f"Authentication error: {str(e)}")
             return JSONResponse(
                 status_code=200,
                 content=CommonResponse(
