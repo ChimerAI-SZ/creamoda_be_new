@@ -139,7 +139,7 @@ paypal:
 # RabbitMQ 配置
 rabbitmq:
   enabled: true
-  host: "rabbitmq-sg-acm4b8b9601.us-west-1.amqp-0.vpc.mq.amqp.aliyuncs.com"
+  host: "rabbitmq-sg-acm4b8b9601.us-west-1.amqp-0.net.mq.amqp.aliyuncs.com"
   port: 5672
   username: "MjpyYWJiaXRtcS1zZy1hY200YjhiOTYwMTpMVEFJNXRGSkRCbktVWVpKMXNWQ0IxSlA="
   password: "RDNCNTA4NUJFMUU5QUZEQUQyRUJFNTQ3OUQwOENBOEI1MDc3MTg0NDoxNzUwMjM2MTQzNzU1"
