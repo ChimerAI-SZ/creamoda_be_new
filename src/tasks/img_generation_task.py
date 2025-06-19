@@ -16,7 +16,7 @@ from redis.lock import Lock
 
 async def process_image_generation_compensate():
     """补偿处理未完成的图像生成任务"""
-    with get_async_db() as db:
+    async with get_async_db() as db:
         try:
             # 获取当前时间
             now = datetime.utcnow()
