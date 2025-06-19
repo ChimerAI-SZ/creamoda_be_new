@@ -76,7 +76,7 @@ async def upload_image(
             )
         
         # 验证文件后缀
-        file_ext = os.path.splitext(file.filename)[1]
+        file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext not in ['.jpg', '.jpeg', '.png']:
             return UploadImageResponse(
                 code=400,
