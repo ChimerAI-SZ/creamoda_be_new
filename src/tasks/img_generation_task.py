@@ -4,7 +4,7 @@ import asyncio
 from src.constants.gen_img_type import GenImgType
 from src.services.credit_service import CreditService
 from ..db.redis import redis_client
-from ..db.session import SessionLocal, get_db
+from ..db.session import SessionLocal, get_async_db, get_db
 from ..services.image_service import ImageService
 from ..config.log_config import logger
 from datetime import datetime, timedelta
@@ -16,7 +16,7 @@ from redis.lock import Lock
 
 async def process_image_generation_compensate():
     """补偿处理未完成的图像生成任务"""
-    with get_db() as db:
+    with get_async_db() as db:
         try:
             # 获取当前时间
             now = datetime.utcnow()

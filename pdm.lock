@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:01fec269eb8df7c8963077504742474d9d54878a849f767b308cf79ef5585bfc"
+content_hash = "sha256:16bed4f376ec7c95821ce47d3c089125fec113706cd039266774490c5798a8eb"
 
 [[metadata.targets]]
 requires_python = "==3.11.*"
@@ -73,6 +73,20 @@ files = [
     {file = "aiohttp-3.12.12-cp311-cp311-win32.whl", hash = "sha256:58ecd10fda6a44c311cd3742cfd2aea8c4c600338e9f27cb37434d9f5ca9ddaa"},
     {file = "aiohttp-3.12.12-cp311-cp311-win_amd64.whl", hash = "sha256:b0066e88f30be00badffb5ef8f2281532b9a9020863d873ae15f7c147770b6ec"},
     {file = "aiohttp-3.12.12.tar.gz", hash = "sha256:05875595d2483d96cb61fa9f64e75262d7ac6251a7e3c811d8e26f7d721760bd"},
+]
+
+[[package]]
+name = "aiomysql"
+version = "0.2.0"
+requires_python = ">=3.7"
+summary = "MySQL driver for asyncio."
+groups = ["default"]
+dependencies = [
+    "PyMySQL>=1.0",
+]
+files = [
+    {file = "aiomysql-0.2.0-py3-none-any.whl", hash = "sha256:b7c26da0daf23a5ec5e0b133c03d20657276e4eae9b73e040b72787f6f6ade0a"},
+    {file = "aiomysql-0.2.0.tar.gz", hash = "sha256:558b9c26d580d08b8c5fd1be23c5231ce3aeff2dadad989540fee740253deb67"},
 ]
 
 [[package]]

@@ -148,6 +148,10 @@ class Settings(BaseModel):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"mysql+pymysql://{self.database.user}:{self.database.password}@{self.database.host}:{self.database.port}/{self.database.name}"
 
+    @property
+    def SQLALCHEMY_DATABASE_URI_ASYNC(self) -> str:
+        return f"mysql+aiomysql://{self.database.user}:{self.database.password}@{self.database.host}:{self.database.port}/{self.database.name}"
+
 @lru_cache()
 def get_settings() -> Settings:
     """
