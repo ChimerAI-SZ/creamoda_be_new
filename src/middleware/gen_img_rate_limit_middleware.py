@@ -40,45 +40,45 @@ class GenImgRateLimitMiddleware:
         else:
             raise AuthenticationError(message="User not login")
         
-        db = get_db()
+        with get_db() as db:
         
-        # 检查是否超过限流
-        is_limited, remaining, reset_time = await self._check_rate_limit(
-            db=db,
-            user_id=user_id
-        )
-        
-        # 如果超过限流，返回错误响应
-        if is_limited:
-            logger.warning(
-                f"Rate limit exceeded: User ID={user_id}, Path={path}, "
-                f"Reset in {reset_time} seconds"
+            # 检查是否超过限流
+            is_limited, remaining, reset_time = await self._check_rate_limit(
+                db=db,
+                user_id=user_id
             )
-            return JSONResponse(
-                status_code=429,
-                content=CommonResponse(
-                    code=429,
-                    msg="Too many requests, please try again later"
-                ).model_dump()
+            
+            # 如果超过限流，返回错误响应
+            if is_limited:
+                logger.warning(
+                    f"Rate limit exceeded: User ID={user_id}, Path={path}, "
+                    f"Reset in {reset_time} seconds"
+                )
+                return JSONResponse(
+                    status_code=429,
+                    content=CommonResponse(
+                        code=429,
+                        msg="Too many requests, please try again later"
+                    ).model_dump()
+                )
+            
+            # 检查并发限制
+            is_concurrency_limited = await self._check_concurrency_limit(
+                db=db,
+                user_id=user_id
             )
-        
-        # 检查并发限制
-        is_concurrency_limited = await self._check_concurrency_limit(
-            db=db,
-            user_id=user_id
-        )
-        if is_concurrency_limited:
-            return JSONResponse(
-                status_code=430,
-                content=CommonResponse(
-                    code=430,
-                    msg="Concurrency limit reached, please try again later"
-                ).model_dump()
-            )
-        
-        # 将限流信息添加到响应头
-        response = await call_next(request)
-        return response
+            if is_concurrency_limited:
+                return JSONResponse(
+                    status_code=430,
+                    content=CommonResponse(
+                        code=430,
+                        msg="Concurrency limit reached, please try again later"
+                    ).model_dump()
+                )
+            
+            # 将限流信息添加到响应头
+            response = await call_next(request)
+            return response
     
     def _should_protect_path(self, path: str) -> bool:
         """检查路径是否需要保护"""
