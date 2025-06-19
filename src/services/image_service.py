@@ -556,482 +556,482 @@ class ImageService:
         Args:
             result_id: GenImgResult的ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务状态为生成中(如果尚未更新)
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            # 更新结果状态为生成中
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用生成API
+                result_pic = await ImageService.call_generation_api(task, result, result.prompt)
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
-                
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务状态为生成中(如果尚未更新)
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                # 更新结果状态为生成中
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                # 重置失败次数
+                result.fail_count = 0
                 db.commit()
                 
-                try:
-                    # 调用生成API
-                    result_pic = await ImageService.call_generation_api(task, result, result.prompt)
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    # 重置失败次数
-                    result.fail_count = 0
-                    db.commit()
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Image generation completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.text_to_image.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"Image generation completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.text_to_image.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to generate image for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.text_to_image.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing image generation for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                logger.error(f"Failed to generate image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.text_to_image.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing image generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
     
     @staticmethod
     async def process_fabric_to_design_generation(result_id: int):
         """处理面料转设计任务"""
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 使用create_variation方法
+                result_pic = await thenewblack.create_clothing_with_fabric(
+                    fabric_image_url=task.original_pic_url,
+                    prompt=result.prompt,
+                    gender=task.gender,
+                    country=task.country,
+                    age=task.age,
+                    result_id=result.id
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 调用TheNewBlack API创建变体
-                    thenewblack = TheNewBlack()
-                    
-                    # 使用create_variation方法
-                    result_pic = await thenewblack.create_clothing_with_fabric(
-                        fabric_image_url=task.original_pic_url,
-                        prompt=result.prompt,
-                        gender=task.gender,
-                        country=task.country,
-                        age=task.age,
-                        result_id=result.id
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Image fabric to design completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.fabric_to_design.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Image fabric to design completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.fabric_to_design.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to generate fabric to design image for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-            
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.fabric_to_design.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing fabric to design generation for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                logger.error(f"Failed to generate fabric to design image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.fabric_to_design.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing fabric to design generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def process_virtual_try_on_generation(result_id: int):
         """处理洗图任务"""
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                result_pic = await thenewblack.create_virtual_try_on(
+                    model_image_url=task.original_pic_url,
+                    clothing_image_url=task.clothing_photo,
+                    clothing_type=task.cloth_type,
+                    result_id=result.id
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 调用TheNewBlack API创建变体
-                    thenewblack = TheNewBlack()
-                    
-                    result_pic = await thenewblack.create_virtual_try_on(
-                        model_image_url=task.original_pic_url,
-                        clothing_image_url=task.clothing_photo,
-                        clothing_type=task.cloth_type,
-                        result_id=result.id
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"virtual try on completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.virtual_try_on.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"virtual try on completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.virtual_try_on.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to generate virtual try on image for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.virtual_try_on.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing vitual try on generation for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                logger.error(f"Failed to generate virtual try on image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.virtual_try_on.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing vitual try on generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
     
     @staticmethod
     async def process_sketch_to_design_generation(result_id: int):
         """处理草图转设计任务"""
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
+
+                # 使用create_variation方法
+                result_pic = await thenewblack.create_sketch_to_design(
+                    original_pic_url=task.original_pic_url,
+                    prompt=task.original_prompt,
+                    result_id=result.id
+                )
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
-                
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 调用TheNewBlack API创建变体
-                    thenewblack = TheNewBlack()
+                logger.info(f"Image sketch to design completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.sketch_to_design.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    # 使用create_variation方法
-                    result_pic = await thenewblack.create_sketch_to_design(
-                        original_pic_url=task.original_pic_url,
-                        prompt=task.original_prompt,
-                        result_id=result.id
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Image sketch to design completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.sketch_to_design.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to generate sketch to design image for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.sketch_to_design.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-            
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing sketch to design generation for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                logger.error(f"Failed to generate sketch to design image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.sketch_to_design.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        
+        except Exception as e:
+            logger.error(f"Error processing sketch to design generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def process_mix_image_generation(result_id: int):
         """处理混合图片任务"""
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
+                fidelity = task.fidelity / 100.0
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 确保保真度在有效范围内
+                fidelity = min(max(fidelity, 0.0), 1.0)
+
+                # 创建线程池执行器
+                result_pic = await InfiniAIAdapter.get_adapter().transfer_style(
+                    image_a_url=task.original_pic_url, 
+                    image_b_url=task.refer_pic_url, 
+                    prompt=task.original_prompt, 
+                    strength=fidelity
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
-                    fidelity = task.fidelity / 100.0
-                    
-                    # 确保保真度在有效范围内
-                    fidelity = min(max(fidelity, 0.0), 1.0)
+                logger.info(f"Image mix image completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.mix_image.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    # 创建线程池执行器
-                    result_pic = await InfiniAIAdapter.get_adapter().transfer_style(
-                        image_a_url=task.original_pic_url, 
-                        image_b_url=task.refer_pic_url, 
-                        prompt=task.original_prompt, 
-                        strength=fidelity
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Image mix image completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.mix_image.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to generate mix image for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-            
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.mix_image.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-            
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing mix image generation for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                logger.error(f"Failed to generate mix image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.mix_image.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        
+        except Exception as e:
+            logger.error(f"Error processing mix image generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     def _get_style_by_name(style_name: str) -> tuple:
@@ -1057,104 +1057,104 @@ class ImageService:
     @staticmethod
     async def process_copy_style_generation(result_id: int):
         """处理洗图任务"""
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用TheNewBlack API创建变体
+                thenewblack = TheNewBlack()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
+                fidelity = task.fidelity / 100.0
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                # 确保保真度在有效范围内
+                fidelity = min(max(fidelity, 0.0), 1.0)
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
+                # 使用create_variation方法
+                result_pic = await thenewblack.create_image_variation(
+                    image_url=task.original_pic_url,
+                    prompt=result.prompt,
+                    fidelity=fidelity,
+                    result_id=result.id
+                )
                 
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 调用TheNewBlack API创建变体
-                    thenewblack = TheNewBlack()
-                    
-                    # 将保真度从数据库存储的整数(0-100)转回浮点数(0-1)
-                    fidelity = task.fidelity / 100.0
-                    
-                    # 确保保真度在有效范围内
-                    fidelity = min(max(fidelity, 0.0), 1.0)
-                    
-                    # 使用create_variation方法
-                    result_pic = await thenewblack.create_image_variation(
-                        image_url=task.original_pic_url,
-                        prompt=result.prompt,
-                        fidelity=fidelity,
-                        result_id=result.id
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.copy_style.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Image copy style completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.copy_style.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-            
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.copy_style.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing copy style generation for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.copy_style.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing copy style generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def create_change_clothes_task(
@@ -1252,99 +1252,99 @@ class ImageService:
         negative: Optional[str] = None
     ):
         """处理更换服装任务"""
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用TheNewBlack API更换服装
+                thenewblack = TheNewBlack()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用change_clothes方法
+                result_pic = await thenewblack.change_clothes(
+                    image_url=task.original_pic_url,
+                    remove=remove,
+                    replace=result.prompt,
+                    negative=negative,
+                    result_id=result.id
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 调用TheNewBlack API更换服装
-                    thenewblack = TheNewBlack()
-                    
-                    # 调用change_clothes方法
-                    result_pic = await thenewblack.change_clothes(
-                        image_url=task.original_pic_url,
-                        remove=remove,
-                        replace=result.prompt,
-                        negative=negative,
-                        result_id=result.id
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Change clothes completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.change_clothes.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Change clothes completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.change_clothes.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Failed to change clothes for result {result_id}, task {task.id}: {str(e)}")
-                    
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-            
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = CreditService.get_credit_value_by_type(GenImgType.get_by_type_and_variation_type(task.type, task.variation_type))
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change clothes for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                logger.error(f"Failed to change clothes for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+        
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = CreditService.get_credit_value_by_type(GenImgType.get_by_type_and_variation_type(task.type, task.variation_type))
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing change clothes for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
 
     @staticmethod
     def get_image_history(
@@ -1649,98 +1649,98 @@ class ImageService:
             result_id: 结果记录ID
             strength: 风格应用强度，0-1之间
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用风格转换
+                result_pic = adapter.transfer_style(
+                    image_a_url=task.original_pic_url,
+                    image_b_url=task.style_pic_url,
+                    strength=strength or 0.5
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用风格转换
-                    result_pic = adapter.transfer_style(
-                        image_a_url=task.original_pic_url,
-                        image_b_url=task.style_pic_url,
-                        strength=strength or 0.5
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Style transfer completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.style_transfer.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Style transfer completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.style_transfer.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.style_transfer.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing style transfer for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.style_transfer.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing style transfer for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def create_fabric_transfer_task(
@@ -1905,95 +1905,95 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用面料转换
+                result_pic = adapter.transfer_fabric(
+                    fabric_image_url=task.original_pic_url,
+                    model_image_url=task.model_pic_url,
+                    model_mask_url=task.mask_pic_url
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用面料转换
-                    result_pic = adapter.transfer_fabric(
-                        fabric_image_url=task.original_pic_url,
-                        model_image_url=task.model_pic_url,
-                        model_mask_url=task.mask_pic_url
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Fabric transfer completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.fabric_transfer.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Fabric transfer completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.fabric_transfer.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.fabric_transfer.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing fabric transfer for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.fabric_transfer.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing fabric transfer for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
             
     @staticmethod
     async def process_change_color(result_id: int):
@@ -2002,96 +2002,96 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用TheNewBlack API更换服装
+                thenewblack = TheNewBlack()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用change_clothes方法
+                result_pic = await thenewblack.create_change_color(
+                    image_url=task.original_pic_url,
+                    clothing_text=task.original_prompt,
+                    hex_color=task.hex_color,
+                    result_id=result.id
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
-                
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 调用TheNewBlack API更换服装
-                    thenewblack = TheNewBlack()
-                    
-                    # 调用change_clothes方法
-                    result_pic = await thenewblack.create_change_color(
-                        image_url=task.original_pic_url,
-                        clothing_text=task.original_prompt,
-                        hex_color=task.hex_color,
-                        result_id=result.id
-                    )
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Change color completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.change_color.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Change color completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.change_color.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.change_color.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change color for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_color.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing change color for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
 
 
     @staticmethod
@@ -2180,98 +2180,98 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用面料转换
+                result_pic = await adapter.comfy_request_change_background(
+                    original_image_url=task.original_pic_url,
+                    reference_image_url=task.refer_pic_url,
+                    background_prompt=task.original_prompt
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用面料转换
-                    result_pic = await adapter.comfy_request_change_background(
-                        original_image_url=task.original_pic_url,
-                        reference_image_url=task.refer_pic_url,
-                        background_prompt=task.original_prompt
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"change_background completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.change_background.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"change_background completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.change_background.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.change_background.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change_background for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_background.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing change_background for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
        
 
     @staticmethod
@@ -2354,96 +2354,96 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建Replicate适配器
+                adapter = ReplicateAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用面料转换
+                result_pic = await adapter.remove_background(
+                    image_url=task.original_pic_url,
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from Replicate")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建Replicate适配器
-                    adapter = ReplicateAdapter()
-                    
-                    # 调用面料转换
-                    result_pic = await adapter.remove_background(
-                        image_url=task.original_pic_url,
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from Replicate")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Remove background completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.remove_background.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Remove background completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.remove_background.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.remove_background.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing remove background for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.remove_background.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing remove background for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
        
 
 
@@ -2532,98 +2532,98 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建ideogram适配器
+                adapter = IdeogramAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用面料转换
+                result_pic = await adapter.edit(
+                    image=task.original_pic_url,
+                    mask=task.refer_pic_url,
+                    prompt=task.original_prompt
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from Ideogram")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建ideogram适配器
-                    adapter = IdeogramAdapter()
-                    
-                    # 调用面料转换
-                    result_pic = await adapter.edit(
-                        image=task.original_pic_url,
-                        mask=task.refer_pic_url,
-                        prompt=task.original_prompt
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from Ideogram")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Particial modification completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.particial_modification.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Particial modification completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.particial_modification.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.particial_modification.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing particial modification for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.particial_modification.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing particial modification for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
        
 
     @staticmethod
@@ -2708,96 +2708,96 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建Replicate适配器
+                adapter = ReplicateAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用面料转换
+                result_pic = await adapter.upscale(
+                    image_url=task.original_pic_url,
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from Replicate")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建Replicate适配器
-                    adapter = ReplicateAdapter()
-                    
-                    # 调用面料转换
-                    result_pic = await adapter.upscale(
-                        image_url=task.original_pic_url,
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from Replicate")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Upscale completed for result {result_id}, task {task.id}")
-                    
-                    credit_value = settings.image_generation.upscale.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"Upscale completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.upscale.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
 
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.upscale.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing upscale for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.upscale.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing upscale for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
        
     @staticmethod
     async def create_change_pattern_task(
@@ -2878,96 +2878,96 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                # 调用改变版型
+                result_pic = await adapter.comfy_request_pattern_variation(
+                    original_image_url=task.original_pic_url,
+                )
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    
-                    # 调用改变版型
-                    result_pic = await adapter.comfy_request_pattern_variation(
-                        original_image_url=task.original_pic_url,
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Change pattern completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.change_pattern.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.change_pattern.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                logger.info(f"Change pattern completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_pattern.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change pattern for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_pattern.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing change pattern for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
       
     @staticmethod
     async def create_change_fabric_task(
@@ -3054,98 +3054,98 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                # 调用改变面料
+                result_pic = await adapter.comfy_request_change_fabric(
+                    model_image_url=task.original_pic_url,
+                    model_mask_url=task.mask_pic_url,
+                    fabric_image_url=task.fabric_pic_url
+                )
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    
-                    # 调用改变面料
-                    result_pic = await adapter.comfy_request_change_fabric(
-                        model_image_url=task.original_pic_url,
-                        model_mask_url=task.mask_pic_url,
-                        fabric_image_url=task.fabric_pic_url
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Change fabric completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.change_fabric.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.change_fabric.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                logger.info(f"Change fabric completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_fabric.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change fabric for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_fabric.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing change fabric for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
 
     @staticmethod
     async def create_change_printing_task(
@@ -3226,96 +3226,96 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_printing_variation(
+                    model_image_url=task.original_pic_url
+                )
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    
-                    # 调用改变印花
-                    result_pic = await adapter.comfy_request_printing_variation(
-                        model_image_url=task.original_pic_url
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Change printing completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.change_printing.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.change_printing.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                logger.info(f"Change printing completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_printing.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change printing for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close() 
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_printing.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing change printing for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close() 
        
     @staticmethod
     async def process_caption(result_id: int):
@@ -3324,46 +3324,46 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"process_caption, Result record {result_id} not found")
+                raise CustomException(f"process_caption, Result record {result_id} not found")
+            
+            if result.result_pic is None:
+                logger.error(f"process_caption, Result record {result_id} has no result_pic")
+                raise CustomException(f"process_caption, Result record {result_id} has no result_pic")
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"process_caption, Task {result.gen_id} not found for result {result_id}")
+                raise CustomException(f"process_caption, Task {result.gen_id} not found for result {result_id}")
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 调用改变印花
+                result = FashionProductDescription.caption(result.result_pic)
                 
                 if not result:
-                    logger.error(f"process_caption, Result record {result_id} not found")
-                    raise CustomException(f"process_caption, Result record {result_id} not found")
+                    raise Exception("No images caption from FashionProductDescription")
                 
-                if result.result_pic is None:
-                    logger.error(f"process_caption, Result record {result_id} has no result_pic")
-                    raise CustomException(f"process_caption, Result record {result_id} has no result_pic")
+                await ImageService.deal_image_caption(db, result_id, result.trend_style, result.material, result.ai_design_description)
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                db.commit()
                 
-                if not task:
-                    logger.error(f"process_caption, Task {result.gen_id} not found for result {result_id}")
-                    raise CustomException(f"process_caption, Task {result.gen_id} not found for result {result_id}")
-                
-                try:
-                    # 调用改变印花
-                    result = FashionProductDescription.caption(result.result_pic)
-                    
-                    if not result:
-                        raise Exception("No images caption from FashionProductDescription")
-                    
-                    await ImageService.deal_image_caption(db, result_id, result.trend_style, result.material, result.ai_design_description)
-                    
-                    db.commit()
-                    
-                    logger.info(f"process caption completed for result {result_id}, task {task.id}")
-                except Exception as e:
-                    logger.error(f"Error in process caption for result {result_id}: {str(e)}")
-                    
+                logger.info(f"process caption completed for result {result_id}, task {task.id}")
             except Exception as e:
-                logger.error(f"Error processing process caption for result {result_id}: {str(e)}")
-                raise e
-            finally:
-                db.close()
+                logger.error(f"Error in process caption for result {result_id}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing process caption for result {result_id}: {str(e)}")
+            raise e
+        finally:
+            db.close()
 
     @staticmethod
     async def deal_image_caption(db: Session, result_id: int, styles: List[str], materials: List[str], description: str):
@@ -3502,97 +3502,97 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_change_pose_redux(
+                    original_image_url=task.original_pic_url,
+                    pose_reference_image_url=task.refer_pic_url
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用改变印花
-                    result_pic = await adapter.comfy_request_change_pose_redux(
-                        original_image_url=task.original_pic_url,
-                        pose_reference_image_url=task.refer_pic_url
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Change pose completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.change_pose.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.change_pose.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-                    
+                logger.info(f"Change pose completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.change_pose.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing change pose for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.change_pose.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing change pose for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     
     @staticmethod
@@ -3677,97 +3677,97 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_style_fusion(
+                    original_image_url=task.original_pic_url,
+                    reference_image_url=task.refer_pic_url
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用改变印花
-                    result_pic = await adapter.comfy_request_style_fusion(
-                        original_image_url=task.original_pic_url,
-                        reference_image_url=task.refer_pic_url
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Style fusion completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.style_fusion.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.style_fusion.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-                    
+                logger.info(f"Style fusion completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.style_fusion.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing style fusion for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.style_fusion.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing style fusion for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def create_extract_pattern_task(
@@ -3851,97 +3851,97 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_extract_pattern(
+                    original_image_url=task.original_pic_url,
+                    original_mask_url=task.mask_pic_url
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用改变印花
-                    result_pic = await adapter.comfy_request_extract_pattern(
-                        original_image_url=task.original_pic_url,
-                        original_mask_url=task.mask_pic_url
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Extract pattern completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.extract_pattern.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.extract_pattern.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-                    
+                logger.info(f"Extract pattern completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.extract_pattern.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing extract pattern for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.extract_pattern.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing extract pattern for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def create_dress_printing_tryon_task(
@@ -4028,98 +4028,98 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_dress_printing_tryon(
+                    original_image_url=task.original_pic_url,
+                    printing_image_url=task.refer_pic_url,
+                    fabric_image_url=task.fabric_pic_url
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用改变印花
-                    result_pic = await adapter.comfy_request_dress_printing_tryon(
-                        original_image_url=task.original_pic_url,
-                        printing_image_url=task.refer_pic_url,
-                        fabric_image_url=task.fabric_pic_url
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Dress printing tryon completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.dress_printing_tryon.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.dress_printing_tryon.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-                    
+                logger.info(f"Dress printing tryon completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.dress_printing_tryon.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing dress printing tryon for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.dress_printing_tryon.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing dress printing tryon for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @staticmethod
     async def create_printing_replacement_task(
@@ -4214,99 +4214,99 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
-        with get_db() as db:
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
             try:
-                # 获取结果记录
-                result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+                # 创建InfiniAI适配器
+                adapter = InfiniAIAdapter()
                 
-                if not result:
-                    logger.error(f"Result record {result_id} not found")
-                    return
+                # 调用改变印花
+                result_pic = await adapter.comfy_request_printing_replacement(
+                    original_image_url=task.original_pic_url,
+                    printing_image_url=task.refer_pic_url,
+                    x=int(task.input_param_json['x']),
+                    y=int(task.input_param_json['y']),
+                    scale=float(task.input_param_json['scale']),
+                    rotate=float(task.input_param_json['rotate']),
+                    remove_printing_background=bool(task.input_param_json['remove_printing_background'])
+                )
                 
-                # 获取关联的任务记录
-                task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+                if not result_pic:
+                    raise Exception("No images generated from InfiniAI")
                 
-                if not task:
-                    logger.error(f"Task {result.gen_id} not found for result {result_id}")
-                    return
-                
-                # 更新任务和结果状态为生成中
-                if task.status == 1:
-                    task.status = 2  # 生成中
-                    task.update_time = datetime.utcnow()
-                
-                result.status = 2  # 生成中
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
                 db.commit()
                 
-                try:
-                    # 创建InfiniAI适配器
-                    adapter = InfiniAIAdapter()
-                    
-                    # 调用改变印花
-                    result_pic = await adapter.comfy_request_printing_replacement(
-                        original_image_url=task.original_pic_url,
-                        printing_image_url=task.refer_pic_url,
-                        x=int(task.input_param_json['x']),
-                        y=int(task.input_param_json['y']),
-                        scale=float(task.input_param_json['scale']),
-                        rotate=float(task.input_param_json['rotate']),
-                        remove_printing_background=bool(task.input_param_json['remove_printing_background'])
-                    )
-                    
-                    if not result_pic:
-                        raise Exception("No images generated from InfiniAI")
-                    
-                    # 更新结果记录状态为成功
-                    result.status = 3  # 已生成
-                    result.result_pic = result_pic
-                    result.update_time = datetime.utcnow()
-                    result.fail_count = 0
-                    
-                    # 检查该任务的所有结果记录是否都成功
-                    all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
-                    all_successful = all(r.status == 3 for r in all_results)
-                    
-                    # 只有当所有结果都成功时，才更新任务状态为成功
-                    if all_successful:
-                        task.status = 3  # 已生成
-                        task.update_time = datetime.utcnow()
-                        logger.info(f"All results for task {task.id} are successful, task marked as complete")
-                    
-                    db.commit()
-                    
-                    logger.info(f"Printing replacement completed for result {result_id}, task {task.id}")
-                    credit_value = settings.image_generation.printing_replacement.use_credit
-                    await CreditService.real_spend_credit(db, task.uid, credit_value)
-                    
-                    task_data = {"genImgId":result.id}
-                    await rabbitmq_service.send_image_generation_message(task_data)
-                except CreditError as e:
-                    logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
-                except Exception as e:
-                    # 更新结果记录为失败，并累加失败次数
-                    result.status = 4  # 生成失败
-                    result.update_time = datetime.utcnow()
-                    
-                    # 累加失败次数
-                    if result.fail_count is None:
-                        result.fail_count = 1
-                    else:
-                        result.fail_count += 1
-                    
-                    logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
-                    
-                    db.commit()
-
-                    if result.fail_count >= 3:
-                        try:
-                            credit_value = settings.image_generation.printing_replacement.use_credit
-                            await CreditService.unlock_credit(db, task.uid, credit_value)
-                        except:
-                            logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
-                    
+                logger.info(f"Printing replacement completed for result {result_id}, task {task.id}")
+                credit_value = settings.image_generation.printing_replacement.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+                
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error processing printing replacement for result {result_id}: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.printing_replacement.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                
+        except Exception as e:
+            logger.error(f"Error processing printing replacement for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()

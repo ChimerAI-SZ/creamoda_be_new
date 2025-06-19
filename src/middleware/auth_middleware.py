@@ -62,34 +62,34 @@ class AuthMiddleware:
             #     raise AuthenticationError(message="Invalid or expired session")
             
             # 获取用户信息
-            with get_db() as db:
-                try:
-                    user = db.query(UserInfo).filter(UserInfo.email == email).first()
-                    if not user:
-                        raise AuthenticationError(message="User not found")
-                    
-                    if user.status != 1:
-                        raise AuthenticationError(message="User account disabled")
-                    
-                    # 设置用户上下文
-                    set_user_context(UserContext(
-                        id=user.id,
-                        uid=user.uid,
-                        email=user.email,
-                        username=user.username,
-                        status=user.status,
-                        email_verified=user.email_verified,
-                        head_pic=user.head_pic,
-                        has_pwd=bool(user.pwd)  # pwd为空则showPwd为False，否则为True
-                    ))
-                    
-                    # 继续处理请求
-                    response = await call_next(request)
-                    return response
-                    
-                finally:
-                    db.close()
-                    clear_user_context()
+            db = SessionLocal()
+            try:
+                user = db.query(UserInfo).filter(UserInfo.email == email).first()
+                if not user:
+                    raise AuthenticationError(message="User not found")
+                
+                if user.status != 1:
+                    raise AuthenticationError(message="User account disabled")
+                
+                # 设置用户上下文
+                set_user_context(UserContext(
+                    id=user.id,
+                    uid=user.uid,
+                    email=user.email,
+                    username=user.username,
+                    status=user.status,
+                    email_verified=user.email_verified,
+                    head_pic=user.head_pic,
+                    has_pwd=bool(user.pwd)  # pwd为空则showPwd为False，否则为True
+                ))
+                
+                # 继续处理请求
+                response = await call_next(request)
+                return response
+                
+            finally:
+                db.close()
+                clear_user_context()
                 
         except (AuthenticationError, ExpiredSignatureError) as e:
             logger.warning(f"Authentication error: {str(e)}")

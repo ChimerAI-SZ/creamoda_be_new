@@ -13,34 +13,34 @@ from src.models.models import BillingHistory, Credit, CreditHistory, UserInfo
 
 async def process_release_free_credit():
     """释放免费积分任务"""
-    with get_db() as db:
-        try:
-            # 批量更新用户积分
-            # 分页大小
-            page_size = 100
-            page = 0
+    db = SessionLocal()
+    try:
+        # 批量更新用户积分
+        # 分页大小
+        page_size = 100
+        page = 0
+        
+        while True:
+            # 获取当前页的用户
+            users = db.query(UserInfo).filter(UserInfo.status == 1).offset(page * page_size).limit(page_size).all()
             
-            while True:
-                # 获取当前页的用户
-                users = db.query(UserInfo).filter(UserInfo.status == 1).offset(page * page_size).limit(page_size).all()
+            if not users:
+                break
                 
-                if not users:
-                    break
-                    
-                for user in users:
-                    await release_free_credit_to_user(user.id, db)
-                
-                # 提交当前页的更改
-                db.commit()
-                page += 1
+            for user in users:
+                await release_free_credit_to_user(user.id, db)
             
-            logger.info("Free credit release task completed successfully")
-            
-        except Exception as e:
-            logger.error(f"Error during free credit release: {str(e)}")
-            db.rollback()
-        finally:
-            db.close()
+            # 提交当前页的更改
+            db.commit()
+            page += 1
+        
+        logger.info("Free credit release task completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error during free credit release: {str(e)}")
+        db.rollback()
+    finally:
+        db.close()
 
 async def release_free_credit_to_user(userId: int, db: Session):
     """释放免费积分到用户"""

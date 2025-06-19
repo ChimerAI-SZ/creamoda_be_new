@@ -40,8 +40,8 @@ class GenImgRateLimitMiddleware:
         else:
             raise AuthenticationError(message="User not login")
         
-        with get_db() as db:
-        
+        db = SessionLocal()
+        try:
             # 检查是否超过限流
             is_limited, remaining, reset_time = await self._check_rate_limit(
                 db=db,
@@ -79,6 +79,8 @@ class GenImgRateLimitMiddleware:
             # 将限流信息添加到响应头
             response = await call_next(request)
             return response
+        finally:
+            db.close()
     
     def _should_protect_path(self, path: str) -> bool:
         """检查路径是否需要保护"""
