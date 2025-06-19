@@ -12,6 +12,7 @@ from src.alg.ideogram_adapter import IdeogramAdapter
 from src.alg.replicate_adapter import ReplicateAdapter
 from src.constants.gen_img_type import GenImgType
 from src.exceptions.base import CustomException
+from src.exceptions.pay import CreditError
 from src.services.rabbitmq_service import rabbitmq_service
 from src.services.credit_service import CreditService
 from src.utils.uid import generate_uid
@@ -612,6 +613,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to generate image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -708,6 +711,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to generate fabric to design image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -801,6 +806,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to generate virtual try on image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -894,6 +901,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to generate sketch to design image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -992,6 +1001,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to generate mix image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1114,6 +1125,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to generate copy style image for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1302,6 +1315,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 logger.error(f"Failed to change clothes for result {result_id}, task {task.id}: {str(e)}")
                 
@@ -1698,6 +1713,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -1949,6 +1966,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -2045,6 +2064,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -2223,6 +2244,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -2393,6 +2416,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -2571,6 +2596,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -2743,6 +2770,8 @@ class ImageService:
 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -2911,6 +2940,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -3087,6 +3118,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -3255,6 +3288,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -3529,6 +3564,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -3702,6 +3739,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -3874,6 +3913,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -4050,6 +4091,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
@@ -4238,6 +4281,8 @@ class ImageService:
                 
                 task_data = {"genImgId":result.id}
                 await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败

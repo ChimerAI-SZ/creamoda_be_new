@@ -5,3 +5,7 @@ from .base import CustomException
 class PayError(CustomException):
     def __init__(self, message: str = "Pay error", data: Optional[Dict[str, Any]] = None):
         super().__init__(code=700, message=message, data=data)
+
+class CreditError(CustomException):
+    def __init__(self, message: str = "Credit error", data: Optional[Dict[str, Any]] = None):
+        super().__init__(code=701, message=message, data=data)

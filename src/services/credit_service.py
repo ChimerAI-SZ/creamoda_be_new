@@ -9,6 +9,7 @@ from src.constants.gen_img_type import GenImgType, GenImgTypeConstant
 from src.constants.order_status import OrderStatus
 from src.constants.order_type import OrderType
 from src.exceptions.base import CustomException
+from src.exceptions.pay import CreditError
 from src.models.models import BillingHistory, Credit, CreditHistory
 from src.services.order_service import OrderService
 from src.config.log_config import logger
@@ -149,7 +150,7 @@ class CreditService:
             raise CustomException(code=409, message="Resource is locked, please try again later")
         except Exception as e:
             logger.error(f"Real spend credit failed: {e}")
-            raise CustomException(code=400, message="Real spend credit failed")
+            raise CreditError(message="Real spend credit failed")
         
     @staticmethod
     def get_credit_value_by_type(type: GenImgTypeConstant):
