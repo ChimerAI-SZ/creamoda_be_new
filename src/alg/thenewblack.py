@@ -87,6 +87,13 @@ class TheNewBlackAPI:
         self.session = requests.Session()
         self.session.auth = (self.email, self.password)
 
+    def check_result_url(self, result_url: str):
+        """检查结果URL是否有效"""
+        if len(result_url) < 8:
+            raise AlgError(message=f"TheNewBlack API results response content is too short: {result_url}")
+        if not re.match(r'^https?://', result_url, re.IGNORECASE):
+            raise AlgError(message=f"TheNewBlack API results response content is not a URL: {result_url}")
+
     def create_clothing(self, outfit: str, gender: Gender, country: str, age: int, width: int, height: int,
                         body_type: BodyType = BodyType.MID_SIZE, background: str = 'no background', negative: str = None, ratio: str = '9:16') -> str:
         """
@@ -132,6 +139,7 @@ class TheNewBlackAPI:
             logger.info(f"TheNewBlack API response content: {response.text}")
             
             response.raise_for_status()  # 抛出HTTP错误状态码异常
+            self.check_result_url(response.text)
             logger.info(f"Successfully received response from TheNewBlack API")
             return response.text  # response is a URL to the generated image
         except requests.exceptions.Timeout:
@@ -359,8 +367,7 @@ class TheNewBlackAPI:
             response.raise_for_status()
             if response.text == "Processing...":  # 处理中的状态
                 return None
-            if not re.match(r'^https?://', response.text, re.IGNORECASE):
-                raise AlgError(message=f"TheNewBlack API results response content is not a URL: {response.text}")
+            self.check_result_url(response.text)
             return response.text  # response is a URL to the generated image
         except requests.exceptions.RequestException as e:
             logger.error(f"Error retrieving results: {str(e)}")
