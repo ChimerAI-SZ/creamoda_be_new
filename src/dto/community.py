@@ -7,6 +7,7 @@ class Creator(BaseModel):
     uid: int = Field(..., description="创建者id")
     name: str = Field(..., description="创建者名称")
     email: str = Field(..., description="邮箱")
+    headPic: Optional[str] = Field(..., description="头像")
 
 class CommunityListItem(BaseModel):
     """账单历史项DTO"""

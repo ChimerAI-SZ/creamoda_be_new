@@ -52,7 +52,8 @@ class CommunityService:
                 creator=Creator(
                     uid=user_info.id,
                     name=user_info.username,
-                    email=user_info.email
+                    email=user_info.email,
+                    headPic=user_info.head_pic
                 ),
                 islike=1 if like_img else 0,
                 likeCount=like_count,
@@ -121,7 +122,8 @@ class CommunityService:
             creator=Creator(
                     uid=userInfo.id,
                     name=userInfo.username,
-                    email=userInfo.email
+                    email=userInfo.email,
+                    headPic=userInfo.head_pic
                 ),
         )
 
