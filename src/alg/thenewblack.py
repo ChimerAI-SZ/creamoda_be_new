@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import re
 import time
 from enum import Enum
 from typing import Optional
@@ -9,6 +10,7 @@ import requests
 
 from src.config.config import settings
 from src.config.log_config import logger
+from src.exceptions.alg import AlgError
 from src.utils.image import download_and_upload_image  # 导入图片转存工具
 
 
@@ -357,6 +359,8 @@ class TheNewBlackAPI:
             response.raise_for_status()
             if response.text == "Processing...":  # 处理中的状态
                 return None
+            if not re.match(r'^https?://', response.text, re.IGNORECASE):
+                raise AlgError(message=f"TheNewBlack API results response content is not a URL: {response.text}")
             return response.text  # response is a URL to the generated image
         except requests.exceptions.RequestException as e:
             logger.error(f"Error retrieving results: {str(e)}")
