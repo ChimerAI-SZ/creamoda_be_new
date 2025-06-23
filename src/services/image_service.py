@@ -1716,6 +1716,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing style transfer for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -1969,6 +1970,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing fabric transfer for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -2067,6 +2069,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing change color for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -2247,6 +2250,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing change_background for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -2419,6 +2423,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing remove background for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -2599,6 +2604,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing particial modification for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -2773,6 +2779,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing upscale for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -2943,6 +2950,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing change pattern for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -3121,6 +3129,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing change fabric for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -3291,6 +3300,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing change printing for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -3567,6 +3577,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing change pose for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -3742,6 +3753,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing style fusion for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -3916,6 +3928,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing extract pattern for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -4094,6 +4107,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing dress printing tryon for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
@@ -4284,6 +4298,7 @@ class ImageService:
             except CreditError as e:
                 logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
             except Exception as e:
+                logger.error(f"Error processing printing replacement for result {result_id}: {str(e)}")
                 # 更新结果记录为失败，并累加失败次数
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
