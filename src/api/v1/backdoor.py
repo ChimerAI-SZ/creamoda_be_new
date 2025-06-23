@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends
 from requests import Session
 from typing import Dict, Any
 
+from sqlalchemy import or_
+
 from src.core.context import get_current_user_context
 from src.core.rabbitmq_manager import MessagePriority
 from src.db.session import get_db
@@ -11,6 +13,7 @@ from src.dto.backdoor import CreatePaypalPlanRequest, CreatePaypalPlanResponse, 
 from src.dto.mq import ImageGenerationDto
 from src.exceptions.base import CustomException
 from src.exceptions.user import AuthenticationError
+from src.models.models import GenImgResult
 from src.pay.paypal_client import paypal_client
 from src.services.rabbitmq_service import rabbitmq_service
 from src.tasks.img_generation_task import img_generation_compensate_task
@@ -102,3 +105,21 @@ async def test_send_mq(
     
     success = await rabbitmq_service.send_image_generation_message(task_data)
     
+@router.post("/regenerate_img_label")
+async def regenerate_img_label(
+    db: Session = Depends(get_db)
+):
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+    if user.email != "417253782@qq.com":
+        raise AuthenticationError()
+    
+    
+    results = db.query(GenImgResult).filter(GenImgResult.status == 3, GenImgResult.result_pic is not None, or_(
+        GenImgResult.seo_img_uid.is_(None), 
+        GenImgResult.seo_img_uid.in_(['', ""])  
+    )).all()
+    for result in results:
+        task_data = {"genImgId":result.id}
+        await rabbitmq_service.send_image_generation_message(task_data)

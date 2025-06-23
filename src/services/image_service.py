@@ -3331,18 +3331,18 @@ class ImageService:
             
             if not result:
                 logger.error(f"process_caption, Result record {result_id} not found")
-                raise CustomException(f"process_caption, Result record {result_id} not found")
+                raise CustomException(code=601, message=f"process_caption, Result record {result_id} not found")
             
             if result.result_pic is None:
                 logger.error(f"process_caption, Result record {result_id} has no result_pic")
-                raise CustomException(f"process_caption, Result record {result_id} has no result_pic")
+                raise CustomException(code=601, message=f"process_caption, Result record {result_id} has no result_pic")
             
             # 获取关联的任务记录
             task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
             
             if not task:
                 logger.error(f"process_caption, Task {result.gen_id} not found for result {result_id}")
-                raise CustomException(f"process_caption, Task {result.gen_id} not found for result {result_id}")
+                raise CustomException(code=601, message=f"process_caption, Task {result.gen_id} not found for result {result_id}")
             
             try:
                 # 调用改变印花
@@ -3379,11 +3379,11 @@ class ImageService:
         
         if not result:
             logger.error(f"process_caption, Result record {result_id} not found")
-            raise CustomException(f"process_caption, Result record {result_id} not found")
+            raise CustomException(code=601, message=f"process_caption, Result record {result_id} not found")
         
         if result.result_pic is None:
             logger.error(f"process_caption, Result record {result_id} has no result_pic")
-            raise CustomException(f"process_caption, Result record {result_id} has no result_pic")
+            raise CustomException(code=601, message=f"process_caption, Result record {result_id} has no result_pic")
         
         result.description = description
 
