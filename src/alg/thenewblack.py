@@ -601,6 +601,7 @@ class TheNewBlack:
         model_size: int,
         width: int,
         height: int,
+        ratio: str,
         result_id: str
     ) -> str:
         """创建服装图片 - 与业务代码接口匹配的方法
@@ -649,7 +650,8 @@ class TheNewBlack:
                 gender=gender_enum,
                 country=country,
                 age=age,
-                body_type=body_type
+                body_type=body_type,
+                ratio=ratio,
             )
 
             image_url = await asyncio.wait_for(

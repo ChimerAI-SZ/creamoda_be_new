@@ -536,6 +536,7 @@ class ImageService:
                 model_size=task.model_size,
                 width=task.width,
                 height=task.height,
+                ratio=task.format,
                 result_id=result.id
             )
             
