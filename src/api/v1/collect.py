@@ -27,7 +27,7 @@ async def collect(
         raise HTTPException(status_code=404, detail="生成图片记录不存在")
     
     # 2. 校验是否为用户自己的图片
-    community_img = db.query(CommunityImg).filter(CommunityImg.genImgId == request.genImgId).first()
+    community_img = db.query(CommunityImg).filter(CommunityImg.gen_img_id == request.genImgId).first()
     if gen_img.uid != user.id and not community_img:
         raise HTTPException(status_code=403, detail="无权操作该图片")
     
