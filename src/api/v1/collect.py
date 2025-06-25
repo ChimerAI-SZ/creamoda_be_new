@@ -6,7 +6,7 @@ from datetime import datetime
 from src.core.context import get_current_user_context
 from src.db.session import get_db
 from src.dto.collect import CollectListData, CollectListItem, CollectListResponse, CollectRequest, CollectResponse
-from src.models.models import GenImgResult, CollectImg
+from src.models.models import CommunityImg, GenImgResult, CollectImg
 
 
 router = APIRouter()
@@ -27,7 +27,8 @@ async def collect(
         raise HTTPException(status_code=404, detail="生成图片记录不存在")
     
     # 2. 校验是否为用户自己的图片
-    if gen_img.uid != user.id:
+    community_img = db.query(CommunityImg).filter(CommunityImg.genImgId == request.genImgId).first()
+    if gen_img.uid != user.id and not community_img:
         raise HTTPException(status_code=403, detail="无权操作该图片")
     
     # 3. 查询collect_img表中是否已经存在/不存在记录
