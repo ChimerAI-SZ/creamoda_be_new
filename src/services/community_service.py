@@ -55,7 +55,7 @@ class CommunityService:
                     email=user_info.email,
                     headPic=user_info.head_pic
                 ),
-                islike=1 if like_img else 0,
+                isLike=1 if like_img else 0,
                 likeCount=like_count,
             )
 

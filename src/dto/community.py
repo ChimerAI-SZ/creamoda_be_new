@@ -16,7 +16,7 @@ class CommunityListItem(BaseModel):
     isCollected: Optional[int] = Field(..., description="是否收藏 1-是 0-否")
     seoImgUid: Optional[str] = Field(..., description="seo图片uid")
     creator: Optional[Creator] = Field(..., description="创建者")
-    islike: Optional[int] = Field(..., description="是否点赞 1-是 0-否")
+    isLike: Optional[int] = Field(..., description="是否点赞 1-是 0-否")
     likeCount: Optional[int] = Field(..., description="点赞数量")
     
 class CommunityListData(BaseModel):
