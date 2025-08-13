@@ -149,7 +149,7 @@ async def recharge_credit(
         raise CustomException(code=404, msg=f"User with email {request.email} not found")
     
     # 查询用户积分记录
-    credit_record = db.query(Credit).filter(Credit.uid == user.uid).first()
+    credit_record = db.query(Credit).filter(Credit.uid == user.id).first()
     
     old_credit = 0
     if credit_record:
@@ -160,7 +160,7 @@ async def recharge_credit(
     else:
         # 如果不存在积分记录，创建新记录
         credit_record = Credit(
-            uid=user.uid,
+            uid=user.id,
             credit=request.amount,
             lock_credit=0,
             create_time=datetime.utcnow(),
