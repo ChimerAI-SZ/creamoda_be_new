@@ -32,3 +32,18 @@ class CreatePaypalPlanResponse(CommonResponse[CreatePaypalPlanResponseData]):
     pass
 
 
+class RechargeCreditRequest(BaseModel):
+    email: str
+    amount: int
+    secret_key: str
+
+class RechargeCreditResponseData(BaseModel):
+    user_id: int
+    old_credit: int
+    new_credit: int
+    recharge_amount: int
+
+class RechargeCreditResponse(CommonResponse[RechargeCreditResponseData]):
+    pass
+
+
