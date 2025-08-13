@@ -156,15 +156,15 @@ async def recharge_credit(
         # 如果存在积分记录，增加积分
         old_credit = credit_record.credit or 0
         credit_record.credit = old_credit + request.amount
-        credit_record.update_time = datetime.utcnow()
+        credit_record.update_time = datetime.now()
     else:
         # 如果不存在积分记录，创建新记录
         credit_record = Credit(
             uid=user.id,
             credit=request.amount,
             lock_credit=0,
-            create_time=datetime.utcnow(),
-            update_time=datetime.utcnow()
+            create_time=datetime.now(),
+            update_time=datetime.now()
         )
         db.add(credit_record)
     
