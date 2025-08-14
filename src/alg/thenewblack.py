@@ -7,6 +7,14 @@ from typing import Optional
 
 import aiohttp
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+try:
+    import certifi
+    _CERTIFI_CA = certifi.where()
+except Exception:
+    certifi = None
+    _CERTIFI_CA = True  # 回退为默认验证
 
 from src.config.config import settings
 from src.config.log_config import logger
@@ -86,6 +94,19 @@ class TheNewBlackAPI:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.auth = (self.email, self.password)
+        # 明确指定 CA 证书以避免本机证书链问题
+        self.session.verify = _CERTIFI_CA
+        # 为 HTTPS 请求增加重试（对 429/5xx 等）
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["POST"],
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
     def check_result_url(self, result_url: str):
         """检查结果URL是否有效"""
@@ -201,23 +222,37 @@ class TheNewBlackAPI:
             "replace": replace,
             "negative": "Background pattern, poor details"
         }
+        # 兼容 TheNewBlack 新版 edit 工作流要求的 prompt 参数
+        # 将我们现有的 replace 语义作为 prompt 传递，保留 replace 以兼容旧版
+        if replace:
+            data["prompt"] = replace
         if negative:
             data["negative"] = negative
 
         start_time = time.time()  # 记录开始时间
-        
         try:
-            response = self.session.post(url, data=data, timeout=self.timeout)
-            
-            # 记录响应内容
-            logger.info(f"TheNewBlack API change clothes response status: {response.status_code}")
-            logger.info(f"TheNewBlack API change clothes response content: {response.text}")
-            
-            response.raise_for_status()
-            return response.text  # response is a URL to the modified image
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error changing clothes: {str(e)}")
-            raise
+            # 针对偶发 SSL/连接错误增加有限次重试（独立于 urllib3 的状态码重试）
+            attempts = 0
+            while True:
+                try:
+                    response = self.session.post(url, data=data, timeout=self.timeout)
+                    # 记录响应内容
+                    logger.info(f"TheNewBlack API change clothes response status: {response.status_code}")
+                    logger.info(f"TheNewBlack API change clothes response content: {response.text}")
+                    response.raise_for_status()
+                    return response.text  # response is a URL to the modified image
+                except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
+                    attempts += 1
+                    logger.error(f"SSL/Connection error changing clothes (attempt {attempts}/3): {str(e)}")
+                    if attempts >= 3:
+                        raise
+                    # 指数退避
+                    sleep_seconds = min(2 * attempts, 6)
+                    time.sleep(sleep_seconds)
+                    continue
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Error changing clothes: {str(e)}")
+                    raise
         finally:
             elapsed_time = time.time() - start_time  # 计算请求用时
             logger.info(f"TheNewBlack change_clothes API request took {elapsed_time:.2f} seconds")

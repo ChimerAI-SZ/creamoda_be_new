@@ -257,6 +257,7 @@ async def logout(
 async def get_user_info(db: Session = Depends(get_db)):
     """获取用户信息"""
     user = get_current_user_context()
+    logger.info(f"Current user context in get_user_info: {user}")
     if not user:
         raise AuthenticationError()
         

@@ -2513,17 +2513,18 @@ class ImageService:
             db.commit()
             
             # 启动异步任务处理局部修改
-            for result_id in result_ids:
+            for idx, result_id in enumerate(result_ids):
                 asyncio.create_task(
                     ImageService.process_particial_modification(result_id)
                 )
             
             # 返回任务信息
-            return {
+            task_info = {
                 "taskId": task.id,
                 "status": 1,  # 1-待生成
                 "estimatedTime": settings.image_generation.estimated_time_seconds
             }
+            return task_info
             
         except Exception as e:
             db.rollback()
@@ -2538,36 +2539,51 @@ class ImageService:
         Args:
             result_id: 结果记录ID
         """
+        logger.info(f"[Partial Modification Process] Starting processing for result_id: {result_id}")
+        
         db = SessionLocal()
         try:
             # 获取结果记录
+            logger.info(f"[Partial Modification Process] Fetching result record for ID: {result_id}")
             result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
             
             if not result:
-                logger.error(f"Result record {result_id} not found")
+                logger.error(f"[Partial Modification Process] Result record {result_id} not found")
                 return
             
+            logger.info(f"[Partial Modification Process] Found result record: gen_id={result.gen_id}, uid={result.uid}, status={result.status}")
+            
             # 获取关联的任务记录
+            logger.info(f"[Partial Modification Process] Fetching task record for gen_id: {result.gen_id}")
             task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
             
             if not task:
-                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                logger.error(f"[Partial Modification Process] Task {result.gen_id} not found for result {result_id}")
                 return
+            
+            logger.info(f"[Partial Modification Process] Found task record: id={task.id}, uid={task.uid}, type={task.type}, variation_type={task.variation_type}")
+            logger.info(f"[Partial Modification Process] Task details: original_pic_url={task.original_pic_url}, refer_pic_url={task.refer_pic_url}, prompt='{task.original_prompt}'")
             
             # 更新任务和结果状态为生成中
             if task.status == 1:
+                logger.info(f"[Partial Modification Process] Updating task {task.id} status from 1 (pending) to 2 (processing)")
                 task.status = 2  # 生成中
                 task.update_time = datetime.utcnow()
             
+            logger.info(f"[Partial Modification Process] Updating result {result_id} status from {result.status} to 2 (processing)")
             result.status = 2  # 生成中
             result.update_time = datetime.utcnow()
             db.commit()
             
             try:
                 # 创建ideogram适配器
+                logger.info(f"[Partial Modification Process] Creating IdeogramAdapter for result {result_id}")
                 adapter = IdeogramAdapter()
                 
                 # 调用面料转换
+                logger.info(f"[Partial Modification Process] Calling Ideogram API for result {result_id}")
+                logger.info(f"[Partial Modification Process] API parameters: image={task.original_pic_url}, mask={task.refer_pic_url}, prompt='{task.original_prompt}'")
+                
                 result_pic = await adapter.edit(
                     image=task.original_pic_url,
                     mask=task.refer_pic_url,
@@ -2575,38 +2591,61 @@ class ImageService:
                 )
                 
                 if not result_pic:
+                    logger.error(f"[Partial Modification Process] No images generated from Ideogram for result {result_id}")
                     raise Exception("No images generated from Ideogram")
                 
+                logger.info(f"[Partial Modification Process] Ideogram API returned result for result {result_id}: {result_pic}")
+                
                 # 更新结果记录状态为成功
+                logger.info(f"[Partial Modification Process] Updating result {result_id} to success status")
                 result.status = 3  # 已生成
                 result.result_pic = result_pic
                 result.update_time = datetime.utcnow()
                 result.fail_count = 0
                 
                 # 检查该任务的所有结果记录是否都成功
+                logger.info(f"[Partial Modification Process] Checking if all results for task {task.id} are successful")
                 all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
                 all_successful = all(r.status == 3 for r in all_results)
                 
+                logger.info(f"[Partial Modification Process] Task {task.id} has {len(all_results)} results, all_successful: {all_successful}")
+                for idx, r in enumerate(all_results):
+                    logger.info(f"[Partial Modification Process] Result {idx+1}: id={r.id}, status={r.status}")
+                
                 # 只有当所有结果都成功时，才更新任务状态为成功
                 if all_successful:
+                    logger.info(f"[Partial Modification Process] Updating task {task.id} to success status")
                     task.status = 3  # 已生成
                     task.update_time = datetime.utcnow()
                     logger.info(f"All results for task {task.id} are successful, task marked as complete")
                 
                 db.commit()
                 
-                logger.info(f"Particial modification completed for result {result_id}, task {task.id}")
+                logger.info(f"[Partial Modification Process] Partial modification completed for result {result_id}, task {task.id}")
                 
+                # 处理积分
                 credit_value = settings.image_generation.particial_modification.use_credit
+                logger.info(f"[Partial Modification Process] Processing credit spend of {credit_value} for user {task.uid}")
                 await CreditService.real_spend_credit(db, task.uid, credit_value)
+                logger.info(f"[Partial Modification Process] Credit spent successfully for user {task.uid}")
 
+                # 发送消息队列通知
                 task_data = {"genImgId":result.id}
+                logger.info(f"[Partial Modification Process] Sending message queue notification: {task_data}")
                 await rabbitmq_service.send_image_generation_message(task_data)
+                logger.info(f"[Partial Modification Process] Message queue notification sent for result {result_id}")
+                
             except CreditError as e:
-                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
+                logger.error(f"[Partial Modification Process] Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
+                import traceback
+                logger.error(f"[Partial Modification Process] Credit error stack trace: {traceback.format_exc()}")
             except Exception as e:
-                logger.error(f"Error processing particial modification for result {result_id}: {str(e)}")
+                logger.error(f"[Partial Modification Process] Error processing partial modification for result {result_id}: {str(e)}")
+                import traceback
+                logger.error(f"[Partial Modification Process] Exception stack trace: {traceback.format_exc()}")
+                
                 # 更新结果记录为失败，并累加失败次数
+                logger.info(f"[Partial Modification Process] Updating result {result_id} to failed status")
                 result.status = 4  # 生成失败
                 result.update_time = datetime.utcnow()
                 
@@ -2616,20 +2655,26 @@ class ImageService:
                 else:
                     result.fail_count += 1
                 
-                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                logger.info(f"[Partial Modification Process] Result {result_id} failure count increased to {result.fail_count}")
                 
                 db.commit()
 
                 if result.fail_count >= 3:
+                    logger.info(f"[Partial Modification Process] Result {result_id} failed 3 times, unlocking credit for user {task.uid}")
                     try:
                         credit_value = settings.image_generation.particial_modification.use_credit
                         await CreditService.unlock_credit(db, task.uid, credit_value)
-                    except:
-                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+                        logger.info(f"[Partial Modification Process] Credit unlocked successfully for user {task.uid}")
+                    except Exception as unlock_error:
+                        logger.error(f"[Partial Modification Process] Failed to unlock credit for result {result_id}, task {task.id}: {str(unlock_error)}")
+                        
         except Exception as e:
-            logger.error(f"Error processing particial modification for result {result_id}: {str(e)}")
+            logger.error(f"[Partial Modification Process] Outer exception for result {result_id}: {str(e)}")
+            import traceback
+            logger.error(f"[Partial Modification Process] Outer exception stack trace: {traceback.format_exc()}")
             db.rollback()
         finally:
+            logger.info(f"[Partial Modification Process] Closing database connection for result {result_id}")
             db.close() 
        
 

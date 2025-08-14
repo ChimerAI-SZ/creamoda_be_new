@@ -39,7 +39,9 @@ algorithm:
   openrouter_api_key: "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"
   infiniai_api_key: "sk-br2so27makyp242a"
   replicate_api_key: "r8_7fkn9hNYZIEh0DXvnYhx5JayXfX8BJ72PryG7"
-  ideogram_api_key: "Dmtw8y7Z3EE9faqNmjk0gd8wAQ0W25VFSMJ-rH5_j1F3UVa1dFkv8jaj21bog_b4JnHSxo9WrKAXuOfdnvgv_w"
+  # ideogram_api_key: "Dmtw8y7Z3EE9faqNmjk0gd8wAQ0W25VFSMJ-rH5_j1F3UVa1dFkv8jaj21bog_b4JnHSxo9WrKAXuOfdnvgv_w"
+  ideogram_api_key: "Q8gitBO69TPFK4SxuyRRdf98RFiz5X0HkCj2a7xFO9uUDaYNN4PFu1Yk6fnFWASHjdhc5XQ-a96n9f946EtReg"
+
 
 scheduler:
   enabled: true
