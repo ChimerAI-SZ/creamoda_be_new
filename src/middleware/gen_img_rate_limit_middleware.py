@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timedelta
 from typing import Callable, List, Optional, Tuple
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -163,20 +164,38 @@ class GenImgRateLimitMiddleware:
         user_id: Optional[int]
     ) -> bool:
         """检查并发限制"""
-        max_concurrency = 1
+        max_concurrency = 3  # 临时提高默认并发限制
         sub = db.query(Subscribe).filter(Subscribe.uid == user_id).first()
         if not sub or sub.level == 0:
             # 未订阅用户，使用默认限流规则
             pass
         elif sub.level == 1:
-            max_concurrency = 2
+            max_concurrency = 4  # 提高订阅用户限制
         elif sub.level == 2:
-            max_concurrency = 4
+            max_concurrency = 6
         elif sub.level == 3:
-            max_concurrency = 8
+            max_concurrency = 10
+
+        # 同时检查超时任务，自动清理卡住的任务
+        timeout_threshold = datetime.utcnow() - timedelta(minutes=30)  # 30分钟超时
+        
+        # 清理超时的任务
+        timeout_tasks = db.query(GenImgResult).filter(
+            GenImgResult.uid == user_id,
+            GenImgResult.status.in_([1, 2]),
+            GenImgResult.update_time < timeout_threshold
+        ).all()
+        
+        if timeout_tasks:
+            logger.warning(f"Found {len(timeout_tasks)} timeout tasks for user {user_id}, cleaning up...")
+            for task in timeout_tasks:
+                task.status = 4  # 标记为失败
+                task.update_time = datetime.utcnow()
+            db.commit()
 
         gening_img_count = db.query(GenImgResult).filter(GenImgResult.uid == user_id, GenImgResult.status.in_([1, 2])).count()
         if gening_img_count >= max_concurrency:
+            logger.warning(f"Concurrency limit reached: user {user_id} has {gening_img_count} active tasks (limit: {max_concurrency})")
             return True
         else:
             return False

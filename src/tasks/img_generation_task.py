@@ -81,6 +81,12 @@ async def process_image_generation_compensate():
                     tasks.append(asyncio.create_task(ImageService.process_change_clothes_generation(result.id, replace=task.original_prompt, negative=None)))
                 elif task.type == GenImgType.FABRIC_TO_DESIGN.value.type and task.variation_type == GenImgType.FABRIC_TO_DESIGN.value.variationType:
                     tasks.append(asyncio.create_task(ImageService.process_fabric_to_design_generation(result.id)))
+                elif task.type == GenImgType.MIX_IMAGE.value.type and task.variation_type == GenImgType.MIX_IMAGE.value.variationType:
+                    tasks.append(asyncio.create_task(ImageService.process_mix_image_generation(result.id)))
+                elif task.type == GenImgType.SKETCH_TO_DESIGN.value.type and task.variation_type == GenImgType.SKETCH_TO_DESIGN.value.variationType:
+                    tasks.append(asyncio.create_task(ImageService.process_sketch_to_design_generation(result.id)))
+                elif task.type == GenImgType.STYLE_TRANSFER.value.type and task.variation_type == GenImgType.STYLE_TRANSFER.value.variationType:
+                    tasks.append(asyncio.create_task(ImageService.process_style_transfer(result.id)))
                 elif task.type == GenImgType.VIRTUAL_TRY_ON.value.type:
                     tasks.append(asyncio.create_task(ImageService.process_virtual_try_on_generation(result.id)))
                 elif task.type == GenImgType.CHANGE_COLOR.value.type and task.variation_type == GenImgType.CHANGE_COLOR.value.variationType:
@@ -103,12 +109,16 @@ async def process_image_generation_compensate():
                     tasks.append(asyncio.create_task(ImageService.process_change_pose(result.id)))
                 elif task.type == GenImgType.STYLE_FUSION.value.type and task.variation_type == GenImgType.STYLE_FUSION.value.variationType:
                     tasks.append(asyncio.create_task(ImageService.process_style_fusion(result.id)))
+                elif task.type == GenImgType.VARY_STYLE_IMAGE.value.type and task.variation_type == GenImgType.VARY_STYLE_IMAGE.value.variationType:
+                    tasks.append(asyncio.create_task(ImageService.process_vary_style_image_generation(result.id)))
                 elif task.type == GenImgType.EXTRACT_PATTERN.value.type and task.variation_type == GenImgType.EXTRACT_PATTERN.value.variationType:
                     tasks.append(asyncio.create_task(ImageService.process_extract_pattern(result.id)))
                 elif task.type == GenImgType.DRESS_PRINTING_TRYON.value.type and task.variation_type == GenImgType.DRESS_PRINTING_TRYON.value.variationType:
                     tasks.append(asyncio.create_task(ImageService.process_dress_printing_tryon(result.id)))
                 elif task.type == GenImgType.PRINTING_REPLACEMENT.value.type and task.variation_type == GenImgType.PRINTING_REPLACEMENT.value.variationType:
                     tasks.append(asyncio.create_task(ImageService.process_printing_replacement(result.id)))
+                elif task.type == GenImgType.EXTEND_IMAGE.value.type and task.variation_type == GenImgType.EXTEND_IMAGE.value.variationType:
+                    tasks.append(asyncio.create_task(ImageService.process_extend_image_generation(result.id)))
                 else:
                     logger.error(f"Unsupported task type: {task.type}, task variation_type: {task.variation_type} for result {result.id}")
                     continue

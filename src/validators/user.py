@@ -21,8 +21,8 @@ class UserValidator:
         
         规则:
         - 长度: 3-20个字符
-        - 允许: 字母(A-Z, a-z)、数字(0-9)、特殊字符(_, -, .)和Unicode字符(如中文、日文)
-        - 不允许: 其他特殊字符和空格
+        - 允许: 字母(A-Z, a-z)、数字(0-9)、空格、特殊字符(_, -, .)和Unicode字符(如中文、日文)
+        - 不允许: 其他特殊字符
         """
         # 检查长度
         if len(username) < 3:
@@ -30,17 +30,24 @@ class UserValidator:
         if len(username) > 20:
             raise ValidationError("Username cannot exceed 20 characters")
             
-        # 检查字符
-        # 使用更简单的方法检查无效字符
+        # 去除首尾空格后检查是否为空
+        if not username.strip():
+            raise ValidationError("Username cannot be only spaces")
+            
+        # 检查字符 - 现在允许空格和Unicode字符
+        # 使用更宽松的验证，允许大部分字符
         invalid_chars = set()
         for char in username:
-            # 允许字母、数字、下划线、连字符、点
-            if not (char.isalnum() or char == '_' or char == '-' or char == '.'):
-                invalid_chars.add(char)
+            # 允许字母、数字、空格、下划线、连字符、点
+            # 也允许Unicode字符（如中文、日文等）
+            if not (char.isalnum() or char.isspace() or char in '._-' or ord(char) > 127):
+                # 排除一些特殊的控制字符和符号
+                if char in '<>"\|/?*:;':
+                    invalid_chars.add(char)
         
         if invalid_chars:
             chars_str = ', '.join([f"'{c}'" for c in invalid_chars])
-            raise ValidationError(f"Username contains invalid characters: {chars_str}. Only letters, numbers, underscores, hyphens, and dots are allowed.")
+            raise ValidationError(f"Username contains invalid characters: {chars_str}. These special characters are not allowed: < > \" \\ | / ? * : ;")
 
     @staticmethod
     def validate_password(password: str) -> None:

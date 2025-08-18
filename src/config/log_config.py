@@ -44,7 +44,7 @@ logger.configure(patcher=add_thread_and_task_info)  # 配置拦截器
 logger.add(
     sys.stdout,
     format=log_format,
-    level="INFO",
+    level="INFO",  # 恢复INFO级别，生产环境不需要DEBUG
 )
 
 # 普通日志文件（INFO 级别及以上）

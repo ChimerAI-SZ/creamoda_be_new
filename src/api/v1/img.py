@@ -12,7 +12,7 @@ from ...exceptions.user import AuthenticationError, ValidationError
 from ...config.log_config import logger
 from ...constants.image_constants import IMAGE_FORMAT_SIZE_MAP
 from ...constants.refer_constants import REFER_LEVEL_MAP
-from ...dto.image import SketchToDesignRequest, SketchToDesignResponse, MixImageRequest, MixImageResponse
+from ...dto.image import SketchToDesignRequest, SketchToDesignResponse, MixImageRequest, MixImageResponse, VaryStyleImageRequest, VaryStyleImageResponse, VirtualTryOnManualRequest, VirtualTryOnManualResponse, ExtendImageRequest, ExtendImageResponse
 from src.services.credit_service import CreditService
 from src.config.config import settings
 router = APIRouter()
@@ -414,6 +414,44 @@ async def virtual_try_on(
         logger.error(f"Failed to process virtual try on: {str(e)}")
         raise e 
 
+@router.post("/virtual_try_on_manual", response_model=VirtualTryOnManualResponse)
+async def virtual_try_on_manual(
+    request: VirtualTryOnManualRequest,
+    db: Session = Depends(get_db)
+):
+    """虚拟试穿手动版接口 - 使用手动指定遮罩进行虚拟试穿"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    credit_value = settings.image_generation.virtual_try_on.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建虚拟试穿手动版任务
+        task_info = await ImageService.create_virtual_try_on_manual_task(
+            db=db,
+            uid=user.id,
+            model_image_url=request.modelPicUrl,
+            model_mask_url=request.modelMaskUrl,
+            garment_image_url=request.garmentPicUrl,
+            garment_mask_url=request.garmentMaskUrl,
+            model_margin=request.modelMargin,
+            garment_margin=request.garmentMargin
+        )
+        
+        # 返回任务信息
+        return VirtualTryOnManualResponse(
+            code=0,
+            msg="Virtual try on manual task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process virtual try on manual: {str(e)}")
+        raise e
+
 @router.post("/sketch_to_design", response_model=SketchToDesignResponse)
 async def sketch_to_design(
     request: SketchToDesignRequest,
@@ -493,6 +531,46 @@ async def mix_image(
     except Exception as e:
         logger.error(f"Failed to process mix image: {str(e)}")
         raise e 
+
+@router.post("/vary_style_image", response_model=VaryStyleImageResponse)
+async def vary_style_image(
+    request: VaryStyleImageRequest,
+    db: Session = Depends(get_db)
+):
+    """风格变换接口 - 将参考图片的风格应用到原始图片上"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 验证prompt长度
+    if len(request.prompt) > 10000:
+        raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    credit_value = settings.image_generation.vary_style_image.use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建风格变换任务
+        task_info = await ImageService.create_vary_style_image_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            refer_pic_url=request.referPicUrl,
+            prompt=request.prompt,
+            style_strength_level=request.styleStrengthLevel
+        )
+        
+        # 返回任务信息
+        return VaryStyleImageResponse(
+            code=0,
+            msg="vary style image task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process vary style image: {str(e)}")
+        raise e
 
 @router.post("/style_transfer", response_model=StyleTransferResponse)
 async def style_transfer(
@@ -1017,4 +1095,43 @@ async def printing_replacement(
     
     except Exception as e:
         logger.error(f"Failed to process printing replacement: {str(e)}")
+        raise e
+
+@router.post("/extend_image", response_model=ExtendImageResponse)
+async def extend_image(
+    request: ExtendImageRequest,
+    db: Session = Depends(get_db)
+):
+    """扩图接口 - 扩展图片边界"""
+    # 获取当前用户信息
+    user = get_current_user_context()
+    if not user:
+        raise AuthenticationError()
+
+    # 使用默认的magic kit积分设置
+    credit_value = getattr(settings.image_generation, 'extend_image', 
+                          getattr(settings.image_generation, 'upscale', type('obj', (object,), {'use_credit': 1}))).use_credit
+    await CreditService.lock_credit(db, user.id, credit_value)
+
+    try:
+        # 创建扩图任务
+        task_info = await ImageService.create_extend_image_task(
+            db=db,
+            uid=user.id,
+            original_pic_url=request.originalPicUrl,
+            top_padding=request.topPadding,
+            right_padding=request.rightPadding,
+            bottom_padding=request.bottomPadding,
+            left_padding=request.leftPadding
+        )
+        
+        # 返回任务信息
+        return ExtendImageResponse(
+            code=0,
+            msg="Extend image task submitted successfully",
+            data=task_info
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to process extend image: {str(e)}")
         raise e

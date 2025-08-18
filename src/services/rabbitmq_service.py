@@ -19,13 +19,31 @@ class RabbitMQService:
                                           task_data: ImageGenerationDto,
                                           priority: MessagePriority = MessagePriority.NORMAL) -> bool:
         """发送图像生成消息"""
-        return await rabbitmq_manager.send_message(
-            exchange_name=rabbitmq_manager.default_exchange,
-            routing_key="image.generation",
-            message=task_data,
-            message_type=MessageType.IMAGE_GENERATION,
-            priority=priority
-        )
+        try:
+            return await rabbitmq_manager.send_message(
+                exchange_name=rabbitmq_manager.default_exchange,
+                routing_key="image.generation",
+                message=task_data,
+                message_type=MessageType.IMAGE_GENERATION,
+                priority=priority
+            )
+        except RuntimeError as e:
+            if "different loop" in str(e) or "attached to a different loop" in str(e):
+                logger.warning(f"Skipping RabbitMQ message due to event loop issue: {e}")
+                return False
+            else:
+                raise e
+        except Exception as e:
+            logger.error(f"Failed to send image generation message: {e}")
+            return False
+    
+    async def shutdown(self):
+        """关闭RabbitMQ服务"""
+        try:
+            await rabbitmq_manager.shutdown()
+            logger.info("RabbitMQ service shutdown completed")
+        except Exception as e:
+            logger.error(f"Error during RabbitMQ service shutdown: {str(e)}")
     
 # 全局 RabbitMQ 服务实例
 rabbitmq_service = RabbitMQService() 

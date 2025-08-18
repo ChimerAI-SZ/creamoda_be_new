@@ -11,7 +11,7 @@ class TextToImageRequest(BaseModel):
     age: int = Field(..., title="年龄")
     country: str = Field(..., title="国家code")
     modelSize: int = Field(..., title="模特身材code")
-    format: str = Field(..., title="图片比例", description="1:1 2:3 3:2 3:4 4:3 9:16 16:9")
+    format: str = Field(..., title="图片比例", description="1:1 2:3 3:4 9:16")
 
     @validator("format")
     def validate_format(cls, v):
@@ -61,6 +61,16 @@ class MixImageRequest(BaseModel):
 
 class MixImageResponse(CommonResponse[ImageGenerationData]):
     pass
+
+class VaryStyleImageRequest(BaseModel):
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要变换风格的原始图片")
+    referPicUrl: str = Field(..., title="参考风格图片链接", description="提供风格参考的图片")
+    prompt: str = Field(..., title="提示词描述", description="描述风格变换的要求")
+    styleStrengthLevel: str = Field(default="middle", title="风格强度等级", description="low/middle/high，默认middle")
+
+class VaryStyleImageResponse(CommonResponse[ImageGenerationData]):
+    pass
+
 class VirtualTryOnRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
     clothingPhoto: str = Field(..., title="服装图片链接", description="服装图片链接")
@@ -73,6 +83,18 @@ class FabricToDesignResponse(CommonResponse[ImageGenerationData]):
     pass
 
 class VirtualTryOnResponse(CommonResponse[ImageGenerationData]):
+    pass
+
+class VirtualTryOnManualRequest(BaseModel):
+    modelPicUrl: str = Field(..., title="模特图片链接", description="模特图片链接")
+    modelMaskUrl: str = Field(..., title="模特遮罩链接", description="模特遮罩链接")
+    garmentPicUrl: str = Field(..., title="服装图片链接", description="服装图片链接")
+    garmentMaskUrl: str = Field(..., title="服装遮罩链接", description="服装遮罩链接")
+    modelMargin: int = Field(..., title="模特边距", description="模特边距值")
+    garmentMargin: int = Field(..., title="服装边距", description="服装边距值")
+    seed: Optional[int] = Field(None, title="随机种子", description="随机种子，可选")
+
+class VirtualTryOnManualResponse(CommonResponse[ImageGenerationData]):
     pass
 
 class GetImageHistoryRequest(BaseModel):
@@ -313,3 +335,15 @@ class PrintingReplacementResponse(BaseModel):
     """印花摆放响应DTO"""
     code: int
     msg: str
+
+class ExtendImageRequest(BaseModel):
+    """扩图请求DTO"""
+    originalPicUrl: str = Field(..., title="原始图片链接", description="需要扩展的原始图片")
+    topPadding: int = Field(..., title="上边距", description="图片上方扩展的像素数")
+    rightPadding: int = Field(..., title="右边距", description="图片右侧扩展的像素数")
+    bottomPadding: int = Field(..., title="下边距", description="图片下方扩展的像素数")
+    leftPadding: int = Field(..., title="左边距", description="图片左侧扩展的像素数")
+    seed: Optional[int] = Field(None, title="随机种子", description="随机种子，可选")
+
+class ExtendImageResponse(CommonResponse[ImageGenerationData]):
+    pass

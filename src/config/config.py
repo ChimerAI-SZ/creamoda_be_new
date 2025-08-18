@@ -83,6 +83,7 @@ class ImageGenerationSettings(BaseModel):
     sketch_to_design: ImageGenerationItem = ImageGenerationItem()
     mix_image: ImageGenerationItem = ImageGenerationItem()
     style_transfer: ImageGenerationItem = ImageGenerationItem()
+    vary_style_image: ImageGenerationItem = ImageGenerationItem()
     fabric_transfer: ImageGenerationItem = ImageGenerationItem()
     change_color: ImageGenerationItem = ImageGenerationItem()
     change_background: ImageGenerationItem = ImageGenerationItem()

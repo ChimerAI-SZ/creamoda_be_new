@@ -119,6 +119,7 @@ class TaskManager:
         try:
             # 关闭 RabbitMQ 服务
             try:
+                from src.services.rabbitmq_service import rabbitmq_service
                 await rabbitmq_service.shutdown()
                 logger.info("RabbitMQ service shutdown completed")
             except Exception as e:

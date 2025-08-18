@@ -149,10 +149,114 @@ class InfiniAIAdapter:
                 # 记录成功结果
                 logger.info(f"Successfully transfer style for task result: {oss_image_url}")
                 return oss_image_url
-                
         except Exception as e:
             logger.error(f"风格混合失败: {e}")
             raise Exception(f"风格混合失败: {str(e)}")
+
+        
+    async def comfy_request_mix_2images(self, original_image_url: str, reference_image_url: str,
+                                        mix_weight: float, seed: Optional[int] = None) -> str:
+        """
+        异步封装 Mix_2images 图像融合
+
+        Args:
+            original_image_url: 原始图片URL
+            reference_image_url: 参考图片URL
+            mix_weight: 融合权重（0-1）
+            seed: 随机种子，不传则随机
+
+        Returns:
+            生成后的阿里云OSS图片URL
+        """
+        try:
+            with ThreadPoolExecutor() as executor:
+                if seed is None:
+                    seed = random.randint(0, 2147483647)
+
+                # 将外部URL转为InfiniAI OSS可访问的URL（按既有风格）
+                future = executor.submit(self._process_images, original_image_url, reference_image_url)
+                oss_image_ids = await asyncio.wrap_future(future)
+
+                # 调用后端算法
+                future2 = executor.submit(
+                    self.infiniai.comfy_request_mix_2images,
+                    original_image_url=oss_image_ids[0],
+                    reference_image_url=oss_image_ids[1],
+                    mix_weight=mix_weight,
+                    seed=seed
+                )
+                prompt_id = await asyncio.wrap_future(future2)
+
+                # 取结果
+                future3 = executor.submit(self.infiniai.get_task_result, prompt_id)
+                result_urls = await asyncio.wrap_future(future3)
+
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer mix_2images to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully mix_2images result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"Error in comfy_request_mix_2images: {e}")
+            raise
+
+    async def comfy_request_vary_style_image(self, original_image_url: str, reference_image_url: str,
+                                           control_strength: float = 0.8, style_strength: float = 0.5, seed: Optional[int] = None) -> str:
+        """
+        异步封装风格迁移功能 - 将参考图片的风格应用到原始图片上
+        
+        Args:
+            original_image_url: 原始图片URL
+            reference_image_url: 参考图片URL
+            control_strength: 原图控制强度，默认0.8
+            style_strength: 风格强度（low:0.3, middle:0.5, high:0.9），默认0.5
+            seed: 随机种子，不传则随机
+            
+        Returns:
+            生成后的阿里云OSS图片URL
+        """
+        try:
+            with ThreadPoolExecutor() as executor:
+                if seed is None:
+                    seed = random.randint(0, 2147483647)
+
+                # 将外部URL转为InfiniAI OSS可访问的URL
+                future = executor.submit(self._process_images, original_image_url, reference_image_url)
+                oss_image_ids = await asyncio.wrap_future(future)
+
+                # 调用后端算法
+                future2 = executor.submit(
+                    self.infiniai.comfy_request_vary_style_image,
+                    original_image_url=oss_image_ids[0],
+                    reference_image_url=oss_image_ids[1],
+                    control_strength=control_strength,
+                    style_strength=style_strength,
+                    seed=seed
+                )
+                prompt_id = await asyncio.wrap_future(future2)
+
+                # 取结果
+                future3 = executor.submit(self.infiniai.get_task_result, prompt_id)
+                result_urls = await asyncio.wrap_future(future3)
+
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer vary_style_image to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully vary_style_image result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"Error in comfy_request_vary_style_image: {e}")
+            raise
     
     async def transfer_fabric(self, fabric_image_url: str, model_image_url: str, model_mask_url: str = None,
                        seed: int = None) -> Union[str, List[str]]:
@@ -271,6 +375,123 @@ class InfiniAIAdapter:
             logger.error(f"背景转换失败: {e}")
             raise Exception(f"背景转换失败: {str(e)}")
 
+    async def comfy_request_remove_background(self, original_image_url: str, background_color: str = "transparent") -> Union[str, List[str]]:
+        """
+        去背景（comfy工作流版本），保持 Replicate 方案不变，仅新增可选工作流
+        """
+        try:
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_remove_background,
+                    original_image_url=oss_image_ids[0],
+                    background_color=background_color
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"去背景任务已提交，任务ID: {prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(prompt_id)
+                logger.info(f"去背景任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to remove background to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully remove background for task result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"去背景失败: {e}")
+            raise Exception(f"去背景失败: {str(e)}")
+
+    async def comfy_request_partial_modify(self, original_image_url: str, original_mask_url: str, prompt: str, seed: Optional[int] = None) -> Union[str, List[str]]:
+        """
+        局部修改（comfy工作流版本），保留 Ideogram 方案不变，仅新增可选工作流
+        """
+        try:
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, original_mask_url)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_partial_modify,
+                    original_image_url=oss_image_ids[0],
+                    original_mask_url=oss_image_ids[1],
+                    prompt=prompt,
+                    seed=seed
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"局部修改任务已提交，任务ID: {prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(prompt_id)
+                logger.info(f"局部修改任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to partial modify to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully partial modify for task result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"局部修改失败: {e}")
+            raise Exception(f"局部修改失败: {str(e)}")
+
+    async def comfy_request_supir_fix_face(self, original_image_url: str,
+                                           strength: float,
+                                           upscale_size: int,
+                                           face_fix_denoise: float,
+                                           seed: Optional[int] = None) -> Union[str, List[str]]:
+        """
+        SUPIR Fix Face 放大工作流
+        """
+        try:
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片到 InfiniAI OSS
+            oss_image_ids = self._process_images(original_image_url)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_supir_fix_face,
+                    original_image_url=oss_image_ids[0],
+                    strength=strength,
+                    upscale_size=upscale_size,
+                    face_fix_denoise=face_fix_denoise,
+                    seed=seed
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"SUPIR Fix Face 任务已提交，任务ID: {prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(prompt_id)
+                logger.info(f"SUPIR Fix Face 任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to SUPIR Fix Face to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully SUPIR Fix Face result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"SUPIR Fix Face 失败: {e}")
+            raise Exception(f"SUPIR Fix Face 失败: {str(e)}")
+
     async def comfy_request_pattern_variation(self, original_image_url: str, seed: Optional[int] = None):
         """
         改变图片中的版型
@@ -364,6 +585,48 @@ class InfiniAIAdapter:
         except Exception as e:
             logger.error(f"面料转换失败: {e}")
             raise Exception(f"面料转换失败: {str(e)}")
+
+    async def comfy_request_fabric_replacement(self, original_image_url: str, original_mask_url: str,
+                                               fabric_image_url: str, fabric_size: int = 2048, seed: Optional[int] = None):
+        """
+        面料替换（Fabric Replacement）
+        """
+        try:
+            # 设置随机种子
+            if seed is None:
+                seed = random.randint(0, 2147483647)
+
+            # 处理图片
+            oss_image_ids = self._process_images(original_image_url, original_mask_url, fabric_image_url)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                future = executor.submit(
+                    self.infiniai.comfy_request_fabric_replacement,
+                    original_image_url=oss_image_ids[0],
+                    original_mask_url=oss_image_ids[1],
+                    fabric_image_url=oss_image_ids[2],
+                    fabric_size=fabric_size,
+                    seed=seed
+                )
+
+                prompt_id = await asyncio.wrap_future(future)
+                logger.info(f"面料替换任务已提交，任务ID: {prompt_id}")
+
+                result_urls = self.infiniai.get_task_result(prompt_id)
+                logger.info(f"面料替换任务完成，生成了 {len(result_urls)} 张图片")
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to fabric replacement to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully fabric replacement for task result: {oss_image_url}")
+                return oss_image_url
+        
+        except Exception as e:
+            logger.error(f"面料替换失败: {e}")
+            raise Exception(f"面料替换失败: {str(e)}")
 
     async def comfy_request_change_pose_redux(self, original_image_url: str, pose_reference_image_url: str, seed: Optional[int] = None):
         """
@@ -673,7 +936,121 @@ class InfiniAIAdapter:
         except Exception as e:
             logger.error(f"获取任务结果失败: {e}")
             raise Exception(f"获取任务结果失败: {str(e)}")
-    
+
+    async def comfy_request_virtual_tryon_manual(self, model_image_url: str, model_mask_url: str, 
+                                               garment_image_url: str, garment_mask_url: str,
+                                               model_margin: int, garment_margin: int, 
+                                               seed: Optional[int] = None) -> str:
+        """
+        异步封装虚拟试穿手动版
+
+        Args:
+            model_image_url: 模特图片URL
+            model_mask_url: 模特遮罩URL
+            garment_image_url: 服装图片URL
+            garment_mask_url: 服装遮罩URL
+            model_margin: 模特边距
+            garment_margin: 服装边距
+            seed: 随机种子，不传则随机
+
+        Returns:
+            生成后的阿里云OSS图片URL
+        """
+        try:
+            with ThreadPoolExecutor() as executor:
+                if seed is None:
+                    seed = random.randint(0, 2147483647)
+
+                # 将外部URL转为InfiniAI OSS可访问的URL
+                future = executor.submit(self._process_images, model_image_url, model_mask_url, garment_image_url, garment_mask_url)
+                oss_image_ids = await asyncio.wrap_future(future)
+
+                # 调用后端算法
+                future2 = executor.submit(
+                    self.infiniai.comfy_request_virtual_tryon_manual,
+                    model_image_url=oss_image_ids[0],
+                    model_mask_url=oss_image_ids[1],
+                    garment_image_url=oss_image_ids[2],
+                    garment_mask_url=oss_image_ids[3],
+                    model_margin=model_margin,
+                    garment_margin=garment_margin,
+                    seed=seed
+                )
+                prompt_id = await asyncio.wrap_future(future2)
+
+                # 取结果
+                future3 = executor.submit(self.infiniai.get_task_result, prompt_id)
+                result_urls = await asyncio.wrap_future(future3)
+
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer virtual_tryon_manual to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully virtual_tryon_manual result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"Error in comfy_request_virtual_tryon_manual: {e}")
+            raise
+
+    async def comfy_request_extend_image(self, original_image_url: str, top_padding: int, 
+                                       right_padding: int, bottom_padding: int, left_padding: int,
+                                       seed: Optional[int] = None) -> str:
+        """
+        异步封装扩图功能
+
+        Args:
+            original_image_url: 原始图片URL
+            top_padding: 上边距
+            right_padding: 右边距
+            bottom_padding: 下边距
+            left_padding: 左边距
+            seed: 随机种子，不传则随机
+
+        Returns:
+            生成后的阿里云OSS图片URL
+        """
+        try:
+            with ThreadPoolExecutor() as executor:
+                if seed is None:
+                    seed = random.randint(0, 2147483647)
+
+                # 将外部URL转为InfiniAI OSS可访问的URL
+                future = executor.submit(self._process_images, original_image_url)
+                oss_image_ids = await asyncio.wrap_future(future)
+
+                # 调用后端算法
+                future2 = executor.submit(
+                    self.infiniai.comfy_request_extend_image,
+                    original_image_url=oss_image_ids[0],
+                    top_padding=top_padding,
+                    right_padding=right_padding,
+                    bottom_padding=bottom_padding,
+                    left_padding=left_padding,
+                    seed=seed
+                )
+                prompt_id = await asyncio.wrap_future(future2)
+
+                # 取结果
+                future3 = executor.submit(self.infiniai.get_task_result, prompt_id)
+                result_urls = await asyncio.wrap_future(future3)
+
+                original_url = result_urls[0]
+
+                # 上传到阿里云OSS
+                oss_image_url = await download_and_upload_image(original_url)
+                if not oss_image_url:
+                    logger.warning(f"Failed to transfer extend_image to OSS, using original URL: {original_url}")
+                    return original_url
+
+                logger.info(f"Successfully extend_image result: {oss_image_url}")
+                return oss_image_url
+        except Exception as e:
+            logger.error(f"Error in comfy_request_extend_image: {e}")
+            raise
     
 
 

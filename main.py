@@ -9,10 +9,22 @@ from src.core.router_manager import RouterManager
 
 app = FastAPI(
     title=settings.api.project_name,
-    openapi_url=None
+    # openapi_url="/api/v1/openapi.json"
+     openapi_url=None
 )
 
 logger.info("FastAPI 应用已启动")
+
+# 添加根路径路由
+# @app.get("/")
+# async def root():
+#     """根路径健康检查"""
+#     return {"message": "Creamoda Backend API is running", "status": "ok"}
+
+# @app.get("/health")
+# async def health_check():
+#     """健康检查端点"""
+#     return {"status": "healthy", "service": "creamoda-backend"}
 
 MiddlewareManager.setup_middlewares(app)
 RouterManager.register_routers(app)

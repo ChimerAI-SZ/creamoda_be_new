@@ -3,9 +3,9 @@ api:
   project_name: "Creamoda BE"
 
 google_oauth2:
-  client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
-  client_secret: "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"
-  redirect_uri: "https://test-mvp.creamoda.ai/google-callback"
+  client_id: "609293454573-bc8d9799ckn8rtkctjetc7lg7361ctjc.apps.googleusercontent.com"
+  client_secret: "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"
+  redirect_uri: "http://localhost:3000/google-callback"
 
 security:
   jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
@@ -26,12 +26,6 @@ redis:
   password: "chimer_test!@1"
   db: 1
 
-# redis:
-#   host: "localhost"
-#   port: 6379
-#   db: 4
-
-
 smtp:
   host: "smtp.feishu.cn"
   port: 465
@@ -45,8 +39,7 @@ algorithm:
   openrouter_api_key: "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"
   infiniai_api_key: "sk-br2so27makyp242a"
   replicate_api_key: "r8_7fkn9hNYZIEh0DXvnYhx5JayXfX8BJ72PryG7"
-  # ideogram_api_key: "Dmtw8y7Z3EE9faqNmjk0gd8wAQ0W25VFSMJ-rH5_j1F3UVa1dFkv8jaj21bog_b4JnHSxo9WrKAXuOfdnvgv_w"
-  ideogram_api_key: "Q8gitBO69TPFK4SxuyRRdf98RFiz5X0HkCj2a7xFO9uUDaYNN4PFu1Yk6fnFWASHjdhc5XQ-a96n9f946EtReg"
+  ideogram_api_key: "Dmtw8y7Z3EE9faqNmjk0gd8wAQ0W25VFSMJ-rH5_j1F3UVa1dFkv8jaj21bog_b4JnHSxo9WrKAXuOfdnvgv_w"
 
 scheduler:
   enabled: true

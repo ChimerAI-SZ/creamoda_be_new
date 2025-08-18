@@ -22,11 +22,11 @@ from ..db.redis import redis_client
 from ..db.session import SessionLocal, get_db
 from ..config.log_config import logger
 from ..config.config import settings
-from ..alg.thenewblack import TheNewBlack  # 导入TheNewBlack服务
+from ..alg.ideogram_adapter import IdeogramAdapter  # 导入Ideogram适配器
 from ..utils.style_prompts import get_random_style_prompt
 from ..alg.intention_detector import IntentionDetector
 from ..alg.infiniai_adapter import InfiniAIAdapter
-from ..alg.thenewblack import Gender
+from ..alg.thenewblack import Gender, TheNewBlack
 
 class ImageService:
     @staticmethod
@@ -422,6 +422,74 @@ class ImageService:
             logger.error(f"Failed to create mix image task: {str(e)}")
             raise e
 
+    @staticmethod
+    async def create_vary_style_image_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        refer_pic_url: str,
+        prompt: str,
+        style_strength_level: str = "middle"
+    ) -> Dict[str, Any]:
+        """创建风格变换任务"""
+        
+        # 创建任务记录  
+        now = datetime.utcnow()
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.VARY_STYLE_IMAGE.value.type,  # 2-图生图
+            variation_type=GenImgType.VARY_STYLE_IMAGE.value.variationType, # 11-图片风格变换
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            original_prompt=prompt,
+            refer_pic_url=refer_pic_url,
+            fidelity=50,  # 默认50作为占位符，实际使用style_strength_level
+            create_time=now,
+            update_time=now
+        )
+
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.vary_style_image.gen_count
+            
+            # 创建指定数量的结果记录
+            result_ids = []
+            for i in range(image_count):
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动并行的图像生成任务
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_vary_style_image_generation(result_id, style_strength_level)
+                )
+            
+            return {
+                "taskId": task.id,
+                "status": task.status,
+                "estimatedTime": 60
+            }
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create vary style image task: {str(e)}")
+            raise e
 
     @staticmethod
     async def create_virtual_try_on_task(
@@ -520,31 +588,94 @@ class ImageService:
         return get_random_style_prompt()
     
     @staticmethod
+    async def apply_supir_enhancement(image_url: str, strength: float = 0.5, upscale_size: int = 2048, face_fix_denoise: float = 0.3) -> str:
+        """
+        通用SUPIR图像增强后处理 - 已禁用SUPIR，直接返回原图
+        
+        Args:
+            image_url: 原始图像URL
+            strength: 增强强度 (0-1)
+            upscale_size: 放大尺寸
+            face_fix_denoise: 人脸修复去噪强度 (0-1)
+            
+        Returns:
+            增强后的图像URL
+        """
+        # ===============================================
+        # SUPIR Fix Face 功能已被注释掉 - 直接返回原图
+        # ===============================================
+        logger.info(f"SUPIR enhancement disabled, returning original image: {image_url}")
+        return image_url
+        
+        # ===============================================
+        # 以下是原SUPIR Fix Face调用代码（已注释）
+        # ===============================================
+        # try:
+        #     adapter = InfiniAIAdapter.get_adapter()
+        #     enhanced_url = await adapter.comfy_request_supir_fix_face(
+        #         original_image_url=image_url,
+        #         strength=strength,
+        #         upscale_size=upscale_size,
+        #         face_fix_denoise=face_fix_denoise,
+        #         seed=None
+        #     )
+        #     
+        #     if not enhanced_url:
+        #         logger.warning(f"SUPIR enhancement failed for {image_url}, returning original")
+        #         return image_url
+        #         
+        #     logger.info(f"Successfully applied SUPIR enhancement to image")
+        #     return enhanced_url
+        #     
+        # except Exception as e:
+        #     logger.error(f"Error applying SUPIR enhancement: {str(e)}")
+        #     # 如果SUPIR处理失败，返回原始图像而不是抛出异常
+        #     return image_url
+    
+    @staticmethod
     async def call_generation_api(task: GenImgRecord, result: GenImgResult, enhanced_prompt: str) -> str:
         """调用图像生成API"""
         try:
-            # 初始化TheNewBlack服务
-            thenewblack = TheNewBlack()
+            # 初始化Ideogram适配器
+            ideogram_adapter = IdeogramAdapter.get_adapter()
             
-            # 调用create_clothing方法生成图片
-            result_pic = await thenewblack.create_clothing(
-                prompt=enhanced_prompt,
-                with_human_model=task.with_human_model,
-                gender=task.gender,
-                age=task.age,
-                country=task.country,
-                model_size=task.model_size,
-                width=task.width,
-                height=task.height,
-                ratio=task.format,
-                result_id=result.id
+            # 构建增强的提示词，包含模特信息
+            final_prompt = enhanced_prompt
+            if task.with_human_model == 1:
+                # 添加模特相关信息到提示词
+                gender_text = "male" if task.gender == 1 else "female"
+                final_prompt = f"{enhanced_prompt}, {gender_text} model wearing the clothing"
+            
+            # 映射宽高比格式到Ideogram的aspect_ratio（注意：Ideogram使用 x 而不是 :）
+            aspect_ratio_map = {
+                "1:1": "1x1",
+                "2:3": "2x3", 
+                "3:4": "3x4",
+                "9:16": "9x16",
+            }
+            aspect_ratio = aspect_ratio_map.get(task.format, "1x1")
+            
+            # 调用Ideogram generate方法生成图片
+            result_pics = await ideogram_adapter.generate(
+                prompt=final_prompt,
+                aspect_ratio=aspect_ratio,
+                rendering_speed="DEFAULT",
+                style_type="DESIGN",  # 服装设计适合用DESIGN风格
+                num_images=1
             )
             
-            # 从结果中获取图片URL
-            if not result_pic:
-                raise Exception("Failed to generate image: invalid response")
+            # 获取第一张图片URL
+            if not result_pics or len(result_pics) == 0:
+                raise Exception("Failed to generate image: no images returned")
                 
-            return result_pic
+            # 应用SUPIR增强后处理
+            result_pic = result_pics[0]
+            try:
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
+                return enhanced_pic
+            except Exception as e:
+                logger.warning(f"SUPIR enhancement failed, using original image: {str(e)}")
+                return result_pic
             
         except Exception as e:
             logger.error(f"Failed to call generation API: {str(e)}")
@@ -837,6 +968,382 @@ class ImageService:
             db.rollback()
         finally:
             db.close()
+
+    @staticmethod
+    async def create_virtual_try_on_manual_task(
+        db: Session,
+        uid: int,
+        model_image_url: str,
+        model_mask_url: str,
+        garment_image_url: str,
+        garment_mask_url: str,
+        model_margin: int,
+        garment_margin: int
+    ) -> Dict[str, Any]:
+        """创建虚拟试穿手动版任务"""
+
+        # 创建任务记录
+        now = datetime.utcnow()
+        
+        # 将额外参数存储到JSON字段中
+        input_params = {
+            "model_margin": model_margin,
+            "garment_margin": garment_margin
+        }
+        
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.VIRTUAL_TRY_ON_MANUAL.value.type,  # 3-虚拟试穿
+            variation_type=GenImgType.VIRTUAL_TRY_ON_MANUAL.value.variationType, # 3-虚拟试穿手动版
+            status=1,  # 1-待生成
+            original_pic_url=model_image_url,
+            refer_pic_url=garment_image_url,
+            clothing_photo=garment_mask_url,
+            mask_pic_url=model_mask_url,
+            input_param_json=input_params,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量
+            image_count = settings.image_generation.virtual_try_on.gen_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                
+                # 创建结果记录
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_virtual_try_on_manual_generation(result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create virtual try on manual task: {str(e)}")
+            db.rollback()
+            raise e
+
+    @staticmethod
+    async def process_virtual_try_on_manual_generation(result_id: int):
+        """处理虚拟试穿手动版任务"""
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 从JSON字段中获取参数
+                input_params = task.input_param_json or {}
+                model_margin = input_params.get("model_margin", 10)  # 默认值
+                garment_margin = input_params.get("garment_margin", 10)  # 默认值
+                
+                # 调用InfiniAI适配器进行虚拟试穿手动版处理
+                result_pic = await InfiniAIAdapter.get_adapter().comfy_request_virtual_tryon_manual(
+                    model_image_url=task.original_pic_url,
+                    model_mask_url=task.mask_pic_url,
+                    garment_image_url=task.refer_pic_url,
+                    garment_mask_url=task.clothing_photo,
+                    model_margin=model_margin,
+                    garment_margin=garment_margin,
+                    seed=None
+                )
+                
+                # 应用SUPIR增强处理
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = enhanced_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"virtual try on manual completed for result {result_id}, task {task.id}")
+                
+                credit_value = settings.image_generation.virtual_try_on.use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
+            except Exception as e:
+                logger.error(f"Failed to generate virtual try on manual image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.virtual_try_on.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing virtual try on manual generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def create_extend_image_task(
+        db: Session,
+        uid: int,
+        original_pic_url: str,
+        top_padding: int,
+        right_padding: int,
+        bottom_padding: int,
+        left_padding: int
+    ) -> Dict[str, Any]:
+        """创建扩图任务"""
+
+        # 创建任务记录
+        now = datetime.utcnow()
+        
+        # 将扩图参数存储到JSON字段中
+        input_params = {
+            "top_padding": top_padding,
+            "right_padding": right_padding,
+            "bottom_padding": bottom_padding,
+            "left_padding": left_padding
+        }
+        
+        task = GenImgRecord(
+            uid=uid,
+            type=GenImgType.EXTEND_IMAGE.value.type,  # 4-Magic Kit
+            variation_type=GenImgType.EXTEND_IMAGE.value.variationType, # 9-扩图
+            status=1,  # 1-待生成
+            original_pic_url=original_pic_url,
+            input_param_json=input_params,
+            create_time=now,
+            update_time=now
+        )
+        
+        try:
+            # 保存到数据库
+            db.add(task)
+            db.commit()
+            db.refresh(task)
+            
+            # 从配置中获取要创建的结果记录数量 (默认1个)
+            image_count = getattr(settings.image_generation, 'extend_image', type('obj', (object,), {'gen_count': 1})).gen_count
+            
+            # 创建指定数量的结果记录并存储它们的ID
+            result_ids = []
+            for i in range(image_count):
+                
+                # 创建结果记录
+                result = GenImgResult(
+                    gen_id=task.id,
+                    uid=uid,
+                    status=1,  # 1-待生成
+                    result_pic="",
+                    create_time=now,
+                    update_time=now
+                )
+                db.add(result)
+                db.flush()  # 刷新以获取ID，但不提交事务
+                result_ids.append(result.id)
+            
+            # 提交事务
+            db.commit()
+            
+            # 启动并行的图像生成任务，每个任务处理一个特定的结果ID
+            for result_id in result_ids:
+                asyncio.create_task(
+                    ImageService.process_extend_image_generation(result_id)
+                )
+            
+            # 返回任务信息
+            return {
+                "taskId": task.id,
+                "status": 1,  # 1-待生成
+                "estimatedTime": settings.image_generation.estimated_time_seconds
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create extend image task: {str(e)}")
+            db.rollback()
+            raise e
+
+    @staticmethod
+    async def process_extend_image_generation(result_id: int):
+        """处理扩图任务"""
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 从JSON字段中获取参数
+                input_params = task.input_param_json or {}
+                top_padding = input_params.get("top_padding", 0)
+                right_padding = input_params.get("right_padding", 0)
+                bottom_padding = input_params.get("bottom_padding", 0)
+                left_padding = input_params.get("left_padding", 0)
+                
+                # 调用InfiniAI适配器进行扩图处理
+                result_pic = await InfiniAIAdapter.get_adapter().comfy_request_extend_image(
+                    original_image_url=task.original_pic_url,
+                    top_padding=top_padding,
+                    right_padding=right_padding,
+                    bottom_padding=bottom_padding,
+                    left_padding=left_padding,
+                    seed=None
+                )
+                
+                # 应用SUPIR增强处理
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = enhanced_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                    logger.info(f"All results for task {task.id} are successful, task marked as complete")
+                
+                db.commit()
+                
+                logger.info(f"extend image completed for result {result_id}, task {task.id}")
+                
+                # 使用默认的magic kit积分设置
+                credit_value = getattr(settings.image_generation, 'extend_image', 
+                                     getattr(settings.image_generation, 'upscale', type('obj', (object,), {'use_credit': 1}))).use_credit
+                await CreditService.real_spend_credit(db, task.uid, credit_value)
+
+                task_data = {"genImgId":result.id}
+                await rabbitmq_service.send_image_generation_message(task_data)
+            except CreditError as e:
+                logger.error(f"Failed to spend credit for result {result_id}, task {task.id}: {str(e)}")
+            except Exception as e:
+                logger.error(f"Failed to generate extend image for result {result_id}, task {task.id}: {str(e)}")
+                
+                # 更新结果记录为失败，并累加失败次数
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                logger.info(f"Result {result_id} failure count increased to {result.fail_count}")
+                
+                db.commit()
+
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = getattr(settings.image_generation, 'extend_image', 
+                                             getattr(settings.image_generation, 'upscale', type('obj', (object,), {'use_credit': 1}))).use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        except Exception as e:
+            logger.error(f"Error processing extend image generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
     
     @staticmethod
     async def process_sketch_to_design_generation(result_id: int):
@@ -969,17 +1476,20 @@ class ImageService:
                 # 确保保真度在有效范围内
                 fidelity = min(max(fidelity, 0.0), 1.0)
 
-                # 创建线程池执行器
-                result_pic = await InfiniAIAdapter.get_adapter().transfer_style(
-                    image_a_url=task.original_pic_url, 
-                    image_b_url=task.refer_pic_url, 
-                    prompt=task.original_prompt, 
-                    strength=fidelity
+                # 使用新的 Mix_2images 融合接口（保留兼容的强度语义：fidelity 作为 mix_weight）
+                result_pic = await InfiniAIAdapter.get_adapter().comfy_request_mix_2images(
+                    original_image_url=task.original_pic_url,
+                    reference_image_url=task.refer_pic_url,
+                    mix_weight=fidelity,
+                    seed=None
                 )
+                
+                # 应用SUPIR增强处理
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
-                result.result_pic = result_pic
+                result.result_pic = enhanced_pic
                 result.update_time = datetime.utcnow()
                 result.fail_count = 0
                 
@@ -1030,6 +1540,95 @@ class ImageService:
         
         except Exception as e:
             logger.error(f"Error processing mix image generation for result {result_id}: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    async def process_vary_style_image_generation(result_id: int, style_strength_level: str = "middle"):
+        """处理风格变换图片任务"""
+        db = SessionLocal()
+        try:
+            # 获取结果记录
+            result = db.query(GenImgResult).filter(GenImgResult.id == result_id).first()
+            if not result:
+                logger.error(f"Result record {result_id} not found")
+                return
+            
+            # 获取关联的任务记录
+            task = db.query(GenImgRecord).filter(GenImgRecord.id == result.gen_id).first()
+            if not task:
+                logger.error(f"Task {result.gen_id} not found for result {result_id}")
+                return
+            
+            # 更新任务和结果状态为生成中
+            if task.status == 1:
+                task.status = 2  # 生成中
+                task.update_time = datetime.utcnow()
+            
+            result.status = 2  # 生成中
+            result.update_time = datetime.utcnow()
+            db.commit()
+            
+            try:
+                # 映射风格强度级别到数值
+                style_strength_map = {"low": 0.3, "middle": 0.5, "high": 0.9}
+                style_strength = style_strength_map.get(style_strength_level, 0.5)
+                control_strength = 0.8  # 默认原图控制强度
+                
+                # 使用风格变换接口
+                result_pic = await InfiniAIAdapter.get_adapter().comfy_request_vary_style_image(
+                    original_image_url=task.original_pic_url,
+                    reference_image_url=task.refer_pic_url,
+                    control_strength=control_strength,
+                    style_strength=style_strength,
+                    seed=None
+                )
+                
+                # 应用SUPIR增强处理
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
+                
+                # 更新结果记录状态为成功
+                result.status = 3  # 已生成
+                result.result_pic = enhanced_pic
+                result.update_time = datetime.utcnow()
+                result.fail_count = 0
+                
+                # 检查该任务的所有结果记录是否都成功
+                all_results = db.query(GenImgResult).filter(GenImgResult.gen_id == task.id).all()
+                all_successful = all(r.status == 3 for r in all_results)
+                
+                # 只有当所有结果都成功时，才更新任务状态为成功
+                if all_successful:
+                    task.status = 3  # 已生成
+                    task.update_time = datetime.utcnow()
+                
+                logger.info(f"Style vary completed for result {result_id}, task {task.id}")
+                db.commit()
+                
+            except Exception as e:
+                logger.error(f"Error during style vary for result {result_id}: {str(e)}")
+                # 更新结果记录状态为失败
+                result.status = 4  # 生成失败
+                result.update_time = datetime.utcnow()
+                
+                # 累加失败次数
+                if result.fail_count is None:
+                    result.fail_count = 1
+                else:
+                    result.fail_count += 1
+                
+                db.commit()
+                
+                if result.fail_count >= 3:
+                    try:
+                        credit_value = settings.image_generation.vary_style_image.use_credit
+                        await CreditService.unlock_credit(db, task.uid, credit_value)
+                    except:
+                        logger.error(f"Failed to unlock credit for result {result_id}, task {task.id}")
+        
+        except Exception as e:
+            logger.error(f"Error processing vary style image generation for result {result_id}: {str(e)}")
             db.rollback()
         finally:
             db.close()
@@ -2385,20 +2984,24 @@ class ImageService:
             db.commit()
             
             try:
-                # 创建Replicate适配器
-                adapter = ReplicateAdapter()
-                
-                # 调用面料转换
-                result_pic = await adapter.remove_background(
-                    image_url=task.original_pic_url,
+                # 使用 InfiniAI comfy 去背景工作流（保留 Replicate 方案，现切换为 comfy 方案）
+                adapter = InfiniAIAdapter()
+
+                # 默认背景色使用透明，可按需扩展为请求参数或配置
+                result_pic = await adapter.comfy_request_remove_background(
+                    original_image_url=task.original_pic_url,
+                    background_color="transparent"
                 )
                 
                 if not result_pic:
-                    raise Exception("No images generated from Replicate")
+                    raise Exception("No images generated from InfiniAI")
+                
+                # 应用SUPIR增强处理
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
-                result.result_pic = result_pic
+                result.result_pic = enhanced_pic
                 result.update_time = datetime.utcnow()
                 result.fail_count = 0
                 
@@ -2577,13 +3180,9 @@ class ImageService:
             
             try:
                 # 创建ideogram适配器
-                logger.info(f"[Partial Modification Process] Creating IdeogramAdapter for result {result_id}")
                 adapter = IdeogramAdapter()
                 
                 # 调用面料转换
-                logger.info(f"[Partial Modification Process] Calling Ideogram API for result {result_id}")
-                logger.info(f"[Partial Modification Process] API parameters: image={task.original_pic_url}, mask={task.refer_pic_url}, prompt='{task.original_prompt}'")
-                
                 result_pic = await adapter.edit(
                     image=task.original_pic_url,
                     mask=task.refer_pic_url,
@@ -2591,7 +3190,6 @@ class ImageService:
                 )
                 
                 if not result_pic:
-                    logger.error(f"[Partial Modification Process] No images generated from Ideogram for result {result_id}")
                     raise Exception("No images generated from Ideogram")
                 
                 logger.info(f"[Partial Modification Process] Ideogram API returned result for result {result_id}: {result_pic}")
@@ -2599,7 +3197,7 @@ class ImageService:
                 # 更新结果记录状态为成功
                 logger.info(f"[Partial Modification Process] Updating result {result_id} to success status")
                 result.status = 3  # 已生成
-                result.result_pic = result_pic
+                result.result_pic = enhanced_pic
                 result.update_time = datetime.utcnow()
                 result.fail_count = 0
                 
@@ -2786,16 +3384,29 @@ class ImageService:
             db.commit()
             
             try:
-                # 创建Replicate适配器
-                adapter = ReplicateAdapter()
+                # ===============================================
+                # SUPIR Fix Face 直接调用已被注释掉 - 返回原图URL
+                # ===============================================
+                # logger.info(f"SUPIR Fix Face upscale disabled, returning original image: {task.original_pic_url}")
+                # result_pic = task.original_pic_url  # 直接使用原图URL
                 
-                # 调用面料转换
-                result_pic = await adapter.upscale(
-                    image_url=task.original_pic_url,
+                # ===============================================
+                # 以下是原SUPIR Fix Face直接调用代码（已注释）
+                # ===============================================
+                # 使用 InfiniAI comfy 的 SUPIR Fix Face 放大流程（保留 Replicate，现切换为 comfy）
+                adapter = InfiniAIAdapter()
+                
+                # 采用默认参数，必要时可从配置扩展
+                result_pic = await adapter.comfy_request_supir_fix_face(
+                    original_image_url=task.original_pic_url,
+                    strength=0.7,
+                    upscale_size=2048,
+                    face_fix_denoise=0.5,
+                    seed=None
                 )
                 
                 if not result_pic:
-                    raise Exception("No images generated from Replicate")
+                    raise Exception("No images generated from InfiniAI")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -3138,19 +3749,23 @@ class ImageService:
                 adapter = InfiniAIAdapter()
                 
                 
-                # 调用改变面料
-                result_pic = await adapter.comfy_request_change_fabric(
-                    model_image_url=task.original_pic_url,
-                    model_mask_url=task.mask_pic_url,
+                # 调用面料替换工作流（保留原接口不删，这里切换为 fabric_replacement）
+                result_pic = await adapter.comfy_request_fabric_replacement(
+                    original_image_url=task.original_pic_url,
+                    original_mask_url=task.mask_pic_url,
                     fabric_image_url=task.fabric_pic_url
+                    # fabric_size 使用默认值 2048，必要时可从配置中扩展
                 )
                 
                 if not result_pic:
                     raise Exception("No images generated from InfiniAI")
                 
+                # 应用SUPIR增强处理
+                enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
+                
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
-                result.result_pic = result_pic
+                result.result_pic = enhanced_pic
                 result.update_time = datetime.utcnow()
                 result.fail_count = 0
                 

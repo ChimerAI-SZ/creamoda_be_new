@@ -72,4 +72,81 @@ class IdeogramAdapter:
             # 记录成功结果
             logger.info(f"Successfully edit cloth for task result: {oss_image_url}")
             return oss_image_url
+
+    async def generate(
+            self,
+            prompt: str,
+            seed: Optional[int] = None,
+            resolution: Optional[str] = None,
+            aspect_ratio: Optional[str] = None,
+            rendering_speed: Optional[str] = "DEFAULT",
+            magic_prompt: Optional[str] = "AUTO",
+            negative_prompt: Optional[str] = None,
+            num_images: Optional[int] = 1,
+            color_palette: Optional[dict] = None,
+            style_codes: Optional[List[str]] = None,
+            style_type: Optional[str] = "GENERAL",
+            style_reference_images: Optional[List[Union[str, IO]]] = None,
+            character_reference_images: Optional[List[Union[str, IO]]] = None,
+            character_reference_images_mask: Optional[List[Union[str, IO]]] = None
+    ) -> List[str]:
+        """
+        异步生成图像
+        
+        Args:
+            prompt: 生成图像的提示词
+            seed: 随机种子
+            resolution: 图像分辨率
+            aspect_ratio: 图像宽高比
+            rendering_speed: 渲染速度
+            magic_prompt: 是否使用MagicPrompt
+            negative_prompt: 负面提示词
+            num_images: 生成图像数量
+            color_palette: 颜色调色板
+            style_codes: 风格代码列表
+            style_type: 风格类型
+            style_reference_images: 风格参考图像
+            character_reference_images: 角色参考图像
+            character_reference_images_mask: 角色参考图像遮罩
+        
+        Returns:
+            生成的图像URL列表
+        """
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            future = executor.submit(
+                self.ideogram.generate,
+                prompt=prompt,
+                seed=seed,
+                resolution=resolution,
+                aspect_ratio=aspect_ratio,
+                rendering_speed=rendering_speed,
+                magic_prompt=magic_prompt,
+                negative_prompt=negative_prompt,
+                num_images=num_images,
+                color_palette=color_palette,
+                style_codes=style_codes,
+                style_type=style_type,
+                style_reference_images=style_reference_images,
+                character_reference_images=character_reference_images,
+                character_reference_images_mask=character_reference_images_mask
+            )
+            
+            res_dict = await asyncio.wrap_future(future)
+            
+            # 提取图像URL列表并上传到阿里云OSS
+            oss_image_urls = []
+            if res_dict and "data" in res_dict:
+                for item in res_dict["data"]:
+                    if "url" in item:
+                        original_url = item["url"]
+                        # 上传到阿里云OSS
+                        oss_image_url = await download_and_upload_image(original_url)
+                        if oss_image_url:
+                            oss_image_urls.append(oss_image_url)
+                        else:
+                            logger.warning(f"Failed to transfer image to OSS, using original URL: {original_url}")
+                            oss_image_urls.append(original_url)
+            
+            logger.info(f"Successfully generated {len(oss_image_urls)} images")
+            return oss_image_urls
             

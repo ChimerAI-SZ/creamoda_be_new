@@ -717,6 +717,33 @@ class InfiniAI:
             logger.error(f"Request error during change background request: {e}")
             return None
 
+    def comfy_request_remove_background(self, original_image_url: str, background_color: str) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 12="Load Original Image"
+        payload = {
+            "workflow_id": "wf-dblj2am6cy2h7pvq",
+            "prompt":  {
+                "12": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Remove background request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during remove background request: {e}")
+            return None
+
     def comfy_request_change_fabric(self, original_image_url: str, original_mask_url: str, fabric_image_url: str,
                                     seed: int,
                                     fabric_size: int = 2048) -> str:
@@ -768,6 +795,58 @@ class InfiniAI:
             return response.json()["data"]["prompt_id"]
         except requests.exceptions.RequestException as e:
             logger.error(f"Request error during change fabric request: {e}")
+            return None
+
+    def comfy_request_fabric_replacement(self, original_image_url: str, original_mask_url: str,
+                                         fabric_image_url: str, fabric_size: int, seed: int) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        # input node ID
+        # 13="Load Original Image"
+        # 73="Load Original Mask"
+        # 35="Load Fabric Image"
+        # 70="Fabric Size"
+        # 71="Seed"
+        payload = {
+            "workflow_id": "wf-dblkexetteqnbchb",
+            "prompt": {
+                "13": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "35": {
+                    "inputs": {
+                        "image": fabric_image_url
+                    }
+                },
+                "70": {
+                    "inputs": {
+                        "int_value": fabric_size
+                    }
+                },
+                "71": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "73": {
+                    "inputs": {
+                        "image": original_mask_url
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Fabric replacement request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during fabric replacement request: {e}")
             return None
 
     def comfy_request_change_pose_redux(self, original_image_url: str, pose_reference_image_url: str, seed: int) -> str:
@@ -846,6 +925,122 @@ class InfiniAI:
             return response.json()["data"]["prompt_id"]
         except requests.exceptions.RequestException as e:
             logger.error(f"Request error during change pose XL: {e}")
+            return None
+
+    def comfy_request_partial_modify(self, original_image_url: str, original_mask_url: str, prompt: str, seed: int) -> str:
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+
+        # input node ID
+        # 17="Load Original Image"
+        # 26="Load Original Mask"
+        # 21="Positive Prompt"
+        # 25="Seed"
+        payload = {
+            "workflow_id": "wf-dblj3i52xtostpto",
+            "prompt":  {
+                "17": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "21": {
+                    "inputs": {
+                        "text": prompt
+                    }
+                },
+                "25": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "26": {
+                    "inputs": {
+                        "image": original_mask_url
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()  # 检查请求是否成功
+            logger.info(f"Partial modify request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during partial modify request: {e}")
+            return None
+
+    def comfy_request_supir_fix_face(self, original_image_url: str,
+                                     strength: float,
+                                     upscale_size: int,
+                                     face_fix_denoise: float,
+                                     seed: int) -> str:
+        """
+        发送 SUPIR Fix Face 放大工作流请求
+
+        Args:
+            original_image_url: 原图URL
+            strength: 放大强度（0-1）
+            upscale_size: 放大尺寸（整型）
+            face_fix_denoise: 人脸修复去噪强度（0-1）
+            seed: 随机种子
+
+        Returns:
+            prompt_id 或 None
+        """
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+
+        # input node IDs
+        # 2="Load Original Image"
+        # 42="Strength"
+        # 43="Upscale Size"
+        # 54="Seed"
+        # 77="Face Fix Denoise"
+        payload = {
+            "workflow_id": "wf-dbmokw3a7mtdjpcd",
+            "prompt": {
+                "2": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "42": {
+                    "inputs": {
+                        "float_value": strength
+                    }
+                },
+                "43": {
+                    "inputs": {
+                        "int_value": upscale_size
+                    }
+                },
+                "54": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "77": {
+                    "inputs": {
+                        "float_value": face_fix_denoise
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"SUPIR Fix Face request sent with prompt ID: {result['data']['prompt_id']}")
+            return result["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during SUPIR Fix Face request: {e}")
             return None
 
     def comfy_request_pattern_variation(self, original_image_url: str, seed: int, batch_size: int = 1) -> str:
@@ -1203,6 +1398,299 @@ class InfiniAI:
             logger.error(f"Request error during printing replacement: {e}")
             return None
 
+    def comfy_request_mix_2images(self, original_image_url: str, reference_image_url: str, mix_weight: float, seed: int) -> str:
+        """
+        发送 Mix_2images 图像融合请求
+
+        Args:
+            original_image_url: 原始图片URL
+            reference_image_url: 参考图片URL
+            mix_weight: 融合权重 (0.0-1.0)
+            seed: 随机种子
+
+        Returns:
+            提交任务后的 prompt_id
+        """
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+
+        # input node ID
+        # 260="Load Original Image" 
+        # 39="Load Reference Image"
+        # 330="Mix Weight"
+        # 331="Seed"
+        payload = {
+            "workflow_id": "wf-dblj6jgbdttni53a",
+            "prompt": {
+                "260": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "39": {
+                    "inputs": {
+                        "image": reference_image_url  
+                    }
+                },
+                "330": {
+                    "inputs": {
+                        "float_value": mix_weight
+                    }
+                },
+                "331": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"Send request (mix_2images) response: {result}")
+            
+            # 检查API响应是否成功
+            if result.get("code") != 0:
+                error_msg = result.get("msg", "Unknown error")
+                logger.error(f"API error (mix_2images): {error_msg}")
+                raise Exception(f"API error: {error_msg}")
+            
+            # 检查data字段是否存在
+            if not result.get("data") or not result["data"].get("prompt_id"):
+                logger.error(f"Invalid response data (mix_2images): {result}")
+                raise Exception("Invalid response: missing prompt_id")
+                
+            return result["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error (mix_2images): {e}")
+            return None
+
+    def comfy_request_vary_style_image(self, original_image_url: str, reference_image_url: str,
+                                     control_strength: float, style_strength: float, seed: int) -> str:
+        """
+        发送风格迁移请求 - 将参考图片的风格应用到原始图片上
+        
+        Args:
+            original_image_url: 原始图片URL
+            reference_image_url: 参考图片URL  
+            control_strength: 原图控制强度（通常默认0.8）
+            style_strength: 风格强度（low:0.3, middle:0.5, high:0.9）
+            seed: 随机种子
+            
+        Returns:
+            提交任务后的 prompt_id
+        """
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # input node ID
+        # 13="Load Original Image"
+        # 74="Load Reference Image"  
+        # 79="ControlNet Strength"
+        # 80="IPA Strength"
+        # 77="Seed"
+        payload = {
+            "workflow_id": "wf-dbmrkcfru36zmt3r",
+            "prompt": {
+                "13": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "74": {
+                    "inputs": {
+                        "image": reference_image_url
+                    }
+                },
+                "77": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "79": {
+                    "inputs": {
+                        "float_value": control_strength
+                    }
+                },
+                "80": {
+                    "inputs": {
+                        "float_value": style_strength
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"Send request (vary_style_image) response: {result}")
+            return result["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error (vary_style_image): {e}")
+            return None
+
+    def comfy_request_virtual_tryon_manual(self, model_image_url: str, model_mask_url: str, garment_image_url: str, 
+                                         garment_mask_url: str, model_margin: int, garment_margin: int, seed: int) -> str:
+        """
+        发送虚拟试穿手动版请求
+
+        Args:
+            model_image_url: 模特图片URL
+            model_mask_url: 模特遮罩URL
+            garment_image_url: 服装图片URL
+            garment_mask_url: 服装遮罩URL
+            model_margin: 模特边距
+            garment_margin: 服装边距
+            seed: 随机种子
+
+        Returns:
+            提交任务后的 prompt_id
+        """
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+
+        # input node ID
+        # 588="Load Model Image"
+        # 590="Load Model Mask"
+        # 593="Load Garment Image"
+        # 594="Load Garment Mask"
+        # 602="Model Margin"
+        # 600="Garment Margin"
+        # 598="Seed"
+        payload = {
+            "workflow_id": "wf-dbmr5uabx3q3gtar",
+            "prompt": {
+                "588": {
+                    "inputs": {
+                        "image": model_image_url
+                    }
+                },
+                "590": {
+                    "inputs": {
+                        "image": model_mask_url
+                    }
+                },
+                "593": {
+                    "inputs": {
+                        "image": garment_image_url
+                    }
+                },
+                "594": {
+                    "inputs": {
+                        "image": garment_mask_url
+                    }
+                },
+                "598": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                },
+                "600": {
+                    "inputs": {
+                        "int_value": garment_margin
+                    }
+                },
+                "602": {
+                    "inputs": {
+                        "int_value": model_margin
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"Send request (virtual_tryon_manual) response: {result}")
+            return result["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error (virtual_tryon_manual): {e}")
+            return None
+
+    def comfy_request_extend_image(self, original_image_url: str, top_padding: int, right_padding: int, 
+                                 bottom_padding: int, left_padding: int, seed: int) -> str:
+        """
+        发送扩图请求
+
+        Args:
+            original_image_url: 原始图片URL
+            top_padding: 上边距
+            right_padding: 右边距
+            bottom_padding: 下边距
+            left_padding: 左边距
+            seed: 随机种子
+
+        Returns:
+            提交任务后的 prompt_id
+        """
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+
+        # input node ID
+        # 14="Load Original Image"
+        # 31="Top Padding"
+        # 32="Bottom Padding"
+        # 33="Left Padding"
+        # 34="Right Padding"
+        # 36="Seed"
+        payload = {
+            "workflow_id": "wf-dblkgwcxf355sbsx",
+            "prompt": {
+                "14": {
+                    "inputs": {
+                        "image": original_image_url
+                    }
+                },
+                "31": {
+                    "inputs": {
+                        "int_value": top_padding
+                    }
+                },
+                "32": {
+                    "inputs": {
+                        "int_value": bottom_padding
+                    }
+                },
+                "33": {
+                    "inputs": {
+                        "int_value": left_padding
+                    }
+                },
+                "34": {
+                    "inputs": {
+                        "int_value": right_padding
+                    }
+                },
+                "36": {
+                    "inputs": {
+                        "seed": seed
+                    }
+                }
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"Send request (extend_image) response: {result}")
+            return result["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error (extend_image): {e}")
+            return None
+
 # Example usage
 if __name__ == "__main__":
     import requests
@@ -1210,312 +1698,4 @@ if __name__ == "__main__":
 
     infini_ai = InfiniAI()
 
-
-    def test_mixing_style():
-        # Example of Mixing Styles
-        image_a_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=384,h=,f=auto,dpr=2,fit=contain/f1744616433323x773760165443033100/upscale"
-        image_b_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=384,h=,f=auto,dpr=2,fit=contain/f1744612696516x389731609267175230/gGaWt1YY3fgb6aUQrHybE_output.png"
-
-        image_a = Image.open(io.BytesIO(requests.get(image_a_url).content))
-        image_b = Image.open(io.BytesIO(requests.get(image_b_url).content))
-
-        # 必须要先把图片上传到InfiniAI自己的OSS才能用于后续处理，否则会报错
-        image_a_url = infini_ai.upload_image_to_infiniai_oss(image_a)
-        image_b_url = infini_ai.upload_image_to_infiniai_oss(image_b)
-
-        transfer_ab_prompt_id = infini_ai.comfy_request_transfer_ab("simple background", image_a_url, image_b_url, 0.9,
-                                                                    seed=random.randint(0, 2147483647))
-        result_urls = infini_ai.get_task_result(transfer_ab_prompt_id)
-        return result_urls[0]
-
-
-    def test_transfer_fabric():
-        # Example of Changing Fabric
-        fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
-        model_image_url = "https://replicate.delivery/pbxt/JF3LddQgRiMM9Q4Smyfw7q7BR9Gn0PwkSWvJjKDPxyvr8Ru0/cool-dog.png"
-        model_mask_url = "https://replicate.delivery/pbxt/JF3Ld3yPLVA3JIELHx1uaAV5CQOyr4AoiOfo6mJZn2fofGaT/dog-mask.png"
-
-        fabric_image = Image.open(io.BytesIO(requests.get(fabric_image_url).content))
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        model_mask = Image.open(io.BytesIO(requests.get(model_mask_url).content))
-
-        # Upload images to InfiniAI's OSS
-        fabric_image_url = infini_ai.upload_image_to_infiniai_oss(fabric_image)
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        model_mask_url = infini_ai.upload_image_to_infiniai_oss(model_mask)
-
-        seed = random.randint(0, 2147483647)
-        transfer_fabric_prompt_id = infini_ai.comfy_request_transfer_fabric_to_clothes(
-            fabric_image_url, model_image_url, model_mask_url, seed
-        )
-        result_urls = infini_ai.get_task_result(transfer_fabric_prompt_id)
-        return result_urls[0]
-
-
-    def test_upscale():
-        image_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=384,h=,f=auto,dpr=2,fit=contain/f1744616433323x773760165443033100/upscale"
-        image = Image.open(io.BytesIO(requests.get(image_url).content))
-        mask_image = infini_ai.create_full_mask(image_url)
-
-        # Upload images to InfiniAI's OSS
-        image_url = infini_ai.upload_image_to_infiniai_oss(image)
-        mask_url = infini_ai.upload_image_to_infiniai_oss(mask_image)
-
-        seed = random.randint(0, 2147483647)
-        upscale_prompt_id = infini_ai.comfy_request_upscale(
-            image_url, mask_url, seed
-        )
-        result_urls = infini_ai.get_task_result(upscale_prompt_id)
-        return result_urls[0]
-
-
-    def test_change_background():
-        image_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=384,h=,f=auto,dpr=2,fit=contain/f1744616433323x773760165443033100/upscale"
-        background_image_url = "https://tjzk.replicate.delivery/models_models_featured_image/a79cc4a8-318c-4316-a800-097ef0bdce7a/https___replicate.del_25H5GQ7.webp"
-
-        image = Image.open(io.BytesIO(requests.get(image_url).content))
-        background_image = Image.open(io.BytesIO(requests.get(background_image_url).content))
-
-        image_url = infini_ai.upload_image_to_infiniai_oss(image)
-        background_image_url = infini_ai.upload_image_to_infiniai_oss(background_image)
-
-        prompt = "forest"
-        seed = random.randint(0, 2147483647)
-        change_background_prompt_id = infini_ai.comfy_request_change_background(image_url, background_image_url, prompt,
-                  
-                  
-                                                                                seed)
-        result_urls = infini_ai.get_task_result(change_background_prompt_id)
-        return result_urls[0]
-
-
-    def test_change_fabric():
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        model_mask_url = "https://replicate.delivery/pbxt/fFn9jPcxgNwyPSh3UX2QxuzU9ZNjhLYogUf1Ygvkj3U7f7slA/out.png"
-        fabric_image_url = "https://cdn.pixabay.com/photo/2016/10/17/13/53/velvet-1747666_640.jpg"
-
-        fabric_image = Image.open(io.BytesIO(requests.get(fabric_image_url).content))
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        model_mask = Image.open(io.BytesIO(requests.get(model_mask_url).content))
-
-        # Upload images to InfiniAI's OSS
-        fabric_image_url = infini_ai.upload_image_to_infiniai_oss(fabric_image)
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        model_mask_url = infini_ai.upload_image_to_infiniai_oss(model_mask)
-
-        seed = random.randint(0, 2147483647)
-
-        change_fabric_prompt_id = infini_ai.comfy_request_change_fabric(
-            model_image_url, model_mask_url, fabric_image_url, seed
-        )
-        result_urls = infini_ai.get_task_result(change_fabric_prompt_id)
-        return result_urls[0]
-
-
-    def test_change_pose_xl():
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        reference_pose_image_url = "https://replicate.delivery/pbxt/IuOHxg1Wx6ALYqC9ywUc2ReYolQXlNRfHPM4LTTnID2ULHuR/kanye-west-hollywood-bowl%20%281%29.webp"
-
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        reference_pose_image = Image.open(io.BytesIO(requests.get(reference_pose_image_url).content))
-        # Upload images to InfiniAI's OSS
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        reference_pose_image_url = infini_ai.upload_image_to_infiniai_oss(reference_pose_image)
-        seed = random.randint(0, 2147483647)
-        change_pose_prompt_id = infini_ai.comfy_request_change_pose_xl(
-            model_image_url, reference_pose_image_url, seed
-        )
-        result_urls = infini_ai.get_task_result(change_pose_prompt_id)
-        return result_urls[0]
-
-
-    def test_change_pose_redux():
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        reference_pose_image_url = "https://40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io/cdn-cgi/image/w=512,h=,f=auto,dpr=2,fit=contain/f1744341457951x225874588551556060/upscale"
-
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        reference_pose_image = Image.open(io.BytesIO(requests.get(reference_pose_image_url).content))
-        # Upload images to InfiniAI's OSS
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        reference_pose_image_url = infini_ai.upload_image_to_infiniai_oss(reference_pose_image)
-        seed = random.randint(0, 2147483647)
-        change_pose_prompt_id = infini_ai.comfy_request_change_pose_redux(
-            model_image_url, reference_pose_image_url, seed
-        )
-        result_urls = infini_ai.get_task_result(change_pose_prompt_id)
-        return result_urls[0]
-
-
-    def test_pattern_variation():
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        # Upload images to InfiniAI's OSS
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        seed = random.randint(0, 2147483647)
-        pattern_variation_prompt_id = infini_ai.comfy_request_pattern_variation(
-            model_image_url, seed
-        )
-        result_urls = infini_ai.get_task_result(pattern_variation_prompt_id)
-        return result_urls[0]
-
-
-    def test_printing_variation():
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        # Upload images to InfiniAI's OSS
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        seed = random.randint(0, 2147483647)
-        printing_variation_prompt_id = infini_ai.comfy_request_printing_variation(
-            model_image_url, seed
-        )
-        result_urls = infini_ai.get_task_result(printing_variation_prompt_id)
-        return result_urls[0]
-
-
-    def test_style_fusion():
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        reference_image_url = "https://replicate.delivery/pbxt/IuOHxg1Wx6ALYqC9ywUc2ReYolQXlNRfHPM4LTTnID2ULHuR/kanye-west-hollywood-bowl%20%281%29.webp"
-
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        reference_image = Image.open(io.BytesIO(requests.get(reference_image_url).content))
-        # Upload images to InfiniAI's OSS
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        reference_image_url = infini_ai.upload_image_to_infiniai_oss(reference_image)
-        seed = random.randint(0, 2147483647)
-        style_fusion_prompt_id = infini_ai.comfy_request_style_fusion(
-            model_image_url, reference_image_url, seed
-        )
-        result_urls = infini_ai.get_task_result(style_fusion_prompt_id)
-        return result_urls[0]
-
-
-    def test_dress_printing_tryon():
-        """Test trying on a dress with custom printing and fabric"""
-        # Example image URLs
-        model_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        printing_image_url = "https://shoplineimg.com/634e78ab81b55a0045499eb5/64058fa144430a00239eed3f/750x.jpg"
-        fabric_image_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0kE7ngGSSljQ4TSh2UnAF4d1ahWICPthqOg&s"
-
-        # Load images
-        model_image = Image.open(io.BytesIO(requests.get(model_image_url).content))
-        printing_image = Image.open(io.BytesIO(requests.get(printing_image_url).content))
-        fabric_image = Image.open(io.BytesIO(requests.get(fabric_image_url).content))
-
-        # Upload images to InfiniAI's OSS
-        model_image_url = infini_ai.upload_image_to_infiniai_oss(model_image)
-        printing_image_url = infini_ai.upload_image_to_infiniai_oss(printing_image)
-        fabric_image_url = infini_ai.upload_image_to_infiniai_oss(fabric_image)
-
-        # Random seed for generation
-        seed = random.randint(0, 2147483647)
-
-        # Make the request
-        prompt_id = infini_ai.comfy_request_dress_printing_tryon(
-            model_image_url,
-            printing_image_url,
-            fabric_image_url,
-            seed
-        )
-
-        # Get the results
-        result_urls = infini_ai.get_task_result(prompt_id)
-        return result_urls[0]  # Return the first result URL
-
-
-    def test_extract_pattern():
-        """Test extracting a pattern from an image using a mask"""
-        # Example image URLs
-        original_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        original_mask_url = "https://replicate.delivery/pbxt/fFn9jPcxgNwyPSh3UX2QxuzU9ZNjhLYogUf1Ygvkj3U7f7slA/out.png"
-
-        # Load images
-        original_image = Image.open(io.BytesIO(requests.get(original_image_url).content))
-        original_mask = Image.open(io.BytesIO(requests.get(original_mask_url).content))
-
-        # Upload images to InfiniAI's OSS
-        original_image_url = infini_ai.upload_image_to_infiniai_oss(original_image)
-        original_mask_url = infini_ai.upload_image_to_infiniai_oss(original_mask)
-
-        # Random seed for generation
-        seed = random.randint(0, 2147483647)
-
-        # Make the request
-        prompt_id = infini_ai.comfy_request_extract_pattern(
-            original_image_url,
-            original_mask_url,
-            seed
-        )
-
-        # Get the results
-        result_urls = infini_ai.get_task_result(prompt_id)
-        return result_urls[0]  # Return the first result URL
-
-
-    def test_gen_printing_prompt():
-        """Test generating printing based on a prompt and an original image"""
-        # Example image URL
-        original_image_url = "https://shoplineimg.com/634e78ab81b55a0045499eb5/64058fa144430a00239eed3f/750x.jpg"
-        positive_prompt = "vibrant floral pattern with tropical leaves, bright colors"
-
-        # 这里注意要手动扩充一下prompt
-        positive_prompt = extend_prompt(original_image_url, positive_prompt)
-
-        # Load image
-        original_image = Image.open(io.BytesIO(requests.get(original_image_url).content))
-
-        # Upload image to InfiniAI's OSS
-        original_image_url = infini_ai.upload_image_to_infiniai_oss(original_image)
-
-        # Parameters
-
-        scale = 25
-        seed = random.randint(0, 2147483647)
-
-        # Make the request
-        prompt_id = infini_ai.comfy_request_gen_printing_prompt(
-            original_image_url,
-            positive_prompt,
-            scale,
-            seed
-        )
-
-        # Get the results
-        result_urls = infini_ai.get_task_result(prompt_id)
-        return result_urls[0]  # Return the first result URL
-
-
-    def test_printing_replacement():
-        """Test replacing or adding printing to an image with position and rotation controls"""
-        # Example image URLs
-        original_image_url = "https://replicate.delivery/pbxt/KxK0uEJXomVTQxBx37Q758ubj5l98vymeKWBOKnTvjUOGITF/olga-zhuravleva-A3MleA0jtoE-unsplash.jpg"
-        printing_image_url = "https://shoplineimg.com/634e78ab81b55a0045499eb5/64058fa144430a00239eed3f/750x.jpg"
-
-        # Load images
-        original_image = Image.open(io.BytesIO(requests.get(original_image_url).content))
-        printing_image = Image.open(io.BytesIO(requests.get(printing_image_url).content))
-
-        # Upload images to InfiniAI's OSS
-        original_image_url = infini_ai.upload_image_to_infiniai_oss(original_image)
-        printing_image_url = infini_ai.upload_image_to_infiniai_oss(printing_image)
-
-        # Parameters
-        x = 1389  # X coordinate for placement
-        y = 1300  # Y coordinate for placement
-        scale = 0.553  # Scale of the printing
-        rotate = -14.5  # Rotation in degrees
-        remove_printing_background = False  # Remove background from printing
-
-        # Make the request
-        prompt_id = infini_ai.comfy_request_printing_replacement(
-            original_image_url,
-            printing_image_url,
-            x,
-            y,
-            scale,
-            rotate,
-            remove_printing_background
-        )
-
-        # Get the results
-        result_urls = infini_ai.get_task_result(prompt_id)
-        return result_urls[0]  # Return the first result URL
+    # Example usage and test methods would go here
