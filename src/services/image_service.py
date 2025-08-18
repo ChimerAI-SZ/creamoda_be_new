@@ -2072,7 +2072,7 @@ class ImageService:
             "variationType": record.variation_type,
             "originalPrompt": record.original_prompt,
             "originalPicUrl": record.original_pic_url,
-            "resultPic": result.result_pic,
+            "resultPic": result.result_pic or "",  # 处理None值，返回空字符串
             "status": result.status,
             "createTime": create_time,
             "withHumanModel": record.with_human_model,
@@ -3197,7 +3197,9 @@ class ImageService:
                 # 更新结果记录状态为成功
                 logger.info(f"[Partial Modification Process] Updating result {result_id} to success status")
                 result.status = 3  # 已生成
-                result.result_pic = enhanced_pic
+
+                result.result_pic = result_pic  # 修复变量名错误
+
                 result.update_time = datetime.utcnow()
                 result.fail_count = 0
                 

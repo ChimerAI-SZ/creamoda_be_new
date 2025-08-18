@@ -129,7 +129,7 @@ class ImageDetailData(BaseModel):
     variationType: Optional[int] = Field(None, description="变化类型：1-洗图 2-更换服装")
     prompt: Optional[str] = Field(None, description="原始提示词")
     originalPicUrl: Optional[str] = Field(None, description="原始图片URL")
-    resultPic: str = Field(..., description="生成结果图片")
+    resultPic: Optional[str] = Field(None, description="生成结果图片")  # 改为可选字段
     status: int = Field(..., description="状态：1-待生成 2-生成中 3-已生成 4-生成失败")
     createTime: str = Field(..., description="创建时间")
     withHumanModel: Optional[int] = Field(None, description="是否使用人物模特")

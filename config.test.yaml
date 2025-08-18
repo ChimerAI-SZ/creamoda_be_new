@@ -19,12 +19,18 @@ database:
   password: "new_creamoda_test2024"
   name: "chimer_test"
 
+# redis:
+#   host: "r-bp1ml0wy14mbtvzpkfpd.redis.rds.aliyuncs.com"
+#   port: 6379
+#   username: "local_test"
+#   password: "chimer_test!@1"
+#   db: 1
+
 redis:
-  host: "r-bp1ml0wy14mbtvzpkfpd.redis.rds.aliyuncs.com"
+  host: "localhost"
   port: 6379
-  username: "local_test"
-  password: "chimer_test!@1"
-  db: 1
+  db: 4
+
 
 # redis:
 #   host: "localhost"
