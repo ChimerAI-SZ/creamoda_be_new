@@ -370,7 +370,7 @@ class ImageService:
             original_pic_url=original_pic_url,
             original_prompt=prompt,
             refer_pic_url=refer_pic_url,
-            fidelity=fidelity,
+            fidelity=int(fidelity * 100),  # 将0-1保真度按百分比入库
             create_time=now,
             update_time=now
         )
