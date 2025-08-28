@@ -3,9 +3,9 @@ api:
   project_name: "Creamoda BE"
 
 google_oauth2:
-  client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
-  client_secret: "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"
-  redirect_uri: "https://create.creamoda.ai/google-callback"
+  client_id: "494292609257-bpkdqdn2f817mno2vnb1pks845pdq41c.apps.googleusercontent.com"
+  client_secret: "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"
+  redirect_uri: "https://creamoda.ai/google-callback"
 
 security:
   jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"

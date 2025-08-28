@@ -3179,20 +3179,21 @@ class ImageService:
             db.commit()
             
             try:
-                # 创建ideogram适配器
-                adapter = IdeogramAdapter()
-                
-                # 调用面料转换
-                result_pic = await adapter.edit(
-                    image=task.original_pic_url,
-                    mask=task.refer_pic_url,
-                    prompt=task.original_prompt
+                # 使用 InfiniAI（Comfy 工作流）适配器
+                adapter = InfiniAIAdapter()
+
+                # 调用 Comfy 局部修改工作流
+                result_pic = await adapter.comfy_request_partial_modify(
+                    original_image_url=task.original_pic_url,
+                    original_mask_url=task.refer_pic_url,
+                    prompt=task.original_prompt,
+                    seed=None
                 )
-                
+
                 if not result_pic:
-                    raise Exception("No images generated from Ideogram")
-                
-                logger.info(f"[Partial Modification Process] Ideogram API returned result for result {result_id}: {result_pic}")
+                    raise Exception("No images generated from InfiniAI")
+
+                logger.info(f"[Partial Modification Process] InfiniAI Comfy workflow returned result for result {result_id}: {result_pic}")
                 
                 # 更新结果记录状态为成功
                 logger.info(f"[Partial Modification Process] Updating result {result_id} to success status")
