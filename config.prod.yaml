@@ -130,13 +130,21 @@ image_generation:
     use_credit: 1
   estimated_time_seconds: 20  # 预计完成时间(秒)
 
+# paypal:
+#   paypal_client_id: "AelM9EeKLpOske6b4n6WhVpZCl--iGAoRAPOtvCnir3v-gFuw85vsQskUYfbsvyPmX1OdW2DJpE4vc9R"
+#   paypal_secret: "EOsgJT8hDRh36GdyA1iZvxMefHGTNi0HjhlJgYTgGB54k-8ddLIVfR_9T69Gb1KxVRRX0a_YapCD4VtI"
+#   paypal_base_url: "https://api-m.paypal.com"
+#   webhook_id: "5PD429285Y100231E"
+#   return_url: "https://create.creamoda.ai//paypal/return"
+#   cancel_url: "https://create.creamoda.ai/paypal/cancel"
+
 paypal:
-  paypal_client_id: "AelM9EeKLpOske6b4n6WhVpZCl--iGAoRAPOtvCnir3v-gFuw85vsQskUYfbsvyPmX1OdW2DJpE4vc9R"
-  paypal_secret: "EOsgJT8hDRh36GdyA1iZvxMefHGTNi0HjhlJgYTgGB54k-8ddLIVfR_9T69Gb1KxVRRX0a_YapCD4VtI"
+  paypal_client_id: "AXyTuYMQ5ik0NXCaMaKLc7F_gkFNt2Mhtu7ziveP2JplN-gLKJb4mFh44lp_Y2qKaroEvK6vezSBTF8x"
+  paypal_secret: "EMHM9uZcrnR9qJ4wHWTzF1MdBvC-f3ktyyUMr-Qo12Hf5H1kS99pmHNrSPAy4WvsT-fjIGRMCLrMmCQT"
   paypal_base_url: "https://api-m.paypal.com"
-  webhook_id: "5PD429285Y100231E"
-  return_url: "https://create.creamoda.ai//paypal/return"
-  cancel_url: "https://create.creamoda.ai/paypal/cancel"
+  webhook_id: "3HB816062J911283T"
+  return_url: "https://creamoda.ai/paypal/return"
+  cancel_url: "https://creamoda.ai/paypal/cancel"
 
 # RabbitMQ 配置
 rabbitmq:
