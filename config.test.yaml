@@ -12,6 +12,7 @@ google_oauth2:
   client_secret: "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"
   redirect_uri: "https://test-mvp.creamoda.ai/create/google-callback"
 
+
 security:
   jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
   jwt_algorithm: "HS256"
