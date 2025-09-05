@@ -271,6 +271,28 @@ class UploadRecord(Base):
     create_time = mapped_column(TIMESTAMP)
 
 
+class FashionData(Base):
+    __tablename__ = 'fashion_data'
+    __table_args__ = (
+        Index('idx_record_id', 'record_id'),
+        Index('idx_slug', 'slug'),
+        {'comment': '时尚数据表'}
+    )
+
+    id = mapped_column(BigInteger, primary_key=True)
+    record_id = mapped_column(String(100), comment='记录ID')
+    slug = mapped_column(String(200), comment='URL友好标识')
+    gender = mapped_column(String(50), comment='性别')
+    feature = mapped_column(String(100), comment='特征')
+    clothing_description = mapped_column(Text, comment='服装描述')
+    type = mapped_column(String(100), comment='类型')
+    complete_prompt = mapped_column(Text, comment='完整prompt')
+    image_url = mapped_column(Text, comment='OSS图片地址')
+    choose_img = mapped_column(Text, comment='选中图片地址')
+    create_time = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+    update_time = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+
+
 class UserInfo(Base):
     __tablename__ = 'user_info'
     __table_args__ = (
