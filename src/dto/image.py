@@ -44,11 +44,12 @@ class ChangeClothesRequest(BaseModel):
     
 class FabricToDesignRequest(BaseModel):
     fabricPicUrl: str = Field(..., title="面料图片链接", description="面料图片链接")
-    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+    prompt: Optional[str] = Field(None, title="替换描述", description="描述要替换成的新服装，可选")
         
 class SketchToDesignRequest(BaseModel):
     originalPicUrl: str = Field(..., title="原始图片链接", description="需要更改服装的原始图片")
-    prompt: str = Field(..., title="替换描述", description="描述要替换成的新服装")
+    prompt: Optional[str] = Field(None, title="替换描述", description="描述要替换成的新服装")
+    referenceImageUrl: Optional[str] = Field(None, title="参考图片链接", description="参考图片URL，用于辅助生成")
 
 class SketchToDesignResponse(CommonResponse[ImageGenerationData]):
     pass
@@ -303,7 +304,6 @@ class StyleFusionResponse(BaseModel):
 class ExtractPatternRequest(BaseModel):
     """印花提取请求DTO"""
     originalPicUrl: str = Field(..., description="原始图片URL")
-    originalMaskUrl: str = Field(..., description="原始蒙版图片URL")
 
 class ExtractPatternResponse(BaseModel):
     """印花提取响应DTO"""
@@ -314,7 +314,6 @@ class DressPrintingTryOnRequest(BaseModel):
     """印花上身请求DTO"""
     originalPicUrl: str = Field(..., description="原始图片URL")
     printingPicUrl: str = Field(..., description="印花图片URL")
-    fabricPicUrl: str = Field(..., description="面料图片URL")
 
 class DressPrintingTryOnResponse(BaseModel):
     """印花上身响应DTO"""

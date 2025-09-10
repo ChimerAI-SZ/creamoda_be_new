@@ -154,3 +154,8 @@ rabbitmq:
       routing_key: "img.gen.finish"
       durable: true
       max_priority: 10
+
+# fal.ai API 配置
+fal_ai:
+  api_key: "643dee3b-db85-42a9-9440-c8fee49f16ee:7dfd73425acf52b34f246dabbd8e1e3e"
+  timeout: 300

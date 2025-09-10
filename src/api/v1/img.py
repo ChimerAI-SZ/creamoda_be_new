@@ -353,8 +353,8 @@ async def fabric_to_design(
     if not user:
         raise AuthenticationError()
 
-    # 验证prompt长度
-    if len(request.prompt) > 10000:
+    # 验证prompt长度（如果提供了prompt）
+    if request.prompt and len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
     
     credit_value = settings.image_generation.fabric_to_design.use_credit
@@ -463,21 +463,26 @@ async def sketch_to_design(
     if not user:
         raise AuthenticationError()
 
-    # 验证prompt长度
-    if len(request.prompt) > 10000:
+    # 验证prompt长度（如果提供了prompt）
+    if request.prompt and len(request.prompt) > 10000:
         raise ValidationError("Prompt text is too long. Maximum 10000 characters allowed.")
+    
+    # 验证是否至少提供了原始图片
+    if not request.originalPicUrl:
+        raise ValidationError("Original image URL is required.")
     
     credit_value = settings.image_generation.sketch_to_design.use_credit
     await CreditService.lock_credit(db, user.id, credit_value)
 
     try:
 
-        # 创建复制面料任务
+        # 创建草图转设计任务
         task_info = await ImageService.create_sketch_to_design_task(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            prompt=request.prompt
+            prompt=request.prompt,
+            reference_image_url=request.referenceImageUrl
         )
         
         # 返回任务信息
@@ -1008,8 +1013,7 @@ async def extract_pattern(
         task_info = await ImageService.create_extract_pattern_task(
             db=db,
             uid=user.id,
-            original_pic_url=request.originalPicUrl,
-            original_mask_url=request.originalMaskUrl
+            original_pic_url=request.originalPicUrl
             )
         
         # 返回任务信息
@@ -1043,8 +1047,7 @@ async def dress_printing_try_on(
             db=db,
             uid=user.id,
             original_pic_url=request.originalPicUrl,
-            printing_pic_url=request.printingPicUrl,
-            fabric_pic_url=request.fabricPicUrl
+            printing_pic_url=request.printingPicUrl
             )
         
         # 返回任务信息

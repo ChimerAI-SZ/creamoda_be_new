@@ -2,16 +2,10 @@ api:
   v1_str: "/api/v1"
   project_name: "Creamoda BE"
 
-# google_oauth2:
-#   client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
-#   client_secret: "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"
-#   redirect_uri: "https://test-mvp.creamoda.ai/google-callback"
-
 google_oauth2:
-  client_id: "494292609257-bpkdqdn2f817mno2vnb1pks845pdq41c.apps.googleusercontent.com"
-  client_secret: "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"
-  redirect_uri: "https://test-mvp.creamoda.ai/create/google-callback"
-
+  client_id: "752683276887-894g90indhst8745sjpeh9695uuolt9b.apps.googleusercontent.com"
+  client_secret: "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"
+  redirect_uri: "https://create.creamoda.ai/google-callback"
 
 security:
   jwt_secret_key: "45sjpeh9695uuolt9b45sjpe45sjpeh9695uuolt9bh96945sjpeh9695uuolt9b5uuolt9b"
@@ -19,37 +13,25 @@ security:
   access_token_expire_minutes: 10080
 
 database:
-  host: "rm-bp15vgy612f39t5p05o.mysql.rds.aliyuncs.com"
+  host: "rm-2ev1h3g9294sr1vjopo.mysql.rds.aliyuncs.com"
   port: 3306
   user: "new_creamoda"
-  password: "new_creamoda_test2024"
-  name: "chimer_test"
-
-# redis:
-#   host: "r-bp1ml0wy14mbtvzpkfpd.redis.rds.aliyuncs.com"
-#   port: 6379
-#   username: "local_test"
-#   password: "chimer_test!@1"
-#   db: 1
+  password: "&creamoda_2025#$"
+  name: "new_creamoda"
 
 redis:
-  host: "localhost"
+  host: "r-2evuw58o1ka6g8k5bppd.redis.rds.aliyuncs.com"
   port: 6379
-  db: 4
-
-
-# redis:
-#   host: "localhost"
-#   port: 6379
-#   db: 4
-
+  username: "creamoda"
+  password: "&creamoda_2025@%"
+  db: 1
 
 smtp:
   host: "smtp.feishu.cn"
   port: 465
   username: "no-reply@creamoda.ai"
-  password: "DWknazFVWCoHfY7l"
-  from_name: "creamoda" 
+  password: "WaEFPjn8uNOSiz7f"
+  from_name: "creamoda"
 
 algorithm:
   thenewblack_email: "no-reply@chimerai.tech"
@@ -59,6 +41,7 @@ algorithm:
   replicate_api_key: "r8_7fkn9hNYZIEh0DXvnYhx5JayXfX8BJ72PryG7"
   # ideogram_api_key: "Dmtw8y7Z3EE9faqNmjk0gd8wAQ0W25VFSMJ-rH5_j1F3UVa1dFkv8jaj21bog_b4JnHSxo9WrKAXuOfdnvgv_w"
   ideogram_api_key: "Q8gitBO69TPFK4SxuyRRdf98RFiz5X0HkCj2a7xFO9uUDaYNN4PFu1Yk6fnFWASHjdhc5XQ-a96n9f946EtReg"
+
 
 scheduler:
   enabled: true
@@ -70,11 +53,11 @@ scheduler:
     misfire_grace_time: 60  # 任务错过执行时间的容错范围(秒)
 
 oss:
-  access_key_id: "LTAI5tS9WAmWwjbVsuKv6YBf"
-  access_key_secret: "Ur2lyCA3tXHsklbI6SwVhoReAgfmYj"
-  endpoint: "https://oss-cn-beijing.aliyuncs.com"
-  bucket_name: "creamoda-test"
-  url_prefix: "https://creamoda-test.oss-cn-beijing.aliyuncs.com"
+  access_key_id: "LTAI5tFJDBnKUYZJ1sVCB1JP"
+  access_key_secret: "qzQGBjcgmnIRVg0jFKzXnOmvwLO7QK"
+  endpoint: "oss-us-west-1.aliyuncs.com"
+  bucket_name: "new-creamoda"
+  url_prefix: "https://new-creamoda.oss-us-west-1.aliyuncs.com/"
   upload_dir: "uploads/"
 
 # 添加图片生成任务配置
@@ -85,13 +68,13 @@ image_generation:
   copy_style:
     gen_count: 1         # 洗图任务生成的图片数量
     use_credit: 1
-  change_clothes: 
+  change_clothes:
     gen_count: 1         # 换装任务生成的图片数量
     use_credit: 1
-  fabric_to_design: 
+  fabric_to_design:
     gen_count: 1         # 复制面料任务生成的图片数量
     use_credit: 1
-  virtual_try_on: 
+  virtual_try_on:
     gen_count: 1         # 虚拟试穿任务生成的图片数量
     use_credit: 1
   sketch_to_design:
@@ -148,21 +131,21 @@ image_generation:
   estimated_time_seconds: 20  # 预计完成时间(秒)
 
 paypal:
-  paypal_client_id: "AZ_E6kAv80zt4_NTtcxzEUdQOG7whhjBUJVrVyWx_DtCc3osBjvpcRTKfBXV6vajFN4VvW1C-xy1Ajo-"
-  paypal_secret: "EIQkwJIaJtwsjnTeNux62MGZd_N5LJMKBoiV1QoeIllpDG-cown_jzH3BX0WsXviOLdaMJGJJiw8QkMq"
-  paypal_base_url: "https://api-m.sandbox.paypal.com"
-  webhook_id: "3MV48135CR7843824"
-  return_url: "https://test-mvp.creamoda.ai/paypal/return"
-  cancel_url: "https://test-mvp.creamoda.ai/paypal/cancel"
+  paypal_client_id: "AelM9EeKLpOske6b4n6WhVpZCl--iGAoRAPOtvCnir3v-gFuw85vsQskUYfbsvyPmX1OdW2DJpE4vc9R"
+  paypal_secret: "EOsgJT8hDRh36GdyA1iZvxMefHGTNi0HjhlJgYTgGB54k-8ddLIVfR_9T69Gb1KxVRRX0a_YapCD4VtI"
+  paypal_base_url: "https://api-m.paypal.com"
+  webhook_id: "5PD429285Y100231E"
+  return_url: "https://create.creamoda.ai//paypal/return"
+  cancel_url: "https://create.creamoda.ai/paypal/cancel"
 
 # RabbitMQ 配置
 rabbitmq:
   enabled: true
-  host: "rabbitmq-cn-kf74am6dx0b.cn-hangzhou.amqp-31.net.mq.amqp.aliyuncs.com"
+  host: "rabbitmq-sg-acm4b8b9601.us-west-1.amqp-0.net.mq.amqp.aliyuncs.com"
   port: 5672
-  username: "MjpyYWJiaXRtcS1jbi1rZjc0YW02ZHgwYjpMVEFJNXRTOVdBbVd3amJWc3VLdjZZQmY="
-  password: "OTI3Q0Q5OEZCRjkzOEY0NjFFNDlCNDQ2RjEwNDIyMjI1MzQxNTYyQToxNzQ5NDM2NzMyMjIw"
-  virtual_host: "chimer_test"
+  username: "MjpyYWJiaXRtcS1zZy1hY200YjhiOTYwMTpMVEFJNXRGSkRCbktVWVpKMXNWQ0IxSlA="
+  password: "RDNCNTA4NUJFMUU5QUZEQUQyRUJFNTQ3OUQwOENBOEI1MDc3MTg0NDoxNzUwMjM2MTQzNzU1"
+  virtual_host: "chimer_prod"
   exchange_name: "amq.topic"
   heartbeat: 600
   blocked_connection_timeout: 300
@@ -173,8 +156,3 @@ rabbitmq:
       routing_key: "img.gen.finish"
       durable: true
       max_priority: 10
-
-# fal.ai API 配置
-fal_ai:
-  api_key: "643dee3b-db85-42a9-9440-c8fee49f16ee:7dfd73425acf52b34f246dabbd8e1e3e"
-  timeout: 300

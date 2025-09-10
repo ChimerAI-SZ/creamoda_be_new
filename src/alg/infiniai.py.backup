@@ -798,7 +798,7 @@ class InfiniAI:
             return None
 
     def comfy_request_fabric_replacement(self, original_image_url: str, original_mask_url: str,
-                                         fabric_image_url: str, fabric_size: int, seed: int, max_retries: int = 3) -> str:
+                                         fabric_image_url: str, fabric_size: int, seed: int) -> str:
         headers = {
             'Authorization': f'Bearer {self.api_key}',
             'Content-Type': 'application/json'
@@ -840,50 +840,14 @@ class InfiniAI:
             }
         }
 
-        import time
-        
-        for attempt in range(max_retries):
-            try:
-                if attempt > 0:
-                    wait_time = 2 ** (attempt - 1)  # 指数退避: 1, 2, 4 秒
-                    logger.info(f"第{attempt + 1}次尝试面料替换请求，等待{wait_time}秒...")
-                    time.sleep(wait_time)
-                
-                logger.info(f"发送面料替换请求到: {self.api_url} (尝试 {attempt + 1}/{max_retries})")
-                logger.info(f"请求头: {headers}")
-                logger.info(f"请求载荷: {payload}")
-                
-                response = requests.post(self.api_url, headers=headers, json=payload, timeout=30)
-                logger.info(f"API响应状态码: {response.status_code}")
-                logger.info(f"API响应内容: {response.text[:500]}...")  # 只记录前500个字符
-                
-                # 如果是服务器错误且不是最后一次尝试，则重试
-                if response.status_code >= 500 and attempt < max_retries - 1:
-                    logger.warning(f"服务器错误 {response.status_code}，将进行重试 (尝试 {attempt + 1}/{max_retries})")
-                    continue
-                    
-                response.raise_for_status()
-                result = response.json()
-                prompt_id = result["data"]["prompt_id"]
-                logger.info(f"Fabric replacement request sent with prompt ID: {prompt_id}")
-                return prompt_id
-                
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Request error during fabric replacement request (尝试 {attempt + 1}/{max_retries}): {e}")
-                if hasattr(e, 'response') and e.response is not None:
-                    logger.error(f"响应状态码: {e.response.status_code}")
-                    logger.error(f"响应内容: {e.response.text}")
-                    
-                    # 如果是服务器错误且不是最后一次尝试，则继续重试
-                    if e.response.status_code >= 500 and attempt < max_retries - 1:
-                        continue
-                
-                # 如果是最后一次尝试或者不是服务器错误，则返回None
-                if attempt == max_retries - 1:
-                    logger.error(f"所有重试都失败了，放弃面料替换请求")
-                    return None
-                    
-        return None
+        try:
+            response = requests.post(self.api_url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Fabric replacement request sent with prompt ID: {response.json()['data']['prompt_id']}")
+            return response.json()["data"]["prompt_id"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error during fabric replacement request: {e}")
+            return None
 
     def comfy_request_change_pose_redux(self, original_image_url: str, pose_reference_image_url: str, seed: int) -> str:
         headers = {

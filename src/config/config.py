@@ -52,6 +52,10 @@ class AlgorithmSettings(BaseModel):
     replicate_api_key: str
     ideogram_api_key: str
 
+class FalAiSettings(BaseModel):
+    api_key: str = ""
+    timeout: int = 300  # 默认5分钟超时
+
 class JobDefaults(BaseModel):
     coalesce: bool = True
     max_instances: int = 1
@@ -69,6 +73,7 @@ class OSSSettings(BaseModel):
     bucket_name: str = ""
     url_prefix: str = ""  # OSS对象URL前缀
     upload_dir: str = "uploads/"  # 上传目录
+
 
 class ImageGenerationItem(BaseModel):
     gen_count: int = 1
@@ -140,6 +145,7 @@ class Settings(BaseModel):
     smtp: SMTPSettings
     algorithm: AlgorithmSettings
     scheduler: SchedulerSettings
+    fal_ai: FalAiSettings = FalAiSettings()
     oss: OSSSettings = OSSSettings()
     image_generation: ImageGenerationSettings
     paypal: PayPalSettings

@@ -2325,7 +2325,12 @@ class ImageService:
                     strength=strength or 0.5
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -2858,7 +2863,12 @@ class ImageService:
                     background_prompt=task.original_prompt
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -3031,7 +3041,12 @@ class ImageService:
                     background_color="transparent"
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 应用SUPIR增强处理
                 enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
@@ -3227,7 +3242,12 @@ class ImageService:
                     seed=None
                 )
 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
 
                 logger.info(f"[Partial Modification Process] InfiniAI Comfy workflow returned result for result {result_id}: {result_pic}")
                 
@@ -3444,7 +3464,12 @@ class ImageService:
                     seed=None
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -3615,7 +3640,12 @@ class ImageService:
                     original_image_url=task.original_pic_url,
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -3698,7 +3728,7 @@ class ImageService:
             variation_type=GenImgType.CHANGE_FABRIC.value.variationType,
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
-            fabric_pic_url=fabric_pic_url,
+            fabric_pic_url=None,
             mask_pic_url=mask_pic_url,
             create_time=now,
             update_time=now
@@ -3794,10 +3824,12 @@ class ImageService:
                     # fabric_size 使用默认值 2048，必要时可从配置中扩展
                 )
                 
-                if not result_pic:
-                    raise Exception("No images generated from InfiniAI")
-                
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 应用SUPIR增强处理
                 enhanced_pic = await ImageService.apply_supir_enhancement(result_pic)
@@ -3970,7 +4002,12 @@ class ImageService:
                     model_image_url=task.original_pic_url
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -4246,7 +4283,12 @@ class ImageService:
                     pose_reference_image_url=task.refer_pic_url
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -4421,7 +4463,12 @@ class ImageService:
                     reference_image_url=task.refer_pic_url
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
@@ -4681,7 +4728,7 @@ class ImageService:
             status=1,  # 1-待生成
             original_pic_url=original_pic_url,
             refer_pic_url=printing_pic_url,
-            fabric_pic_url=None,  # 印花上身任务不需要面料图片
+            fabric_pic_url=None,
             create_time=now,
             update_time=now
         )
@@ -4969,7 +5016,12 @@ class ImageService:
                     remove_printing_background=bool(task.input_param_json['remove_printing_background'])
                 )
                 
+                if not result_data.get("success"):
+                    raise Exception(f"Pattern application failed: {result_data.get('error', 'Unknown error')}")
 
+                result_pic = result_data.get("image_url")
+                if not result_pic:
+                    raise Exception("No image URL returned from fal.ai")
                 
                 # 更新结果记录状态为成功
                 result.status = 3  # 已生成
