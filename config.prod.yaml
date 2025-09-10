@@ -26,11 +26,12 @@ redis:
   password: "&creamoda_2025@%"
   db: 1
 
+
 smtp:
   host: "smtp.feishu.cn"
   port: 465
   username: "no-reply@creamoda.ai"
-  password: "WaEFPjn8uNOSiz7f"
+  password: "DWknazFVWCoHfY7l"
   from_name: "creamoda" 
 
 algorithm:
@@ -139,10 +140,10 @@ image_generation:
 #   cancel_url: "https://create.creamoda.ai/paypal/cancel"
 
 paypal:
-  paypal_client_id: "AXyTuYMQ5ik0NXCaMaKLc7F_gkFNt2Mhtu7ziveP2JplN-gLKJb4mFh44lp_Y2qKaroEvK6vezSBTF8x"
-  paypal_secret: "EMHM9uZcrnR9qJ4wHWTzF1MdBvC-f3ktyyUMr-Qo12Hf5H1kS99pmHNrSPAy4WvsT-fjIGRMCLrMmCQT"
+  paypal_client_id: "Ad75q4H8WZVJnbjfcyzu8Tzdci2AfkANkQFApNNjZHOVCZADRd6_PPRNJLb2j-TxtBNgi6SHokQEeAfN"
+  paypal_secret: "EDPL9AUWlEeKxA4UyGZs3VEhczyFsMeNFmEsKpsFSYHFI48nHB2HVoSmmQUUXS3BhDDlbEcDjVmvoR_E"
   paypal_base_url: "https://api-m.paypal.com"
-  webhook_id: "3HB816062J911283T"
+  webhook_id: "9WV949627R687351L"
   return_url: "https://creamoda.ai/paypal/return"
   cancel_url: "https://creamoda.ai/paypal/cancel"
 

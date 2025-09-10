@@ -48,7 +48,7 @@ smtp:
   host: "smtp.feishu.cn"
   port: 465
   username: "no-reply@creamoda.ai"
-  password: "WaEFPjn8uNOSiz7f"
+  password: "DWknazFVWCoHfY7l"
   from_name: "creamoda" 
 
 algorithm:
