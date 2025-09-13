@@ -38,8 +38,8 @@ async def text_to_image(
         raise AuthenticationError()
     
     # 验证prompt长度
-    if len(request.prompt) > 166:
-        raise ValidationError("Prompt text is too long. Maximum 166 characters allowed.")
+    if len(request.prompt) > 2048:
+        raise ValidationError("Prompt text is too long. Maximum 2048 characters allowed.")
 
     credit_value = settings.image_generation.text_to_image.use_credit
     await CreditService.lock_credit(db, user.id, credit_value)
