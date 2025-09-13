@@ -32,7 +32,7 @@ async def text_to_image(
     db: Session = Depends(get_db)
 ):
     """文生图接口"""
-    # 获取当前用户信息
+    # 获取当前用户信息。
     user = get_current_user_context()
     if not user:
         raise AuthenticationError()
