@@ -32,16 +32,11 @@ database:
 #   password: "chimer_test!@1"
 #   db: 1
 
+
 redis:
   host: "localhost"
   port: 6379
   db: 4
-
-
-# redis:
-#   host: "localhost"
-#   port: 6379
-#   db: 4
 
 
 smtp:

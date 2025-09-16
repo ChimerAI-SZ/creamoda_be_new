@@ -9,7 +9,7 @@ import asyncio
 import concurrent.futures
 import time
 from typing import Optional, List, Dict, Any
-from ..config.config import get_settings
+from ..config.config import settings
 from ..config.log_config import logger
 from ..utils.image import download_and_upload_image
 
@@ -20,7 +20,6 @@ class FalAiAPI:
     """fal.ai API 客户端"""
     
     def __init__(self):
-        settings = get_settings()
         self.api_key = settings.fal_ai.api_key
         self.base_url = "https://queue.fal.run"
         self.timeout = settings.fal_ai.timeout
@@ -249,4 +248,60 @@ class FalAiService:
             
         except Exception as e:
             logger.error(f"Error in fal.ai sketch to design for result {result_id}: {str(e)}")
+            raise
+
+    async def create_change_color(
+        self,
+        image_url: str,
+        clothing_text: str,
+        hex_color: str,
+        result_id: str = None
+    ) -> str:
+        """
+        异步改变颜色功能
+        
+        Args:
+            image_url: 原始图片URL
+            clothing_text: 要改变颜色的服装描述
+            hex_color: 十六进制颜色代码
+            result_id: 生成任务结果ID
+            
+        Returns:
+            生成的图片URL
+        """
+        logger.info(f"Starting change color with fal.ai for result {result_id}")
+        logger.info(f"Parameters: image_url='{image_url}', clothing_text='{clothing_text}', hex_color='{hex_color}'")
+        
+        try:
+            # 构建prompt，按照要求的格式：Change the color of {文本框内容} to {色值}
+            prompt = f"Change the color of {clothing_text} to {hex_color}"
+            
+            # 使用线程池执行同步请求
+            future = _global_thread_pool.submit(
+                self.api.sketch_to_design_with_reference,
+                image_url,
+                prompt,
+                None  # 颜色改变不需要参考图
+            )
+            
+            result_url = await asyncio.wait_for(
+                asyncio.wrap_future(future),
+                timeout=620
+            )
+            
+            # 将第三方图片URL转存到阿里云OSS
+            oss_image_url = await download_and_upload_image(
+                result_url,
+                f"fal_ai_color_{result_id}"
+            )
+            
+            if not oss_image_url:
+                logger.warning(f"Failed to transfer image to OSS, using original URL: {result_url}")
+                return result_url
+            
+            logger.info(f"Successfully changed color with fal.ai for result {result_id}: {oss_image_url}")
+            return oss_image_url
+            
+        except Exception as e:
+            logger.error(f"Error in fal.ai change color for result {result_id}: {str(e)}")
             raise
