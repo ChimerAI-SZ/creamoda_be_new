@@ -27,6 +27,7 @@ from ..utils.style_prompts import get_random_style_prompt
 from ..alg.intention_detector import IntentionDetector
 from ..alg.infiniai_adapter import InfiniAIAdapter
 from ..alg.thenewblack import Gender, TheNewBlack
+from ..alg.fal_ai import FalAiService
 
 class ImageService:
     @staticmethod
@@ -2669,11 +2670,11 @@ class ImageService:
             db.commit()
             
             try:
-                # 调用TheNewBlack API更换服装
-                thenewblack = TheNewBlack()
+                # 调用 fal.ai API 改变颜色
+                fal_ai = FalAiService()
                 
-                # 调用change_clothes方法
-                result_pic = await thenewblack.create_change_color(
+                # 调用 change_color 方法
+                result_pic = await fal_ai.create_change_color(
                     image_url=task.original_pic_url,
                     clothing_text=task.original_prompt,
                     hex_color=task.hex_color,

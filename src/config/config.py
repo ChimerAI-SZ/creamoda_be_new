@@ -177,6 +177,9 @@ def get_settings() -> Settings:
     if env == "prod":
         config_file = "config.prod.yaml"
         print(f"Loading production configuration from {config_file}")
+    elif env == "createprod":
+        config_file = "config.createprod.yaml"
+        print(f"Loading createprod configuration from {config_file}")
     else:
         config_file = "config.test.yaml"
         print(f"Loading test configuration from {config_file}")
