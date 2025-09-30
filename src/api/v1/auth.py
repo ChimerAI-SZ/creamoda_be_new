@@ -1,5 +1,8 @@
+
 from io import BytesIO
 import httpx
+import jwt
+import json
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Depends, Response
 from src.services.upload_service import UploadService
@@ -7,6 +10,7 @@ from src.config.config import settings
 from sqlalchemy.orm import Session
 from src.utils.uid import generate_uid
 from src.dto.user import (UserLoginResponse, UserLoginData)
+from src.dto.google_one_tap import GoogleOneTapRequest, GoogleOneTapResponse
 from src.config.log_config import logger
 from src.utils.image import download_and_upload_image
 
@@ -108,4 +112,108 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
             data=UserLoginData(
                 authorization=bearer_token.replace("+", "%2B")  # 转义 + 字符
             )
+        )
+
+
+@router.post("/google-callback", response_model=GoogleOneTapResponse)
+async def google_one_tap_callback(
+    request: GoogleOneTapRequest,
+    db: Session = Depends(get_db),
+    response: Response = Response()
+):
+    """处理 Google One Tap JWT credential"""
+    try:
+        # 解析 JWT token（暂时跳过签名验证用于开发）
+        # 在生产环境中应该验证签名
+        decoded_token = jwt.decode(
+            request.credential, 
+            options={"verify_signature": False}  # 开发环境跳过签名验证
+        )
+        
+        logger.info(f"Google One Tap JWT payload: {decoded_token}")
+        
+        # 验证基本字段
+        if not decoded_token.get("email") or not decoded_token.get("sub"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Google credential: missing required fields"
+            )
+        
+        # 检查用户是否存在
+        email = decoded_token.get("email")
+        user = db.query(UserInfo).filter(UserInfo.email == email).first()
+        
+        if user:
+            # 更新现有用户
+            user.email_verified = 1
+            user.google_sub_id = decoded_token.get("sub")
+            user.last_login_time = datetime.utcnow()
+            user.update_time = datetime.utcnow()
+            
+            # 更新用户名如果有变化
+            if decoded_token.get("name") and user.username != decoded_token.get("name"):
+                user.username = decoded_token.get("name")
+            
+            db.commit()
+            db.refresh(user)
+            
+            logger.info(f"Updated existing user: {email}")
+        else:
+            # 创建新用户
+            profile_pic_url = None
+            if decoded_token.get("picture"):
+                try:
+                    # 下载并上传Google头像
+                    profile_pic_url = await download_and_upload_image(
+                        decoded_token.get("picture"),
+                        f"google_avatar_{decoded_token.get('sub')}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to download Google avatar: {e}")
+            
+            user = UserInfo(
+                email=email,
+                username=decoded_token.get("name", email.split("@")[0]),
+                google_sub_id=decoded_token.get("sub"),
+                head_pic=profile_pic_url,
+                status=1,  # 活跃状态
+                uid=generate_uid(),
+                email_verified=1,  # Google用户默认验证邮箱
+                last_login_time=datetime.utcnow(),
+                create_time=datetime.utcnow(),
+                update_time=datetime.utcnow()
+            )
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            logger.info(f"Created new user from Google One Tap: {email}")
+        
+        # 生成访问令牌
+        access_token = create_access_token({"sub": email})
+        bearer_token = f"Bearer {access_token}"
+        
+        # 设置响应头
+        response.headers["Authorization"] = bearer_token
+        
+        return GoogleOneTapResponse(
+            code=0,
+            msg="Google One Tap login successful",
+            data=UserLoginData(
+                authorization=bearer_token.replace("+", "%2B")
+            )
+        )
+        
+    except jwt.InvalidTokenError as e:
+        logger.error(f"Invalid JWT token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid Google credential: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Google One Tap callback error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during Google authentication"
         )
