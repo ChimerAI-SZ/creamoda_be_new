@@ -101,9 +101,9 @@ async def register(
                 raise EmailVerifiedError()
             raise ValidationError("Email already registered")
         
-        # 生成盐值和密码哈希
-        salt = generate_salt()
-        hashed_password = hash_password(request.pwd, salt)
+        # 使用 bcrypt 加密密码（不需要单独的 salt）
+        hashed_password = hash_password(request.pwd)
+        salt = None  # bcrypt 自动管理 salt
         
         # 生成用户ID
         uid = generate_uid()
@@ -163,6 +163,12 @@ async def login(
         
         # 验证用户密码
         user = UserValidator.validate_login(db, request.email, request.pwd)
+        
+        # 检查并升级旧的 MD5 密码为 bcrypt（渐进式迁移）
+        from src.utils.password import should_upgrade_password, upgrade_user_password
+        if should_upgrade_password(user.pwd):
+            logger.info(f"检测到用户 {user.email} 使用旧的 MD5 密码，正在自动升级为 bcrypt")
+            upgrade_user_password(db, user, request.pwd)
         
         # 更新登录时间
         now = datetime.utcnow()

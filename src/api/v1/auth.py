@@ -18,6 +18,7 @@ from ...dto.token import Token
 from ...models.models import UserInfo
 from ...utils.security import create_access_token
 from src.db.session import get_db
+from src.db.redis import redis_client
 
 router = APIRouter()
 
@@ -103,6 +104,13 @@ async def auth_callback(code: str, db: Session = Depends(get_db), response: Resp
             db.commit()
         
         access_token = create_access_token({"sub": user_info.email})
+        
+        # 将 token 存储到 Redis 中，用于后续会话验证
+        redis_client.setex(
+            f"user_session:{user_info.email}",
+            settings.security.access_token_expire_minutes * 60,  # 转换为秒
+            access_token
+        )
 
         bearer_token = f"Bearer {access_token}"
         response.headers["Authorization"] = bearer_token
@@ -192,6 +200,14 @@ async def google_one_tap_callback(
         
         # 生成访问令牌
         access_token = create_access_token({"sub": email})
+        
+        # 将 token 存储到 Redis 中，用于后续会话验证
+        redis_client.setex(
+            f"user_session:{email}",
+            settings.security.access_token_expire_minutes * 60,  # 转换为秒
+            access_token
+        )
+        
         bearer_token = f"Bearer {access_token}"
         
         # 设置响应头
