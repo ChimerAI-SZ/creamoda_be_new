@@ -19,13 +19,18 @@ database:
   password: "&creamoda_2025#$"
   name: "new_creamoda"
 
-redis:
-  host: "r-2evuw58o1ka6g8k5bppd.redis.rds.aliyuncs.com"
-  port: 6379
-  username: "creamoda"
-  password: "&creamoda_2025@%"
-  db: 1
+# redis:
+#   host: "r-2evuw58o1ka6g8k5bppd.redis.rds.aliyuncs.com"
+#   port: 6379
+#   username: "creamoda"
+#   password: "&creamoda_2025@%"
+#   db: 1
 
+redis:
+  host: "localhost"
+  port: 6379
+  db: 4
+  
 
 smtp:
   host: "smtp.feishu.cn"
@@ -139,13 +144,22 @@ image_generation:
 #   return_url: "https://create.creamoda.ai//paypal/return"
 #   cancel_url: "https://create.creamoda.ai/paypal/cancel"
 
+# paypal:
+#   paypal_client_id: "Ad75q4H8WZVJnbjfcyzu8Tzdci2AfkANkQFApNNjZHOVCZADRd6_PPRNJLb2j-TxtBNgi6SHokQEeAfN"
+#   paypal_secret: "EDPL9AUWlEeKxA4UyGZs3VEhczyFsMeNFmEsKpsFSYHFI48nHB2HVoSmmQUUXS3BhDDlbEcDjVmvoR_E"
+#   paypal_base_url: "https://api-m.paypal.com"
+#   webhook_id: "9WV949627R687351L"
+#   return_url: "https://creamoda.ai/paypal/return"
+#   cancel_url: "https://creamoda.ai/paypal/cancel"
+
+
 paypal:
-  paypal_client_id: "Ad75q4H8WZVJnbjfcyzu8Tzdci2AfkANkQFApNNjZHOVCZADRd6_PPRNJLb2j-TxtBNgi6SHokQEeAfN"
-  paypal_secret: "EDPL9AUWlEeKxA4UyGZs3VEhczyFsMeNFmEsKpsFSYHFI48nHB2HVoSmmQUUXS3BhDDlbEcDjVmvoR_E"
-  paypal_base_url: "https://api-m.paypal.com"
-  webhook_id: "9WV949627R687351L"
-  return_url: "https://creamoda.ai/paypal/return"
-  cancel_url: "https://creamoda.ai/paypal/cancel"
+  paypal_client_id: "AZ_E6kAv80zt4_NTtcxzEUdQOG7whhjBUJVrVyWx_DtCc3osBjvpcRTKfBXV6vajFN4VvW1C-xy1Ajo-"
+  paypal_secret: "EIQkwJIaJtwsjnTeNux62MGZd_N5LJMKBoiV1QoeIllpDG-cown_jzH3BX0WsXviOLdaMJGJJiw8QkMq"
+  paypal_base_url: "https://api-m.sandbox.paypal.com"
+  webhook_id: "3MV48135CR7843824"
+  return_url: "https://test-mvp.creamoda.ai/paypal/return"
+  cancel_url: "https://test-mvp.creamoda.ai/paypal/cancel"
 
 # RabbitMQ 配置
 rabbitmq:
