@@ -166,6 +166,9 @@ def get_settings() -> Settings:
     
     环境变量 APP_ENV 可以设置为:
     - prod: 加载生产环境配置 (config.prod.yaml)
+    - preprod: 加载预生产环境配置 (config.preprod.yaml)
+    - createprod: 加载创建生产环境配置 (config.createprod.yaml)
+    - test: 加载测试环境配置 (config.test.yaml)
     - 默认或其他值: 加载测试环境配置 (config.test.yaml)
     """
     # 加载 .env 文件中的变量
@@ -177,6 +180,9 @@ def get_settings() -> Settings:
     if env == "prod":
         config_file = "config.prod.yaml"
         print(f"Loading production configuration from {config_file}")
+    elif env == "preprod":
+        config_file = "config.preprod.yaml"
+        print(f"Loading preprod configuration from {config_file}")
     elif env == "createprod":
         config_file = "config.createprod.yaml"
         print(f"Loading createprod configuration from {config_file}")
